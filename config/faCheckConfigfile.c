@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <libgen.h>
 
-#include "fadc250Config.h"
+#include "faV3Config.h"
 
 int
 main(int argc, char *argv[])
@@ -46,8 +46,8 @@ main(int argc, char *argv[])
       exit(-1);
     }
 
-  fadc250InitGlobals();
-  int err = fadc250ReadConfigFile(config_filename);
+  faV3InitGlobals();
+  int err = faV3ReadConfigFile(config_filename);
 
   printf("\n\n");
   if(err < 0)

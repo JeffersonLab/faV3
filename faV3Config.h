@@ -1,8 +1,7 @@
-#ifndef __FADC250CONFIG_H
-#define __FADC250CONFIG_H
+#pragma once
 
-#ifndef FADC250_CONFIG_GET_ENV
-#define FADC250_CONFIG_GET_ENV "FADC250_PARAMS"
+#ifndef FAV3_CONFIG_GET_ENV
+#define FAV3_CONFIG_GET_ENV "FAV3_PARAMS"
 #endif
 
 /****************************************************************************
@@ -62,7 +61,7 @@ typedef struct {
   unsigned int sparsification;
   unsigned int accumulatorMask;
 
-} FADC250_CONF;
+} FAV3_CONF;
 
 
 /* functions */
@@ -84,6 +83,3 @@ int faV3UploadAll(char *string, int length);
 #ifdef	__cplusplus
 }
 #endif
-
-
-#endif // __FAV3CONFIG_H
