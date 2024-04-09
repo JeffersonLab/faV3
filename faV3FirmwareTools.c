@@ -1,4 +1,4 @@
-/* Module: fadcFirmwareTools.c
+/* Module: faV3FirmwareTools.c
  *
  * Description: FADC250 Firmware Tools Library
  *              Firmware specific functions.
@@ -33,16 +33,16 @@ VOIDFUNCPTR faV3UpdateWatcherRoutine = NULL;
 faV3UpdateWatcherArgs_t faV3UpdateWatcherArgs;
 
 /*************************************************************
- * fadcFirmwareLoad
+ * faV3FirmwareLoad
  *   - main routine to load up firmware for FADC with specific id
  *
  *  NOTE: Make call to
- *     fadcFirmwareSetFilename(...);
+ *     faV3FirmwareSetFilename(...);
  *   if not using firmware from the default
  */
 
 int
-fadcFirmwareLoad(int id, int chip, int pFlag)
+faV3FirmwareLoad(int id, int chip, int pFlag)
 {
   faV3UpdateWatcherArgs_t updateArgs;
   if(id == 0)
@@ -72,34 +72,34 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
 
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Check if ready \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   /* Check if FADC is Ready */
-  if(fadcFirmwareTestReady(id, 60, pFlag) != OK)
+  if(faV3FirmwareTestReady(id, 60, pFlag) != OK)
     {
       printf("%s: ERROR: FADC %2d not ready after reset\n", __func__, id);
       return ERROR;
     }
 
   /* Check if FADC has write access to SRAM from U90 JTAG DIP-switches */
-  if(fadcFirmwareCheckSRAM(id) != OK)
+  if(faV3FirmwareCheckSRAM(id) != OK)
     {
       printf("%s: ERROR: FADC %2d not configured to read/write PROM.\n\tCheck U90 DIP Switches.\n",
 	     __func__, id);
       updateArgs.step = FAV3_ARGS_SHOW_STRING;
       sprintf(updateArgs.title,
 	      "ERROR: FADC %2d FAILED PROM READ/WRITE TEST\n", id);
-      fadcFirmwareUpdateWatcher(updateArgs);
+      faV3FirmwareUpdateWatcher(updateArgs);
       return ERROR;
     }
 
   /* Data to SRAM */
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading SRAM with data \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
-  fadcFirmwareDownloadConfigData(id);
-  if(fadcFirmwareVerifyDownload(id) != OK)
+  faV3FirmwareDownloadConfigData(id);
+  if(faV3FirmwareVerifyDownload(id) != OK)
     {
       printf("%s: ERROR: FADC %2d Failed data verification at SRAM\n",
 	     __func__, id);
@@ -111,7 +111,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   taskDelay(1);
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading PROM with SRAM data \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   FAV3LOCK;
   if(chip == FAV3_FIRMWARE_LX110)
@@ -121,7 +121,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   FAV3UNLOCK;
   taskDelay(1);
 
-  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
+  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
     {
       printf("%s: ERROR: FADC %2d ready timeout SRAM -> PROM\n",
 	     __func__, id);
@@ -131,9 +131,9 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   /* PROM TO SRAM (For verification) */
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading SRAM with PROM data \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
-  fadcFirmwareZeroSRAM(id);
+  faV3FirmwareZeroSRAM(id);
 
   FAV3LOCK;
   if(chip == FAV3_FIRMWARE_LX110)
@@ -143,7 +143,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   FAV3UNLOCK;
   taskDelay(1);
 
-  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
+  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
     {
       printf("%s: ERROR: FADC %2d ready timeout PROM -> SRAM\n",
 	     __func__, id);
@@ -153,9 +153,9 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   /* Compare SRAM to Data Array */
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Verifying data \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
-  if(fadcFirmwareVerifyDownload(id) != OK)
+  if(faV3FirmwareVerifyDownload(id) != OK)
     {
       printf("%s: ERROR: FADC %d PROM data not verified\n", __func__, id);
       return ERROR;
@@ -164,7 +164,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   /* PROM to FPGA (Reboot FPGA) */
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Rebooting FPGA \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   FAV3LOCK;
   if(chip == FAV3_FIRMWARE_LX110)
@@ -174,7 +174,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   FAV3UNLOCK;
   taskDelay(1);
 
-  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
+  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
     {
       printf("%s: ERROR: FADC %2d ready timeout PROM -> FPGA\n",
 	     __func__, id);
@@ -183,7 +183,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
 
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Done programming FADC %2d\n", id);
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   return OK;
 
@@ -192,7 +192,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
 static uint32_t passed[FAV3_MAX_BOARDS + 1], stepfail[FAV3_MAX_BOARDS + 1];
 
 int
-fadcFirmwarePassedMask()
+faV3FirmwarePassedMask()
 {
   uint32_t retMask = 0;
   int id, ifadc;
@@ -208,15 +208,15 @@ fadcFirmwarePassedMask()
 }
 
 /*************************************************************
- * fadcFirmwareGLoad
+ * faV3FirmwareGLoad
  *   - load up firmware for all initialized modules
  *
  *  NOTE: Make call to
- *     fadcFirmwareSetFilename(...);
+ *     faV3FirmwareSetFilename(...);
  *   if not using firmware from the default
  */
 int
-fadcFirmwareGLoad(int chip, int pFlag)
+faV3FirmwareGLoad(int chip, int pFlag)
 {
   int ifadc = 0, id = 0, step = 0;
   faV3UpdateWatcherArgs_t updateArgs;
@@ -259,12 +259,12 @@ fadcFirmwareGLoad(int chip, int pFlag)
 
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Check if ready \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faV3ID[ifadc];
-      if(fadcFirmwareTestReady(id, 60, pFlag) != OK)
+      if(faV3FirmwareTestReady(id, 60, pFlag) != OK)
 	{
 	  printf("%s: ERROR: FADC %2d not ready after reset\n", __func__, id);
 	  passed[id] = 0;
@@ -276,7 +276,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faV3ID[ifadc];
-      if(fadcFirmwareCheckSRAM(id) != OK)
+      if(faV3FirmwareCheckSRAM(id) != OK)
 	{
 	  printf("%s: ERROR: FADC %2d not configured to read/write PROM.\n\tCheck U90 DIP Switches.\n",
 		 __func__, id);
@@ -285,7 +285,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 	  updateArgs.step = FAV3_ARGS_SHOW_STRING;
 	  sprintf(updateArgs.title,
 		  "ERROR: FADC %2d FAILED PROM READ/WRITE TEST\n", id);
-	  fadcFirmwareUpdateWatcher(updateArgs);
+	  faV3FirmwareUpdateWatcher(updateArgs);
 	}
     }
 
@@ -295,7 +295,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading SRAM with data \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
@@ -303,13 +303,13 @@ fadcFirmwareGLoad(int chip, int pFlag)
 
       updateArgs.step = FAV3_ARGS_SHOW_ID;
       updateArgs.id = id;
-      fadcFirmwareUpdateWatcher(updateArgs);
+      faV3FirmwareUpdateWatcher(updateArgs);
 
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  fadcFirmwareDownloadConfigData(id);
+	  faV3FirmwareDownloadConfigData(id);
 
-	  if(fadcFirmwareVerifyDownload(id) != OK)
+	  if(faV3FirmwareVerifyDownload(id) != OK)
 	    {
 	      printf("%s: ERROR: FADC %2d Failed data verification at SRAM\n",
 		     __func__, id);
@@ -319,7 +319,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 	  else
 	    {
 	      updateArgs.step = FAV3_ARGS_SHOW_DONE;
-	      fadcFirmwareUpdateWatcher(updateArgs);
+	      faV3FirmwareUpdateWatcher(updateArgs);
 	    }
 	}
     }
@@ -330,7 +330,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading PROM with SRAM data \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   FAV3LOCK;
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
@@ -352,7 +352,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
       id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
+	  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
 	    {
 	      printf("%s: ERROR: FADC %2d ready timeout SRAM -> PROM\n",
 		     __func__, id);
@@ -366,7 +366,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
   step = 4;
 
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
   sprintf(updateArgs.title, "Loading SRAM with PROM data \n");
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
@@ -374,7 +374,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
       id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  fadcFirmwareZeroSRAM(id);
+	  faV3FirmwareZeroSRAM(id);
 	  FAV3LOCK;
 	  if(chip == FAV3_FIRMWARE_LX110)
 	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM1_TO_SRAM);
@@ -391,7 +391,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
       id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
+	  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
 	    {
 	      printf("%s: ERROR: FADC %2d ready timeout PROM -> SRAM\n",
 		     __func__, id);
@@ -406,7 +406,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Verifying data \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
@@ -414,11 +414,11 @@ fadcFirmwareGLoad(int chip, int pFlag)
 
       updateArgs.step = FAV3_ARGS_SHOW_ID;
       updateArgs.id = id;
-      fadcFirmwareUpdateWatcher(updateArgs);
+      faV3FirmwareUpdateWatcher(updateArgs);
 
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  if(fadcFirmwareVerifyDownload(id) != OK)
+	  if(faV3FirmwareVerifyDownload(id) != OK)
 	    {
 	      printf("%s: ERROR: FADC %d PROM data not verified\n",
 		     __func__, id);
@@ -428,7 +428,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 	  else
 	    {
 	      updateArgs.step = FAV3_ARGS_SHOW_DONE;
-	      fadcFirmwareUpdateWatcher(updateArgs);
+	      faV3FirmwareUpdateWatcher(updateArgs);
 	    }
 	}
     }
@@ -438,7 +438,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 
   updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Rebooting FPGA \n");
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
@@ -460,7 +460,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
       id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
+	  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
 	    {
 	      printf("%s: ERROR: FADC %2d ready timeout PROM -> FPGA\n",
 		     __func__, id);
@@ -477,7 +477,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 	{
 	  updateArgs.step = FAV3_ARGS_SHOW_STRING;
 	  sprintf(updateArgs.title, "Done programming FADC %2d\n", id);
-	  fadcFirmwareUpdateWatcher(updateArgs);
+	  faV3FirmwareUpdateWatcher(updateArgs);
 	}
       else
 	{
@@ -491,7 +491,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 }
 
 void
-fadcFirmwareDownloadConfigData(int id)
+faV3FirmwareDownloadConfigData(int id)
 {
   uint32_t ArraySize;
   uint32_t ByteCount, ByteIndex, ByteNumber;
@@ -555,7 +555,7 @@ fadcFirmwareDownloadConfigData(int id)
 
 
 int
-fadcFirmwareVerifyDownload(int id)
+faV3FirmwareVerifyDownload(int id)
 {
   uint32_t ArraySize;
   uint32_t ByteCount, ByteIndex, ByteNumber;
@@ -655,7 +655,7 @@ fadcFirmwareVerifyDownload(int id)
 }
 
 int
-fadcFirmwareTestReady(int id, int n_try, int pFlag)
+faV3FirmwareTestReady(int id, int n_try, int pFlag)
 {
   int ii;
   int result;
@@ -676,12 +676,12 @@ fadcFirmwareTestReady(int id, int n_try, int pFlag)
 
   updateArgs.step = FAV3_ARGS_SHOW_ID;
   updateArgs.id = id;
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   for(ii = 0; ii < n_try; ii++)	/* poll for ready bit */
     {
       updateArgs.step = FAV3_ARGS_SHOW_PROGRESS;
-      fadcFirmwareUpdateWatcher(updateArgs);
+      faV3FirmwareUpdateWatcher(updateArgs);
 
       taskDelay(1);		/* wait */
       FAV3LOCK;
@@ -698,7 +698,7 @@ fadcFirmwareTestReady(int id, int n_try, int pFlag)
 	}
     }
   updateArgs.step = FAV3_ARGS_SHOW_DONE;
-  fadcFirmwareUpdateWatcher(updateArgs);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   if(pFlag)
     {
@@ -714,7 +714,7 @@ fadcFirmwareTestReady(int id, int n_try, int pFlag)
 }
 
 int
-fadcFirmwareZeroSRAM(int id)
+faV3FirmwareZeroSRAM(int id)
 {
   int ii, value = 0, value_1 = 0, value_2 = 0;
   int ErrorCount = 0, stopPrint = 0;
@@ -780,7 +780,7 @@ fadcFirmwareZeroSRAM(int id)
 }
 
 int
-fadcFirmwareCheckSRAM(int id)
+faV3FirmwareCheckSRAM(int id)
 {
   int NonZeroCount = 0;
   uint32_t ByteCount;
@@ -798,14 +798,14 @@ fadcFirmwareCheckSRAM(int id)
       return ERROR;
     }
 
-  fadcFirmwareZeroSRAM(id);
+  faV3FirmwareZeroSRAM(id);
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM2_TO_SRAM);
   FAV3UNLOCK;
   taskDelay(1);
 
-  if(fadcFirmwareTestReady(id, 60000, 0) != OK)	/* Wait til it's done */
+  if(faV3FirmwareTestReady(id, 60000, 0) != OK)	/* Wait til it's done */
     {
       printf("%s: ERROR: FADC %2d ready timeout PROM -> SRAM\n",
 	     __func__, id);
@@ -846,7 +846,7 @@ fadcFirmwareCheckSRAM(int id)
 }
 
 void
-fadcFirmwareSetFilename(char *filename, int chip)
+faV3FirmwareSetFilename(char *filename, int chip)
 {
   if(chip == FAV3_FIRMWARE_LX110)
     MSC_filename_LX110 = filename;
@@ -857,7 +857,7 @@ fadcFirmwareSetFilename(char *filename, int chip)
 
 
 int
-fadcFirmwareReadFile(char *filename)
+faV3FirmwareReadFile(char *filename)
 {
   uint32_t arraySize;
 
@@ -934,7 +934,7 @@ hex2num(char c)
 }
 
 int
-fadcFirmwareGetFpgaID(int pflag)
+faV3FirmwareGetFpgaID(int pflag)
 {
   if(pflag)
     {
@@ -945,7 +945,7 @@ fadcFirmwareGetFpgaID(int pflag)
 }
 
 int
-fadcFirmwareChipFromFpgaID(int pflag)
+faV3FirmwareChipFromFpgaID(int pflag)
 {
   int rval = 0;
   uint32_t id;
@@ -983,7 +983,7 @@ fadcFirmwareChipFromFpgaID(int pflag)
 }
 
 int
-fadcFirmwareRevFromFpgaID(int pflag)
+faV3FirmwareRevFromFpgaID(int pflag)
 {
   int rval = 0;
 
@@ -997,7 +997,7 @@ fadcFirmwareRevFromFpgaID(int pflag)
 }
 
 int
-fadcFirmwareReadMcsFile(char *filename)
+faV3FirmwareReadMcsFile(char *filename)
 {
   FILE *mscFile = NULL;
   char ihexLine[200], *pData;
@@ -1102,7 +1102,7 @@ fadcFirmwareReadMcsFile(char *filename)
 }
 
 int
-fadcFirmwareAttachUpdateWatcher(VOIDFUNCPTR routine,
+faV3FirmwareAttachUpdateWatcher(VOIDFUNCPTR routine,
 				faV3UpdateWatcherArgs_t arg)
 {
 
@@ -1121,7 +1121,7 @@ fadcFirmwareAttachUpdateWatcher(VOIDFUNCPTR routine,
 }
 
 void
-fadcFirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg)
+faV3FirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg)
 {
   faV3UpdateWatcherArgs_t rArg;
   static int step1_ticks = 0;

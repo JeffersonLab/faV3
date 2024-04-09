@@ -691,138 +691,138 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_DEBUG_OUTPUT_NREGS 57
 
 /* Function Prototypes */
-int faInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag);
-int faSlot(uint32_t i);
-int faSetClockSource(int id, int clkSrc);
-void faStatus(int id, int sflag);
-void faGStatus(int sflag);
-uint32_t faGetFirmwareVersions(int id, int pflag);
-int faSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
+int faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag);
+int faV3Slot(uint32_t i);
+int faV3SetClockSource(int id, int clkSrc);
+void faV3Status(int id, int sflag);
+void faV3GStatus(int sflag);
+uint32_t faV3GetFirmwareVersions(int id, int pflag);
+int faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 		  uint32_t NSB, uint32_t NSA, uint32_t NP, int bank);
-void faGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
+void faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 		    uint32_t NSB, uint32_t NSA, uint32_t NP, int bank);
-void faSetNormalMode(int id, int opt);
-int faSetPPG(int id, int pmode, uint16_t * sdata, int nsamples);
-void faPPGEnable(int id);
-void faPPGDisable(int id);
-int faReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag);
-int faGetBlockError(int pflag);
-int faPrintBlock(int id, int rflag);
-void faClear(int id);
-void faClearError(int id);
-uint32_t faReadCSR(int id);
-void faReset(int id, int iFlag);
-void faGReset(int iFlag);
-void faSoftReset(int id, int cflag);
-void faResetToken(int id);
-int faTokenStatus(int id);
-int faGTokenStatus();
-uint32_t faGetTokenStatus(int pflag);
-void faSetCalib(int id, uint16_t sdelay, uint16_t tdelay);
-int faSetChannelDisable(int id, int channel);
-void faChanDisable(int id, uint16_t cmask);
-int faSetChannelDisableMask(int id, uint16_t cmask);
-int faSetChannelEnable(int id, int channel);
-int faSetChannelEnableMask(int id, uint16_t enMask);
-int faGetChannelMask(int id, int type);
-uint32_t faGetChanMask(int id);
-void faEnableSyncReset(int id);
-void faEnable(int id, int eflag, int bank);
-void faGEnable(int eflag, int bank);
-void faDisable(int id, int eflag);
-void faGDisable(int eflag);
-void faTrig(int id);
-void faGTrig();
-void faTrig2(int id);
-void faGTrig2();
-int faSetTrig21Delay(int id, int delay);
-int faGetTrig21Delay(int id);
-int faEnableInternalPlaybackTrigger(int id);
-void faSync(int id);
-int faDready(int id, int dflag);
-int faBready(int id);
-uint32_t faGBready();
-uint32_t faGBlockReady(uint32_t slotmask, int nloop);
-uint32_t faScanMask();
-int faBusyLevel(int id, uint32_t val, int bflag);
-int faBusy(int id);
-void faEnableSoftTrig(int id);
-void faDisableSoftTrig(int id);
-void faEnableSoftSync(int id);
-void faDisableSoftSync(int id);
-void faEnableClk(int id);
-void faDisableClk(int id);
-void faEnableTriggerOut(int id, int output);
-void faEnableBusError(int id);
-void faDisableBusError(int id);
-void faEnableMultiBlock(int tflag);
-void faDisableMultiBlock();
-int faSetBlockLevel(int id, int level);
-void faGSetBlockLevel(int level);
-int faSetClkSource(int id, int source);
-int faSetTrigSource(int id, int source);
-int faSetSyncSource(int id, int source);
-void faEnableFP(int id);
-int faSetTrigOut(int id, int trigout);
-uint32_t faGetTriggerCount(int id);
-int faResetTriggerCount(int id);
-int faSetThreshold(int id, uint16_t tvalue, uint16_t chmask);
-int faPrintThreshold(int id);
-int faSetDAC(int id, uint16_t dvalue, uint16_t chmask);
-void faPrintDAC(int id);
-uint32_t faGetChannelDAC(int id, uint32_t chan);
-int faSetChannelPedestal(int id, uint32_t chan, uint32_t ped);
-int faGetChannelPedestal(int id, uint32_t chan);
-int faLive(int id, int sflag);
-void faDataDecode(uint32_t data);
+void faV3SetNormalMode(int id, int opt);
+int faV3SetPPG(int id, int pmode, uint16_t * sdata, int nsamples);
+void faV3PPGEnable(int id);
+void faV3PPGDisable(int id);
+int faV3ReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag);
+int faV3GetBlockError(int pflag);
+int faV3PrintBlock(int id, int rflag);
+void faV3Clear(int id);
+void faV3ClearError(int id);
+uint32_t faV3ReadCSR(int id);
+void faV3Reset(int id, int iFlag);
+void faV3GReset(int iFlag);
+void faV3SoftReset(int id, int cflag);
+void faV3ResetToken(int id);
+int faV3TokenStatus(int id);
+int faV3GTokenStatus();
+uint32_t faV3GetTokenStatus(int pflag);
+void faV3SetCalib(int id, uint16_t sdelay, uint16_t tdelay);
+int faV3SetChannelDisable(int id, int channel);
+void faV3ChanDisable(int id, uint16_t cmask);
+int faV3SetChannelDisableMask(int id, uint16_t cmask);
+int faV3SetChannelEnable(int id, int channel);
+int faV3SetChannelEnableMask(int id, uint16_t enMask);
+int faV3GetChannelMask(int id, int type);
+uint32_t faV3GetChanMask(int id);
+void faV3EnableSyncReset(int id);
+void faV3Enable(int id, int eflag, int bank);
+void faV3GEnable(int eflag, int bank);
+void faV3Disable(int id, int eflag);
+void faV3GDisable(int eflag);
+void faV3Trig(int id);
+void faV3GTrig();
+void faV3Trig2(int id);
+void faV3GTrig2();
+int faV3SetTrig21Delay(int id, int delay);
+int faV3GetTrig21Delay(int id);
+int faV3EnableInternalPlaybackTrigger(int id);
+void faV3Sync(int id);
+int faV3Dready(int id, int dflag);
+int faV3Bready(int id);
+uint32_t faV3GBready();
+uint32_t faV3GBlockReady(uint32_t slotmask, int nloop);
+uint32_t faV3ScanMask();
+int faV3BusyLevel(int id, uint32_t val, int bflag);
+int faV3Busy(int id);
+void faV3EnableSoftTrig(int id);
+void faV3DisableSoftTrig(int id);
+void faV3EnableSoftSync(int id);
+void faV3DisableSoftSync(int id);
+void faV3EnableClk(int id);
+void faV3DisableClk(int id);
+void faV3EnableTriggerOut(int id, int output);
+void faV3EnableBusError(int id);
+void faV3DisableBusError(int id);
+void faV3EnableMultiBlock(int tflag);
+void faV3DisableMultiBlock();
+int faV3SetBlockLevel(int id, int level);
+void faV3GSetBlockLevel(int level);
+int faV3SetClkSource(int id, int source);
+int faV3SetTrigSource(int id, int source);
+int faV3SetSyncSource(int id, int source);
+void faV3EnableFP(int id);
+int faV3SetTrigOut(int id, int trigout);
+uint32_t faV3GetTriggerCount(int id);
+int faV3ResetTriggerCount(int id);
+int faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask);
+int faV3PrintThreshold(int id);
+int faV3SetDAC(int id, uint16_t dvalue, uint16_t chmask);
+void faV3PrintDAC(int id);
+uint32_t faV3GetChannelDAC(int id, uint32_t chan);
+int faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped);
+int faV3GetChannelPedestal(int id, uint32_t chan);
+int faV3Live(int id, int sflag);
+void faV3DataDecode(uint32_t data);
 
-int faSetMGTSettings(int id, int txpre, int txswing, int rxequ);
-int faSetMGTTestMode(int id, uint32_t mode);
-int faSyncResetMode(int id, uint32_t mode);
-/* FADC scaler routine prototypes */
-int faReadScalers(int id, volatile uint32_t * data, uint32_t chmask,
+int faV3SetMGTSettings(int id, int txpre, int txswing, int rxequ);
+int faV3SetMGTTestMode(int id, uint32_t mode);
+int faV3SyncResetMode(int id, uint32_t mode);
+/* FAV3DC scaler routine prototypes */
+int faV3ReadScalers(int id, volatile uint32_t * data, uint32_t chmask,
 		  int rflag);
-int faPrintScalers(int id, int rflag);
-int faClearScalers(int id);
-int faLatchScalers(int id);
-int faEnableScalers(int id);
-int faDisableScalers(int id);
+int faV3PrintScalers(int id, int rflag);
+int faV3ClearScalers(int id);
+int faV3LatchScalers(int id);
+int faV3EnableScalers(int id);
+int faV3DisableScalers(int id);
 
-uint32_t faGetA32(int id);
-uint32_t faGetA32M();
-uint32_t faGetMinA32MB(int id);
-uint32_t faGetMaxA32MB(int id);
+uint32_t faV3GetA32(int id);
+uint32_t faV3GetA32M();
+uint32_t faV3GetMinA32MB(int id);
+uint32_t faV3GetMaxA32MB(int id);
 
-/* FADC Internal Trigger Routine prototypes */
-int faItrigBurstConfig(int id, uint32_t ntrig,
+/* FAV3DC Internal Trigger Routine prototypes */
+int faV3ItrigBurstConfig(int id, uint32_t ntrig,
 		       uint32_t burst_window, uint32_t busy_period);
-uint32_t faItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt);
-uint32_t faItrigStatus(int id, int sFlag);
-int faItrigSetMode(int id, int tmode, uint32_t wMask, uint32_t wWidth,
+uint32_t faV3ItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt);
+uint32_t faV3ItrigStatus(int id, int sFlag);
+int faV3ItrigSetMode(int id, int tmode, uint32_t wMask, uint32_t wWidth,
 		   uint32_t cMask, uint32_t sumThresh, uint32_t * tTable);
-int faItrigInitTable(int id, uint32_t * table);
-int faItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask);
-uint32_t faItrigGetHBwidth(int id, uint32_t chan);
-void faItrigPrintHBwidth(int id);
-uint32_t faItrigOutConfig(int id, uint16_t itrigDelay, uint16_t itrigWidth);
-void faItrigEnable(int id);
-void faItrigDisable(int id);
-int faItrigGetTableVal(int id, uint16_t pMask);
+int faV3ItrigInitTable(int id, uint32_t * table);
+int faV3ItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask);
+uint32_t faV3ItrigGetHBwidth(int id, uint32_t chan);
+void faV3ItrigPrintHBwidth(int id);
+uint32_t faV3ItrigOutConfig(int id, uint16_t itrigDelay, uint16_t itrigWidth);
+void faV3ItrigEnable(int id);
+void faV3ItrigDisable(int id);
+int faV3ItrigGetTableVal(int id, uint16_t pMask);
 
-/* FADC Firmware Tools Prototypes */
-int fadcFirmwareLoad(int id, int chip, int pFlag);
-int fadcFirmwareGLoad(int chip, int pFlag);
-void fadcFirmwareDownloadConfigData(int id);
-int fadcFirmwareVerifyDownload(int id);
-int fadcFirmwareTestReady(int id, int n_try, int pFlag);
-int fadcFirmwareZeroSRAM(int id);
-int fadcFirmwareCheckSRAM(int id);
-void fadcFirmwareSetFilename(char *filename, int chip);
-int fadcFirmwareReadFile(char *filename);
-int fadcFirmwareGetFpgaID(int pflag);
-int fadcFirmwareChipFromFpgaID(int pflag);
-int fadcFirmwareRevFromFpgaID(int pflag);
-int fadcFirmwareReadMcsFile(char *filename);
+/* FAV3DC Firmware Tools Prototypes */
+int faV3FirmwareLoad(int id, int chip, int pFlag);
+int faV3FirmwareGLoad(int chip, int pFlag);
+void faV3FirmwareDownloadConfigData(int id);
+int faV3FirmwareVerifyDownload(int id);
+int faV3FirmwareTestReady(int id, int n_try, int pFlag);
+int faV3FirmwareZeroSRAM(int id);
+int faV3FirmwareCheckSRAM(int id);
+void faV3FirmwareSetFilename(char *filename, int chip);
+int faV3FirmwareReadFile(char *filename);
+int faV3FirmwareGetFpgaID(int pflag);
+int faV3FirmwareChipFromFpgaID(int pflag);
+int faV3FirmwareRevFromFpgaID(int pflag);
+int faV3FirmwareReadMcsFile(char *filename);
 enum faV3Args_enum
   {
     FAV3_ARGS_SHOW_ID,
@@ -838,91 +838,91 @@ typedef struct faV3UpdateWatcherArgs_struct
   int id;			/* slot id */
   char title[80];
 } faV3UpdateWatcherArgs_t;
-int fadcFirmwareAttachUpdateWatcher(VOIDFUNCPTR routine,
+int faV3FirmwareAttachUpdateWatcher(VOIDFUNCPTR routine,
 				    faV3UpdateWatcherArgs_t arg);
-void fadcFirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg);
+void faV3FirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg);
 
-void faTestSetSystemTestMode(int id, int mode);
-void faTestSetTrigOut(int id, int mode);
-void faTestSetBusyOut(int id, int mode);
-void faTestSetSdLink(int id, int mode);
-void faTestSetTokenOut(int id, int mode);
-int faTestGetStatBitB(int id);
-int faTestGetTokenIn(int id);
-int faTestGetClock250CounterStatus(int id);
-uint32_t faTestGetClock250Counter(int id);
-uint32_t faTestGetSyncCounter(int id);
-uint32_t faTestGetTrig1Counter(int id);
-uint32_t faTestGetTrig2Counter(int id);
-void faTestResetClock250Counter(int id);
-void faTestResetSyncCounter(int id);
-void faTestResetTrig1Counter(int id);
-void faTestResetTrig2Counter(int id);
-uint32_t faTestGetTestBitReg(int id);
-int faTestSystemClock(int id, int pflag);
+void faV3TestSetSystemTestMode(int id, int mode);
+void faV3TestSetTrigOut(int id, int mode);
+void faV3TestSetBusyOut(int id, int mode);
+void faV3TestSetSdLink(int id, int mode);
+void faV3TestSetTokenOut(int id, int mode);
+int faV3TestGetStatBitB(int id);
+int faV3TestGetTokenIn(int id);
+int faV3TestGetClock250CounterStatus(int id);
+uint32_t faV3TestGetClock250Counter(int id);
+uint32_t faV3TestGetSyncCounter(int id);
+uint32_t faV3TestGetTrig1Counter(int id);
+uint32_t faV3TestGetTrig2Counter(int id);
+void faV3TestResetClock250Counter(int id);
+void faV3TestResetSyncCounter(int id);
+void faV3TestResetTrig1Counter(int id);
+void faV3TestResetTrig2Counter(int id);
+uint32_t faV3TestGetTestBitReg(int id);
+int faV3TestSystemClock(int id, int pflag);
 
-int faGetSerialNumber(int id, char **rval, int snfix);
-int faSetScalerBlockInterval(int id, uint32_t nblock);
-int faGetScalerBlockInterval(int id);
-int faForceEndOfBlock(int id, int scalers);
-void faGForceEndOfBlock(int scalers);
+int faV3GetSerialNumber(int id, char **rval, int snfix);
+int faV3SetScalerBlockInterval(int id, uint32_t nblock);
+int faV3GetScalerBlockInterval(int id);
+int faV3ForceEndOfBlock(int id, int scalers);
+void faV3GForceEndOfBlock(int scalers);
 
 /* FLASH SDC prototypes */
-int faSDC_Config(uint16_t cFlag, uint16_t bMask);
-void faSDC_Status(int sFlag);
-void faSDC_Enable(int nsync);
-void faSDC_Disable();
-void faSDC_Sync();
-void faSDC_Trig();
-int faSDC_Busy();
+int faV3SDC_Config(uint16_t cFlag, uint16_t bMask);
+void faV3SDC_Status(int sFlag);
+void faV3SDC_Enable(int nsync);
+void faV3SDC_Disable();
+void faV3SDC_Sync();
+void faV3SDC_Trig();
+int faV3SDC_Busy();
 
 
 /*sergey*/
-int faGetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
+int faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 		  uint32_t * NSB, uint32_t * NSA, uint32_t * NP);
-int faGetNfadc();
-int faId(uint32_t slot);
-int faSetThresholdAll(int id, uint16_t tvalue[16]);
-int faSetPedestal(int id, uint32_t wvalue);
-int faPrintPedestal(int id);
+int faV3GetNfadc();
+int faV3Id(uint32_t slot);
+int faV3SetThresholdAll(int id, uint16_t tvalue[16]);
+int faV3SetPedestal(int id, uint32_t wvalue);
+int faV3PrintPedestal(int id);
 #ifdef CLAS12
-int faSetTriggerProcessingMode(int id, uint32_t chan, uint32_t mask);
-int faGetTriggerProcessingMode(int id, uint32_t chan);
-int faSetChannelDelay(int id, uint32_t chan, uint32_t delay);
-int faGetChannelDelay(int id, uint32_t chan);
-int faInvert(int id, uint16_t chmask);
-uint32_t faGetInvertMask(int id);
-int faResetMGT(int id, int reset);
-int faGetMGTChannelStatus(int id);
-int faSetChannelGain(int id, uint32_t chan, float gain);
-float faGetChannelGain(int id, uint32_t chan);
-int faGLoadChannelPedestals(char *fname, int updateThresholds);
-int faThresholdIgnore(int id, uint16_t chmask);
-uint32_t faGetThresholdIgnoreMask(int id);
-int faPlaybackDisable(int id, uint16_t chmask);
-uint32_t faGetPlaybackDisableMask(int id);
-int faSetHitbitTrigMask(int id, uint16_t chmask);
-uint32_t faGetHitbitTrigMask(int id);
-int faSetHitbitTrigWidth(int id, uint16_t width);
-uint32_t faGetHitbitTrigWidth(int id);
+int faV3SetTriggerProcessingMode(int id, uint32_t chan, uint32_t mask);
+int faV3GetTriggerProcessingMode(int id, uint32_t chan);
+int faV3SetChannelDelay(int id, uint32_t chan, uint32_t delay);
+int faV3GetChannelDelay(int id, uint32_t chan);
+int faV3Invert(int id, uint16_t chmask);
+uint32_t faV3GetInvertMask(int id);
+int faV3ResetMGT(int id, int reset);
+int faV3GetMGTChannelStatus(int id);
+int faV3SetChannelGain(int id, uint32_t chan, float gain);
+float faV3GetChannelGain(int id, uint32_t chan);
+int faV3GLoadChannelPedestals(char *fname, int updateThresholds);
+int faV3ThresholdIgnore(int id, uint16_t chmask);
+uint32_t faV3GetThresholdIgnoreMask(int id);
+int faV3PlaybackDisable(int id, uint16_t chmask);
+uint32_t faV3GetPlaybackDisableMask(int id);
+int faV3SetHitbitTrigMask(int id, uint16_t chmask);
+uint32_t faV3GetHitbitTrigMask(int id);
+int faV3SetHitbitTrigWidth(int id, uint16_t width);
+uint32_t faV3GetHitbitTrigWidth(int id);
 
-int faGSetHitbitMinTOT(uint16_t width);
-int faGSetHitbitMinMultiplicity(uint16_t mult);
-int faSetHitbitMinTOT(int id, uint16_t width);
-int faSetHitbitMinMultiplicity(int id, uint16_t mult);
-int faGetHitbitMinTOT(int id);
-int faGetHitbitMinMultiplicity(int id);
+int faV3GSetHitbitMinTOT(uint16_t width);
+int faV3GSetHitbitMinMultiplicity(uint16_t mult);
+int faV3SetHitbitMinTOT(int id, uint16_t width);
+int faV3SetHitbitMinMultiplicity(int id, uint16_t mult);
+int faV3GetHitbitMinTOT(int id);
+int faV3GetHitbitMinMultiplicity(int id);
 
 /*Andrea*/
-int faSetDelayAll(int id, uint32_t delay);
-int faSetGlobalDelay(uint32_t delay);
+int faV3SetDelayAll(int id, uint32_t delay);
+int faV3SetGlobalDelay(uint32_t delay);
 
-void faSetCompression(int id, int opt);
-int faGetCompression(int id);
+void faV3SetCompression(int id, int opt);
+int faV3GetCompression(int id);
 
-void faSetVXSReadout(int id, int opt);
-void faGSetVXSReadout(int opt);
-int faGetVXSReadout(int id);
+void faV3SetVXSReadout(int id, int opt);
+void faV3GSetVXSReadout(int opt);
+int faV3GetVXSReadout(int id);
 
 typedef struct
 {
@@ -930,42 +930,42 @@ typedef struct
   double rms;
   double min;
   double max;
-} fa250Ped;
+} faV3Ped;
 
-int faMeasureChannelPedestal(int id, uint32_t chan, fa250Ped * ped);
+int faV3MeasureChannelPedestal(int id, uint32_t chan, faV3Ped *ped);
 
-int faGetChThreshold(int id, int ch);
-int faSetChThreshold(int id, int ch, int threshold);
+int faV3GetChThreshold(int id, int ch);
+int faV3SetChThreshold(int id, int ch, int threshold);
 
-void faSetA32BaseAddress(uint32_t addr);
+void faV3SetA32BaseAddress(uint32_t addr);
 
 
 #endif
 
-int faCalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np);
-int faSetTriggerStopCondition(int id, int trigger_max);
-int faSetTriggerBusyCondition(int id, int trigger_max);
-int faSetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT);
-void faGSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT);
-int faSetTriggerPathThreshold(int id, uint32_t TPT);
-void faGSetTriggerPathThreshold(uint32_t TPT);
+int faV3CalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np);
+int faV3SetTriggerStopCondition(int id, int trigger_max);
+int faV3SetTriggerBusyCondition(int id, int trigger_max);
+int faV3SetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT);
+void faV3GSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT);
+int faV3SetTriggerPathThreshold(int id, uint32_t TPT);
+void faV3GSetTriggerPathThreshold(uint32_t TPT);
 
 /* for Ed */
-int faArmStatesStorage(int id);
-int faDisarmStatesStorage(int id);
-int faReadStatesStorage(int id);
+int faV3ArmStatesStorage(int id);
+int faV3DisarmStatesStorage(int id);
+int faV3ReadStatesStorage(int id);
 
 /* Sparsification Routines for NPS */
-int faSetSparsificationMode(int id, int mode);
-void faGSetSparsificationMode(int mode);
-int faGetSparsificationMode(int id);
-int faGetSparsificationStatus(int id);
-int faClearSparsificationStatus(int id);
-void faGClearSparsificationStatus();
-uint32_t faGetFirstTriggerMismatch(int id);
-uint32_t faGetMismatchTriggerCount(int id);
-uint32_t faGetTriggersProcessedCount(int id);
+int faV3SetSparsificationMode(int id, int mode);
+void faV3GSetSparsificationMode(int mode);
+int faV3GetSparsificationMode(int id);
+int faV3GetSparsificationStatus(int id);
+int faV3ClearSparsificationStatus(int id);
+void faV3GClearSparsificationStatus();
+uint32_t faV3GetFirstTriggerMismatch(int id);
+uint32_t faV3GetMismatchTriggerCount(int id);
+uint32_t faV3GetTriggersProcessedCount(int id);
 
-int faSetAccumulatorScalerMode(int id, uint16_t chmask);
-int faGSetAccumulatorScalerMode(uint16_t chmask);
-uint32_t faGetAccumulatorScalerMode(int id);
+int faV3SetAccumulatorScalerMode(int id, uint16_t chmask);
+int faV3GSetAccumulatorScalerMode(uint16_t chmask);
+uint32_t faV3GetAccumulatorScalerMode(int id);

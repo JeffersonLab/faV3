@@ -51,13 +51,13 @@ main(int argc, char *argv[])
       mcs_filename = argv[1];
     }
 
-  if(fadcFirmwareReadMcsFile(mcs_filename) != OK)
+  if(faV3FirmwareReadMcsFile(mcs_filename) != OK)
     {
       exit(-1);
     }
 
 
-  fpga_choice = fadcFirmwareChipFromFpgaID(0);
+  fpga_choice = faV3FirmwareChipFromFpgaID(0);
   if(fpga_choice == ERROR)
     {
       printf(" ERROR: Did not obtain FPGA type from firmware file.\n");
@@ -99,9 +99,9 @@ main(int argc, char *argv[])
   int iFlag = (1 << 18);	// Skip firmware check
 
 #ifdef SKIPSS
-  faInit((uint32_t) (FADC_ADDR), (1 << 19), NFADC + 2, iFlag);
+  faV3Init((uint32_t) (FADC_ADDR), (1 << 19), NFADC + 2, iFlag);
 #else
-  faInit((uint32_t) (FADC_ADDR), (1 << 19), NFADC, iFlag);
+  faV3Init((uint32_t) (FADC_ADDR), (1 << 19), NFADC, iFlag);
 #endif
 
   if(nfaV3 == 0)
@@ -112,9 +112,9 @@ main(int argc, char *argv[])
 
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      cfw = faGetFirmwareVersions(faSlot(ifa), 0);
+      cfw = faV3GetFirmwareVersions(faV3Slot(ifa), 0);
       printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
-	     faSlot(ifa), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
+	     faV3Slot(ifa), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
     }
 
   printf(" Will update firmware for ");
@@ -130,9 +130,9 @@ main(int argc, char *argv[])
     }
 
   printf(" with file: \n   %s", mcs_filename);
-  if(fadcFirmwareRevFromFpgaID(0))
+  if(faV3FirmwareRevFromFpgaID(0))
     {
-      printf(" (rev = 0x%x)\n", fadcFirmwareRevFromFpgaID(0));
+      printf(" (rev = 0x%x)\n", faV3FirmwareRevFromFpgaID(0));
     }
   else
     {
@@ -156,7 +156,7 @@ main(int argc, char *argv[])
   else
     goto REPEAT2;
 
-  fadcFirmwareGLoad(firmware_choice, 0);
+  faV3FirmwareGLoad(firmware_choice, 0);
 
   goto CLOSE;
 

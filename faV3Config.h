@@ -71,19 +71,19 @@ typedef struct {
 extern "C" {
 #endif
 
-void fadc250SetExpid(char *string);
-void fadc250GetParamsForOffline(float ped[6][22][16], int tet[6][22][16], float gain[6][22][16], int nsa[6][22], int nsb[6][22]);
-void fadc250Sethost(char *host);
-void fadc250InitGlobals();
-int fadc250ReadConfigFile(char *filename);
-int fadc250DownloadAll();
-int fadc250Config(char *fname);
-void fadc250Mon(int slot);
-int fadc250UploadAll(char *string, int length);
+void faV3SetExpid(char *string);
+void faV3GetParamsForOffline(float ped[6][22][16], int tet[6][22][16], float gain[6][22][16], int nsa[6][22], int nsb[6][22]);
+void faV3Sethost(char *host);
+void faV3InitGlobals();
+int faV3ReadConfigFile(char *filename);
+int faV3DownloadAll();
+int faV3Config(char *fname);
+void faV3Mon(int slot);
+int faV3UploadAll(char *string, int length);
 
 #ifdef	__cplusplus
 }
 #endif
 
 
-#endif // __FADC250CONFIG_H
+#endif // __FAV3CONFIG_H

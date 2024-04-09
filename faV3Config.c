@@ -142,33 +142,34 @@ fadc250SetExpid(char *string)
 #ifndef OFFLINE
 
 int
-fadc250Config(char *fname)
+faV3Config(char *fname)
 {
   int res;
   char string[10]; /*dummy, will not be used*/
 
   /* faInit() must be called by now; get the number of boards from there */
-  nfadc = faGetNfadc();
+  nfadc = faV3GetNfadc();
   printf("fadc250Config: nfadc=%d\n",nfadc);
 
   if(strlen(fname) > 0) /* filename specified  - upload initial settings from the hardware */
     {
-      fadc250UploadAll(string, 0);
+      faV3UploadAll(string, 0);
     }
   else /* filename not specified  - set defaults */
     {
-      fadc250InitGlobals();
+      faV3InitGlobals();
     }
 
   /* reading and parsing config file */
-  if( (res = fadc250ReadConfigFile(fname)) < 0 )
+  if( (res = faV3ReadConfigFile(fname)) < 0 )
     {
-      printf("ERROR in fadc250Config: fadc250ReadConfigFile() returns %d\n",res);
+      printf("ERROR in %s: faV3ReadConfigFile() returns %d\n",
+	     __func__, res);
       return(res);
     }
 
   /* download to all boards */
-  fadc250DownloadAll();
+  faV3DownloadAll();
 
   return(0);
 }
@@ -177,15 +178,15 @@ fadc250Config(char *fname)
 
 
 void
-fadc250InitGlobals()
+faV3InitGlobals()
 {
   int ii, jj;
 
-  printf("fadc250InitGlobals reached\n");
+  printf("%s reached\n", __func__);
 
   /*nfadc = 0;*/
 #ifndef OFFLINE
-  nfadc = faGetNfadc();
+  nfadc = faV3GetNfadc();
 #endif
   for(jj=0; jj<NBOARD; jj++)
     {
@@ -221,7 +222,7 @@ fadc250InitGlobals()
 }
 
 void
-fadc250GetParamsForOffline(float ped[6][22][16], int tet[6][22][16], float gain[6][22][16], int nsa[6][22], int nsb[6][22])
+faV3GetParamsForOffline(float ped[6][22][16], int tet[6][22][16], float gain[6][22][16], int nsa[6][22], int nsb[6][22])
 {
   int ii,jj;
 
@@ -243,14 +244,14 @@ fadc250GetParamsForOffline(float ped[6][22][16], int tet[6][22][16], float gain[
 /* to set host externally */
 static char hosthost[1024];
 void
-fadc250Sethost(char *host)
+faV3Sethost(char *host)
 {
   strcpy(hosthost,host);
 }
 
 /* reading and parsing config file */
 int
-fadc250ReadConfigFile(char *filename_in)
+faV3ReadConfigFile(char *filename_in)
 {
   FILE   *fd;
   char   filename[FNLEN];
@@ -724,7 +725,7 @@ fadc250ReadConfigFile(char *filename_in)
 
 /* download setting into all found FADCs */
 int
-fadc250DownloadAll()
+faV3DownloadAll()
 {
   int slot, ii, jj;
   float ped;
@@ -735,9 +736,9 @@ fadc250DownloadAll()
   printf("\n\nfadc250DownloadAll reached, nfadc=%d\n",nfadc);
   for(jj=0; jj<nfadc; jj++)
     {
-      slot = faSlot(jj);
+      slot = faV3Slot(jj);
 
-      faSetProcMode(slot,
+      faV3SetProcMode(slot,
 		    fa250[slot].mode,
 		    fa250[slot].winOffset,
 		    fa250[slot].winWidth,
@@ -745,45 +746,45 @@ fadc250DownloadAll()
 		    fa250[slot].nsa,
 		    fa250[slot].npeak, 0);
 
-      faChanDisable(slot, fa250[slot].chDisMask);
+      faV3ChanDisable(slot, fa250[slot].chDisMask);
 
-      faThresholdIgnore(slot, fa250[slot].thrIgnoreMask);
+      faV3ThresholdIgnore(slot, fa250[slot].thrIgnoreMask);
 
-      faInvert(slot, fa250[slot].invertMask);
+      faV3Invert(slot, fa250[slot].invertMask);
 
-      faPlaybackDisable(slot, fa250[slot].playbackDisableMask);
+      faV3PlaybackDisable(slot, fa250[slot].playbackDisableMask);
 
-      faSetHitbitTrigWidth(slot, fa250[slot].trigWidth);
+      faV3SetHitbitTrigWidth(slot, fa250[slot].trigWidth);
 
-      faSetHitbitTrigMask(slot, fa250[slot].trigMask);
+      faV3SetHitbitTrigMask(slot, fa250[slot].trigMask);
 
-      faSetHitbitMinTOT(slot, fa250[slot].trigMinTOT);
+      faV3SetHitbitMinTOT(slot, fa250[slot].trigMinTOT);
 
-      faSetHitbitMinMultiplicity(slot, fa250[slot].trigMinMult);
+      faV3SetHitbitMinMultiplicity(slot, fa250[slot].trigMinMult);
 
-      faSetCompression(slot,fa250[slot].compression);
+      faV3SetCompression(slot,fa250[slot].compression);
 
-      faSetVXSReadout(slot,fa250[slot].vxsReadout);
+      faV3SetVXSReadout(slot,fa250[slot].vxsReadout);
 
-      faSetSparsificationMode(slot, fa250[slot].sparsification);
+      faV3SetSparsificationMode(slot, fa250[slot].sparsification);
 
-      faSetAccumulatorScalerMode(slot, fa250[slot].accumulatorMask);
+      faV3SetAccumulatorScalerMode(slot, fa250[slot].accumulatorMask);
 
       for(ii=0; ii<NCHAN; ii++)
 	{
-	  faSetChannelDelay(slot, ii, fa250[slot].delay[ii] / 4);
-	  faSetDAC(slot, fa250[slot].dac[ii], (1<<ii));
-	  faSetChannelGain(slot, ii, fa250[slot].gain[ii]);
-   	  faSetTriggerProcessingMode(slot, ii, fa250[slot].trigMode[ii]);
+	  faV3SetChannelDelay(slot, ii, fa250[slot].delay[ii] / 4);
+	  faV3SetDAC(slot, fa250[slot].dac[ii], (1<<ii));
+	  faV3SetChannelGain(slot, ii, fa250[slot].gain[ii]);
+   	  faV3SetTriggerProcessingMode(slot, ii, fa250[slot].trigMode[ii]);
 
 	  ped = fa250[slot].ped[ii] * (float)(fa250[slot].nsa+fa250[slot].nsb);
-	  faSetChannelPedestal(slot, ii, (int)ped);
+	  faV3SetChannelPedestal(slot, ii, (int)ped);
 
 	  /* if threshold=0, don't add pedestal since user is disabling zero suppression */
 	  if(fa250[slot].thr[ii] > 0)
-	    faSetChThreshold(slot, ii, ((int)fa250[slot].ped[ii])+fa250[slot].thr[ii]);
+	    faV3SetChThreshold(slot, ii, ((int)fa250[slot].ped[ii])+fa250[slot].thr[ii]);
 	  else
-	    faSetChThreshold(slot, ii, 0);
+	    faV3SetChThreshold(slot, ii, 0);
 	}
     }
 
@@ -792,7 +793,7 @@ fadc250DownloadAll()
 
 /* upload setting from all found FADCs */
 int
-fadc250UploadAll(char *string, int length)
+faV3UploadAll(char *string, int length)
 {
   int slot, i, jj, len1, len2;
   char *str, sss[1024];
@@ -800,9 +801,9 @@ fadc250UploadAll(char *string, int length)
 
   for(jj=0; jj<nfadc; jj++)
     {
-      slot = faSlot(jj);
+      slot = faV3Slot(jj);
 
-      faGetProcMode(slot,
+      faV3GetProcMode(slot,
 		    &fa250[slot].mode,
 		    &fa250[slot].winOffset,
 		    &fa250[slot].winWidth,
@@ -810,42 +811,42 @@ fadc250UploadAll(char *string, int length)
 		    &fa250[slot].nsa,
 		    &fa250[slot].npeak);
 
-      fa250[slot].chDisMask = faGetChanMask(slot);
-      fa250[slot].thrIgnoreMask = faGetThresholdIgnoreMask(slot);
-      fa250[slot].invertMask = faGetInvertMask(slot);
-      fa250[slot].playbackDisableMask = faGetPlaybackDisableMask(slot);
+      fa250[slot].chDisMask = faV3GetChanMask(slot);
+      fa250[slot].thrIgnoreMask = faV3GetThresholdIgnoreMask(slot);
+      fa250[slot].invertMask = faV3GetInvertMask(slot);
+      fa250[slot].playbackDisableMask = faV3GetPlaybackDisableMask(slot);
 
-      fa250[slot].trigWidth = faGetHitbitTrigWidth(slot);
+      fa250[slot].trigWidth = faV3GetHitbitTrigWidth(slot);
 
-      fa250[slot].trigMask = faGetHitbitTrigMask(slot);
+      fa250[slot].trigMask = faV3GetHitbitTrigMask(slot);
 
-      fa250[slot].trigMinTOT = faGetHitbitMinTOT(slot);
+      fa250[slot].trigMinTOT = faV3GetHitbitMinTOT(slot);
 
-      fa250[slot].trigMinMult = faGetHitbitMinMultiplicity(slot);
+      fa250[slot].trigMinMult = faV3GetHitbitMinMultiplicity(slot);
 
-      fa250[slot].compression = faGetCompression(slot);
+      fa250[slot].compression = faV3GetCompression(slot);
 
-      fa250[slot].vxsReadout = faGetVXSReadout(slot);
+      fa250[slot].vxsReadout = faV3GetVXSReadout(slot);
 
-      fa250[slot].sparsification = faGetSparsificationMode(slot);
+      fa250[slot].sparsification = faV3GetSparsificationMode(slot);
 
-      fa250[slot].accumulatorMask = faGetAccumulatorScalerMode(slot);
+      fa250[slot].accumulatorMask = faV3GetAccumulatorScalerMode(slot);
 
       for(i=0;i<FAV3_MAX_ADC_CHANNELS;i++)
 	{
-	  fa250[slot].delay[i] = 4*faGetChannelDelay(slot, i);
-	  fa250[slot].dac[i] = faGetChannelDAC(slot, i);
+	  fa250[slot].delay[i] = 4*faV3GetChannelDelay(slot, i);
+	  fa250[slot].dac[i] = faV3GetChannelDAC(slot, i);
 
-	  fa250[slot].ped[i] = faGetChannelPedestal(slot, i);
+	  fa250[slot].ped[i] = faV3GetChannelPedestal(slot, i);
 	  fa250[slot].ped[i] = ((float)fa250[slot].ped[i])/(fa250[slot].nsa+fa250[slot].nsb); /* go back from integral to amplitude */
 
-	  fa250[slot].thr[i] = faGetChThreshold(slot, i);
+	  fa250[slot].thr[i] = faV3GetChThreshold(slot, i);
 	  if(fa250[slot].thr[i] > 0)
 	    {
 	      fa250[slot].thr[i] = fa250[slot].thr[i] - (int)fa250[slot].ped[i]; /* MUST SUBTRACT PEDESTAL TO BE CONSISTENT WITH DOWNLOADED THRESHOLD */
 	    }
-	  fa250[slot].gain[i] = faGetChannelGain(slot, i);
-          fa250[slot].trigMode[i] = faGetTriggerProcessingMode(slot, i);
+	  fa250[slot].gain[i] = faV3GetChannelGain(slot, i);
+          fa250[slot].trigMode[i] = faV3GetTriggerProcessingMode(slot, i);
 	}
     }
 
@@ -857,7 +858,7 @@ fadc250UploadAll(char *string, int length)
 
       for(jj=0; jj<nfadc; jj++)
 	{
-	  slot = faSlot(jj);
+	  slot = faV3Slot(jj);
 
 	  sprintf(sss,"FADC250_SLOT %d\n",slot);
 	  ADD_TO_STRING;
@@ -1022,10 +1023,10 @@ fadc250UploadAll(char *string, int length)
 }
 
 int
-fadc250UploadAllPrint()
+faV3UploadAllPrint()
 {
   char str[16001];
-  fadc250UploadAll(str, 16000);
+  faV3UploadAll(str, 16000);
   printf("%s",str);
 
   return 0;
@@ -1035,18 +1036,18 @@ fadc250UploadAllPrint()
 
 /* print board registers; if slot is zero, print all boards */
 void
-fadc250Mon(int slot)
+faV3Mon(int slot)
 {
   int id, start, end, kk;
 
 
-  nfadc = faGetNfadc();
+  nfadc = faV3GetNfadc();
   if(slot==0)
     {
       start = 0;
       end = nfadc;
     }
-  else if((id = faId(slot)) >= 0)
+  else if((id = faV3Id(slot)) >= 0)
     {
       start = id;
       end = start + 1;
@@ -1059,7 +1060,7 @@ fadc250Mon(int slot)
   printf("nfadc=%d\n",nfadc);
   for(kk=start; kk<end; kk++)
     {
-      faStatus(faSlot(kk),0);
+      faV3Status(faV3Slot(kk),0);
     }
 
   return;
@@ -1073,7 +1074,7 @@ fadc250Mon(int slot)
 #else /* dummy version*/
 
 void
-fadc250Config_dummy()
+faV3Config_dummy()
 {
   return;
 }

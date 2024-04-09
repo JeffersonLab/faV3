@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 
 
   iFlag = FAV3_INIT_SKIP | FAV3_INIT_SKIP_FIRMWARE_CHECK;
-  stat = faInit(fadc_address, 0, 1, iFlag);
+  stat = faV3Init(fadc_address, 0, 1, iFlag);
 
   if(nfaV3 < 0)
     {
@@ -113,7 +113,7 @@ main(int argc, char *argv[])
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = faSlot(ifadc);
+      id = faV3Slot(ifadc);
       printf(" %2d ", id);
       fflush(stdout);
 
@@ -132,7 +132,7 @@ main(int argc, char *argv[])
   taskDelay(1);
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = faSlot(ifadc);
+      id = faV3Slot(ifadc);
       if(TestReady(id, 60000, pFlag) != OK) /* Wait til it's done */
 	{
 	  printf("%2d: ERROR: Timeout after FPGA %d Reboot\n",

@@ -126,7 +126,7 @@ main(int argc, char *argv[])
 
     /* Initialize FADCs */
     int iFlag = 0;
-    status = faInit(fadc_address, (1<<19), nfaV3, iFlag);
+    status = faV3Init(fadc_address, (1<<19), nfaV3, iFlag);
 
     if((status<0) && (nfaV3 == 0))
       {
@@ -134,12 +134,12 @@ main(int argc, char *argv[])
 	goto CLOSE;
       }
 
-    unsigned int cfw = faGetFirmwareVersions(faSlot(0),0);
+    unsigned int cfw = faV3GetFirmwareVersions(faV3Slot(0),0);
     printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
-	   faSlot(0),cfw&0xFFFF,(cfw>>16)&0xFFFF);
+	   faV3Slot(0),cfw&0xFFFF,(cfw>>16)&0xFFFF);
 
     /* DO THE SCAN */
-    faGRunDelayScan(1);
+    faV3GRunDelayScan(1);
 
  CLOSE:
     vmeBusUnlock();
@@ -171,7 +171,7 @@ sig_handler(int signo)
 }
 
 void
-faGRunDelayScan(int pflag)
+faV3GRunDelayScan(int pflag)
 {
   int id, ifa, idelay, ich, ret = OK;
   struct timespec delay_scan_waittime, rem;
@@ -200,7 +200,7 @@ faGRunDelayScan(int pflag)
     }
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
 
       if(debugScan)
 	{
@@ -208,10 +208,10 @@ faGRunDelayScan(int pflag)
 	  fflush(stdout);
 	}
 
-      if(faGetSerialNumber(id, (char **)&sn[id], 0) <= 0)
+      if(faV3GetSerialNumber(id, (char **)&sn[id], 0) <= 0)
 	printf("ERROR: Slot %d: error reading serial number\n", id);
 
-      ret |= faSetPrbsMode(id, 0);
+      ret |= faV3SetPrbsMode(id, 0);
     }
 
   if(debugScan)
@@ -230,7 +230,7 @@ faGRunDelayScan(int pflag)
 
       for(ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  id = faSlot(ifa);
+	  id = faV3Slot(ifa);
 
 	  if(debugScan)
 	    {
@@ -240,10 +240,10 @@ faGRunDelayScan(int pflag)
 
 	  /* Set the delays */
 	  for (ich = 0; ich < 16; ich++)
-	    faSetIdelay(id, ich, idelay, idelay + IDELAY_PN_OFFSET);
+	    faV3SetIdelay(id, ich, idelay, idelay + IDELAY_PN_OFFSET);
 
 	  /* Measure delays */
-	  faMeasureIdelayErrors(id);
+	  faV3MeasureIdelayErrors(id);
 	}
 
       /* Wait for the measurements to complete */
@@ -253,10 +253,10 @@ faGRunDelayScan(int pflag)
 
       for(ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  id = faSlot(ifa);
+	  id = faV3Slot(ifa);
 
 	  /* Get the delay error measurements */
-	  errors = faGetIdelayErrors(id);
+	  errors = faV3GetIdelayErrors(id);
 	  errors_array[id][idelay] = (uint64_t) errors;
 
 	}
@@ -269,7 +269,7 @@ faGRunDelayScan(int pflag)
   // create scan array for each channel
   for (ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       for (ich = 0; ich < 16; ich++)
 	{
 	  for (idelay = 0; idelay < 61; idelay++)
@@ -285,7 +285,7 @@ faGRunDelayScan(int pflag)
       /* Printout for each FADC */
       for (ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  id = faSlot(ifa);
+	  id = faV3Slot(ifa);
 	  printf("--------------------------"
 		 "---------------------------------------------------------------\n");
 	  printf("  FADC250V2  sn: %s\n", sn[id]);
@@ -313,7 +313,7 @@ faGRunDelayScan(int pflag)
 
 	  for (ich = 0; ich < 16; ich++)	// create scan array for each channel
 	    {
-	      printf("ch %2d  delay_scan = %016llX\n", ich, delay_scan[id][ich]);
+	      printf("ch %2d  delay_scan = %016lX\n", ich, delay_scan[id][ich]);
 	    }
 	  printf("\n");
 
@@ -334,11 +334,11 @@ faGRunDelayScan(int pflag)
     {
       for (ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  id = faSlot(ifa);
+	  id = faV3Slot(ifa);
 	  fprintf(filep,"# FADC250-V2 %s\n", sn[id]);
 	  for (ich = 0; ich < 16; ich++)	// create scan array for each channel
 	    {
-	      fprintf(filep, "%2d 0x%016llX\n", ich, delay_scan[id][ich]);
+	      fprintf(filep, "%2d 0x%016lX\n", ich, delay_scan[id][ich]);
 	    }
 	  fprintf(filep, "\n");
 	}
@@ -346,7 +346,7 @@ faGRunDelayScan(int pflag)
 }
 
 int
-faSetPrbsMode(int id, int pflag)
+faV3SetPrbsMode(int id, int pflag)
 {
   if(id==0) id=faV3ID[0];
 
@@ -387,7 +387,7 @@ faSetPrbsMode(int id, int pflag)
 }
 
 int
-faSetIdelay(int id, int ch, int delay_p, int delay_n)
+faV3SetIdelay(int id, int ch, int delay_p, int delay_n)
 {
   int val, delay_p_current, delay_n_current;
   int idelay_default_settings[16] =
@@ -452,7 +452,7 @@ faSetIdelay(int id, int ch, int delay_p, int delay_n)
 }
 
 int
-faMeasureIdelayErrors(int id)
+faV3MeasureIdelayErrors(int id)
 {
   int val, ch;
 
@@ -485,7 +485,7 @@ faMeasureIdelayErrors(int id)
 }
 
 unsigned short
-faGetIdelayErrors(int id)
+faV3GetIdelayErrors(int id)
 {
   int val, ch, errors = 0;
 

@@ -7,12 +7,12 @@
  *
  *----------------------------------------------------------------------------*/
 
-#define FA_ADC_CONFIG4_IDELAY_CHAN_MASK  0xF000	/* For delay scan  */
-#define FA_ADC_CONFIG4_IDELAY_RESET      0x0100
-#define FA_ADC_CONFIG4_IDELAY_INC_P      0x0200
-#define FA_ADC_CONFIG4_IDELAY_INC_N      0x0400
-#define FA_ADC_CONFIG4_CMP_RESET         0x0800
-#define FA_ADC_STATUS4_CMP_ERR           0x0400
+#define FAV3_ADC_CONFIG4_IDELAY_CHAN_MASK  0xF000	/* For delay scan  */
+#define FAV3_ADC_CONFIG4_IDELAY_RESET      0x0100
+#define FAV3_ADC_CONFIG4_IDELAY_INC_P      0x0200
+#define FAV3_ADC_CONFIG4_IDELAY_INC_N      0x0400
+#define FAV3_ADC_CONFIG4_CMP_RESET         0x0800
+#define FAV3_ADC_STATUS4_CMP_ERR           0x0400
 #define IDELAY_PN_OFFSET  3
 
 #define FALOCK      if(pthread_mutex_lock(&faV3Mutex)<0) perror("pthread_mutex_lock");
@@ -49,9 +49,9 @@ struct b_field_short
 
 /* function prototypes */
 void sig_handler(int signo);
-int faSetPrbsMode(int id, int pflag);
-int faSetIdelay(int id, int ch, int delay_p, int delay_n);
-int faMeasureIdelayErrors(int id);
-unsigned short faGetIdelayErrors(int id);
-void faGRunDelayScan(int pflag);
+int faV3SetPrbsMode(int id, int pflag);
+int faV3SetIdelay(int id, int ch, int delay_p, int delay_n);
+int faV3MeasureIdelayErrors(int id);
+unsigned short faV3GetIdelayErrors(int id);
+void faV3GRunDelayScan(int pflag);
 struct scan_struct scan_analyze(uint64_t delay_scan);

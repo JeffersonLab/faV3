@@ -47,12 +47,12 @@ main(int argc, char *argv[])
       fadc_address = (uint32_t) strtoll(argv[2], NULL, 16) & 0xffffffff;
     }
 
-  if(fadcFirmwareReadMcsFile(mcs_filename) != OK)
+  if(faV3FirmwareReadMcsFile(mcs_filename) != OK)
     {
       exit(-1);
     }
 
-  fpga_choice = fadcFirmwareChipFromFpgaID(0);
+  fpga_choice = faV3FirmwareChipFromFpgaID(0);
   if(fpga_choice == ERROR)
     {
       printf(" ERROR: Did not obtain FPGA type from firmware file.\n");
@@ -100,16 +100,16 @@ main(int argc, char *argv[])
     }
 
   int iFlag = (1 << 18);	/* Do not perform firmware check */
-  stat = faInit(fadc_address, 0x0, 1, iFlag);
+  stat = faV3Init(fadc_address, 0x0, 1, iFlag);
   if(stat < 0)
     {
       printf(" Unable to initialize FADC.\n");
       goto CLOSE;
     }
 
-  uint32_t cfw = faGetFirmwareVersions(faSlot(0), 0);
+  uint32_t cfw = faV3GetFirmwareVersions(faV3Slot(0), 0);
   printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
-	 faSlot(0), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
+	 faV3Slot(0), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
 
   printf(" Will update firmware for ");
   if(fpga_choice == 1)
@@ -124,9 +124,9 @@ main(int argc, char *argv[])
     }
 
   printf(" with file: \n   %s", mcs_filename);
-  if(fadcFirmwareRevFromFpgaID(0))
+  if(faV3FirmwareRevFromFpgaID(0))
     {
-      printf(" (rev = 0x%x)\n", fadcFirmwareRevFromFpgaID(0));
+      printf(" (rev = 0x%x)\n", faV3FirmwareRevFromFpgaID(0));
     }
   else
     {
@@ -151,7 +151,7 @@ main(int argc, char *argv[])
   else
     goto REPEAT2;
 
-  fadcFirmwareLoad(0, firmware_choice, 0);
+  faV3FirmwareLoad(0, firmware_choice, 0);
 
   goto CLOSE;
 

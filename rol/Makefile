@@ -42,7 +42,7 @@ CFLAGS			= -Wall -Wno-unused -g
 else
 CFLAGS			= -O3
 endif
-CFLAGS			+= -w -DLINUX -DDAYTIME=\""`date`"\"
+CFLAGS			+=  -DLINUX -DDAYTIME=\""`date`"\"
 
 INCS			= -I. -I.. -I${LINUXVME_INC} ${INC_CODA_VME} \
 				-isystem${CODA}/common/include

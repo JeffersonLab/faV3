@@ -27,8 +27,8 @@
 #define BUFFERLEVEL 1
 
 /* FADC Library Variables */
-extern uint32_t faV3A32Base = 0x09000000;
-extern int nfaV3 = 0;
+extern uint32_t faV3A32Base;
+extern int nfaV3;
 
 /* Number of fadc250 to initialize */
 #define NFAV3     1
@@ -109,21 +109,21 @@ rocDownload()
   faV3A32Base = 0x09000000;
 
   vmeSetQuietFlag(1);
-  faInit(FADC_ADDR, FADC_INCR, NFAV3, iflag);
+  faV3Init(FADC_ADDR, FADC_INCR, NFAV3, iflag);
   vmeSetQuietFlag(0);
 
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      faEnableBusError(faSlot(ifa));
+      faV3EnableBusError(faV3Slot(ifa));
 
       /* Set input DAC level */
-      faSetDAC(faSlot(ifa), 3250, 0);
+      faV3SetDAC(faV3Slot(ifa), 3250, 0);
 
       /*  Set All channel thresholds to 150 */
-      faSetThreshold(faSlot(ifa), 150, 0xffff);
+      faV3SetThreshold(faV3Slot(ifa), 150, 0xffff);
 
       /*********************************************************************************
-       * faSetProcMode(int id, int pmode, unsigned int PL, unsigned int PTW,
+       * faV3SetProcMode(int id, int pmode, unsigned int PL, unsigned int PTW,
        *    int NSB, unsigned int NSA, unsigned int NP,
        *    unsigned int NPED, unsigned int MAXPED, unsigned int NSAT);
        *
@@ -142,7 +142,7 @@ rocDownload()
        *   NP   Number of pulses processed per window
        *   bank Ignored
        */
-      faSetProcMode(faSlot(ifa),
+      faV3SetProcMode(faV3Slot(ifa),
 		    FADC_MODE,   /* Processing Mode */
 		    FADC_WINDOW_LAT, /* PL */
 		    FADC_WINDOW_WIDTH,  /* PTW */
@@ -154,8 +154,8 @@ rocDownload()
 
     }
 
-  faSDC_Status(0);
-  faGStatus(0);
+  faV3SDC_Status(0);
+  faV3GStatus(0);
 
   printf("rocDownload: User Download Executed\n");
 
@@ -169,9 +169,9 @@ rocPrestart()
   /* Program/Init VME Modules Here */
   for(ifa=0; ifa < nfaV3; ifa++)
     {
-      faSoftReset(faSlot(ifa),0);
-      faResetTriggerCount(faSlot(ifa));
-      faEnableSyncReset(faSlot(ifa));
+      faV3SoftReset(faV3Slot(ifa),0);
+      faV3ResetTriggerCount(faV3Slot(ifa));
+      faV3EnableSyncReset(faV3Slot(ifa));
     }
 
   /* Set number of events per block (broadcasted to all connected TI Slaves)*/
@@ -179,10 +179,10 @@ rocPrestart()
   printf("rocPrestart: Block Level set to %d\n",blockLevel);
 
   /* Sync Reset to synchronize TI and fadc250 timestamps and their internal buffers */
-  faSDC_Sync();
+  faV3SDC_Sync();
 
   tiStatus(0);
-  faGStatus(0);
+  faV3GStatus(0);
 
   printf("rocPrestart: User Prestart Executed\n");
 
@@ -198,7 +198,7 @@ rocGo()
   printf("%s: Current Block Level = %d\n",
 	 __FUNCTION__,blockLevel);
 
-  faGSetBlockLevel(blockLevel);
+  faV3GSetBlockLevel(blockLevel);
 
   /* Set Max words from fadc (proc mode == 1 produces the most)
      nfaV3 * ( Block Header + Trailer + 2  # 2 possible filler words
@@ -210,7 +210,7 @@ rocGo()
   MAXFADCWORDS = nfaV3 * (4 + blockLevel * (4 + 16 * (1 + (ptw / 2))) + 18);
 
   /*  Enable FADC */
-  faGEnable(0, 0);
+  faV3GEnable(0, 0);
 
   /* Interrupts/Polling enabled after conclusion of rocGo() */
 }
@@ -220,10 +220,10 @@ rocEnd()
 {
 
   /* FADC Disable */
-  faGDisable(0);
+  faV3GDisable(0);
 
   /* FADC Event status - Is all data read out */
-  faGStatus(0);
+  faV3GStatus(0);
 
   tiStatus(0);
 
@@ -264,24 +264,24 @@ rocTrigger(int arg)
   BANKOPEN(FADC_BANK ,BT_UI4,0);
 
   /* Mask of initialized modules */
-  scanmask = faScanMask();
+  scanmask = faV3ScanMask();
   /* Check scanmask for block ready up to 100 times */
-  datascan = faGBlockReady(scanmask, 100);
+  datascan = faV3GBlockReady(scanmask, 100);
   stat = (datascan == scanmask);
 
   if(stat)
     {
       for(ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  nwords = faReadBlock(faSlot(ifa), dma_dabufp, MAXFADCWORDS, 1);
+	  nwords = faV3ReadBlock(faV3Slot(ifa), dma_dabufp, MAXFADCWORDS, 1);
 
 	  /* Check for ERROR in block read */
-	  blockError = faGetBlockError(1);
+	  blockError = faV3GetBlockError(1);
 
 	  if(blockError)
 	    {
 	      printf("ERROR: Slot %d: in transfer (event = %d), nwords = 0x%x\n",
-		     faSlot(ifa), roCount, nwords);
+		     faV3Slot(ifa), roCount, nwords);
 
 	      if(nwords > 0)
 		dma_dabufp += nwords;
@@ -318,15 +318,15 @@ rocTrigger(int arg)
 
       for(ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  davail = faBready(faSlot(ifa));
+	  davail = faV3Bready(faV3Slot(ifa));
 	  if(davail > 0)
 	    {
-	      printf("%s: ERROR: fADC250 Data available after readout in SYNC event \n",
+	      printf("%s: ERROR: fADC250 Data available (%d) after readout in SYNC event \n",
 		     __func__, davail);
 
-	      while(faBready(faSlot(ifa)))
+	      while(faV3Bready(faV3Slot(ifa)))
 		{
-		  vmeDmaFlush(faGetA32(faSlot(ifa)));
+		  vmeDmaFlush(faV3GetA32(faV3Slot(ifa)));
 		}
 	    }
 	}
@@ -339,7 +339,7 @@ rocCleanup()
 {
 
   printf("%s: Reset all FADCs\n",__FUNCTION__);
-  faGReset(1);
+  faV3GReset(1);
 
 }
 

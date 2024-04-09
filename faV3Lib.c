@@ -81,7 +81,7 @@ int faV3ID[FAV3_MAX_BOARDS];	/* array of slot numbers for FAV3s */
 uint32_t faV3AddrList[FAV3_MAX_BOARDS];	/* array of a24 addresses for FAV3s */
 int faV3Rev[(FAV3_MAX_BOARDS + 1)];	/* Board Revision Info for each module */
 int faV3ProcRev[(FAV3_MAX_BOARDS + 1)];	/* Processing FPGA Revision Info for each module */
-uint16_t faV3ChanDisable[(FAV3_MAX_BOARDS + 1)];	/* Disabled Channel Mask for each Module */
+uint16_t faV3ChanDisableMask[(FAV3_MAX_BOARDS + 1)];	/* Disabled Channel Mask for each Module */
 int faV3Inited = 0;		/* >0 if Library has been Initialized before */
 int faV3MaxSlot = 0;		/* Highest Slot hold an FAV3 */
 int faV3MinSlot = 0;		/* Lowest Slot holding an FAV3 */
@@ -154,7 +154,7 @@ static int proc_mode[(FAV3_MAX_BOARDS + 1)];
  */
 
 STATUS
-faInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
+faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 {
   int ii, res, errFlag = 0;
   int boardID = 0;
@@ -235,7 +235,7 @@ faInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   faV3Source = iFlag & FAV3_SOURCE_MASK;
   faV3Inited = nfaV3 = 0;
   faV3UseSDC = 0;
-  memset((char *) faV3ChanDisable, 0, sizeof(faV3ChanDisable));
+  memset((char *) faV3ChanDisableMask, 0, sizeof(faV3ChanDisableMask));
   memset((char *) faV3ID, 0, sizeof(faV3ID));
 
   for(ii = 0; ii < nadc; ii++)
@@ -592,7 +592,7 @@ faInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	      srSrc = FAV3_SRESET_FP_ISYNC;
 	      break;
 	    }
-	  faSDC_Config(0, 0);
+	  faV3SDC_Config(0, 0);
 	}
       else
 	{			/* Use internal Clk */
@@ -789,7 +789,7 @@ faInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 }				//End of faInit
 
 void
-faSetA32BaseAddress(uint32_t addr)
+faV3SetA32BaseAddress(uint32_t addr)
 {
   faV3A32Base = addr;
   printf("fadc A32 base address set to 0x%08X\n", faV3A32Base);
@@ -797,7 +797,7 @@ faSetA32BaseAddress(uint32_t addr)
 
 /*******************************************************************************
  *
- * faSlot - Convert an index into a slot number, where the index is
+ * faV3Slot - Convert an index into a slot number, where the index is
  *          the element of an array of FADCs in the order in which they were
  *          initialized.
  *
@@ -806,7 +806,7 @@ faSetA32BaseAddress(uint32_t addr)
  */
 
 int
-faSlot(uint32_t i)
+faV3Slot(uint32_t i)
 {
   if(i >= nfaV3)
     {
@@ -820,7 +820,7 @@ faSlot(uint32_t i)
 
 /*******************************************************************************
  *
- * faSetClockSource - Set the clock source
+ * faV3SetClockSource - Set the clock source
  *
  *   This routine should be used in the case that the source clock
  *   is NOT set in faInit (and defaults to Internal).  Such is the case
@@ -838,7 +838,7 @@ faSlot(uint32_t i)
  */
 
 int
-faSetClockSource(int id, int clkSrc)
+faV3SetClockSource(int id, int clkSrc)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -889,7 +889,7 @@ faSetClockSource(int id, int clkSrc)
 }
 
 int
-faGSetClockSource(int clkSrc)
+faV3GSetClockSource(int clkSrc)
 {
   int ifa, id;
   if(clkSrc > 0x3)
@@ -903,7 +903,7 @@ faGSetClockSource(int clkSrc)
   FAV3LOCK;
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       vmeWrite32(&(FAV3p[id]->ctrl1),
 		 (vmeRead32(&FAV3p[id]->ctrl1) & ~(FAV3_REF_CLK_MASK)) |
 		 (clkSrc | FAV3_ENABLE_INTERNAL_CLK));
@@ -934,7 +934,7 @@ faGSetClockSource(int clkSrc)
 }
 
 void
-faStatus(int id, int sflag)
+faV3Status(int id, int sflag)
 {
   int ii;
   uint32_t a32Base, ambMin, ambMax, vers;
@@ -1344,7 +1344,7 @@ faStatus(int id, int sflag)
 }
 
 void
-faGStatus(int sflag)
+faV3GStatus(int sflag)
 {
   int ifa, id, ii;
   faV3_t st[FAV3_MAX_BOARDS + 1];
@@ -1354,7 +1354,7 @@ faGStatus(int sflag)
   FAV3LOCK;
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       a24addr[id] = (uint32_t) ((u_long) FAV3p[id] - faV3A24Offset);
       st[id].version = vmeRead32(&FAV3p[id]->version);
       st[id].adr32 = vmeRead32(&FAV3p[id]->adr32);
@@ -1412,7 +1412,7 @@ faGStatus(int sflag)
 
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       printf(" %2d  ", id);
 
       printf("0x%04x 0x%04x  ", st[id].version & 0xFFFF,
@@ -1455,7 +1455,7 @@ faGStatus(int sflag)
   printf("--------------------------------------------------------------------------------\n");
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       printf(" %2d  ", id);
 
       printf("%s  ",
@@ -1506,7 +1506,7 @@ faGStatus(int sflag)
 
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       printf(" %2d    ", id);
 
       printf("%3d    ", st[id].blk_level & FAV3_BLOCK_LEVEL_MASK);
@@ -1561,7 +1561,7 @@ faGStatus(int sflag)
   printf("--------------------------------------------------------------------------------\n");
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       printf(" %2d   ", id);
 
       printf("%10d  ", st[id].trig_scal);
@@ -1601,7 +1601,7 @@ faGStatus(int sflag)
   printf("--------------------------------------------------------------------------------\n");
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       printf(" %2d  ", id);
 
       printf("%s    ",
@@ -1633,7 +1633,7 @@ faGStatus(int sflag)
       printf("Slot  Ch   Readout   Trigger      Gain      Ped   Delay  TrigMode  Invert  Accum\n");
       printf("--------------------------------------------------------------------------------\n");
 
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
 
       int ichan;
       for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
@@ -1695,7 +1695,7 @@ faGStatus(int sflag)
 
 /***********************
  *
- *  faGetFirmwareVersions - Get the firmware versions of each FPGA
+ *  faV3GetFirmwareVersions - Get the firmware versions of each FPGA
  *
  *    ARG:   pval
  *             0: Print nothing to stdout
@@ -1705,7 +1705,7 @@ faGStatus(int sflag)
  *            or -1 if error
  */
 uint32_t
-faGetFirmwareVersions(int id, int pflag)
+faV3GetFirmwareVersions(int id, int pflag)
 {
   uint32_t cntl = 0, proc = 0, rval = 0;
   if(id == 0)
@@ -1739,12 +1739,12 @@ faGetFirmwareVersions(int id, int pflag)
 
 /***********************
  *
- *  faSetProcMode - Setup ADC processing modes.
+ *  faV3SetProcMode - Setup ADC processing modes.
  *
  *   VERSION2: bank is ignored
  */
 int
-faSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
+faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 	      uint32_t NSB, uint32_t NSA, uint32_t NP, int bank)
 {
 
@@ -1757,14 +1757,14 @@ faSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetProcMode: ERROR : FADC in slot %d is not initialized \n",
+      logMsg("faV3SetProcMode: ERROR : FADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
 
   if((pmode <= 0) || (pmode > 8))
     {
-      printf("faSetProcMode: ERROR: Processing mode (%d) out of range (pmode= 1-8)\n",
+      printf("faV3SetProcMode: ERROR: Processing mode (%d) out of range (pmode= 1-8)\n",
 	     pmode);
       return (ERROR);
     }
@@ -1772,7 +1772,7 @@ faSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
     {
       /*       if((pmode>3)&&(pmode<8))  */
       /*        { */
-      /*          printf("faSetProcMode: ERROR: Processing mode (%d) not implemented \n",pmode); */
+      /*          printf("faV3SetProcMode: ERROR: Processing mode (%d) not implemented \n",pmode); */
       /*        } */
     }
 
@@ -1781,7 +1781,7 @@ faSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 
   if(NP > 4)
     {
-      printf("faSetProcMode: ERROR: Invalid Peak count %d (must be 0-4)\n",
+      printf("faV3SetProcMode: ERROR: Invalid Peak count %d (must be 0-4)\n",
 	     NP);
       return (ERROR);
     }
@@ -1802,26 +1802,26 @@ faSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   if(PTW > PL)
     {
       err++;
-      printf("faSetProcMode: ERROR: Window must be <= Latency\n");
+      printf("faV3SetProcMode: ERROR: Window must be <= Latency\n");
     }
   if(((NSB + NSA) % 2) == 0)
     {
       err++;
-      printf("faSetProcMode: ERROR: NSB+NSA must be an odd number\n");
+      printf("faV3SetProcMode: ERROR: NSB+NSA must be an odd number\n");
     }
 
   /* Calculate Proc parameters */
   ptw_max_buf = (uint32_t) (2016 / (PTW + 8));
   ptw_last_adr = ptw_max_buf * (PTW + 8) - 1;
 
-  /* Current firmware (version<=0x0208) requires a call to faSetNormalMode
+  /* Current firmware (version<=0x0208) requires a call to faV3SetNormalMode
      before enabling the window registers */
-  faSetNormalMode(id, 0);
+  faV3SetNormalMode(id, 0);
 
   FAV3LOCK;
   /* Disable ADC processing while writing window info */
   vmeWrite32(&(FAV3p[id]->adc_config[0]), ((pmode - 1) | (NP << 4)));
-  vmeWrite32(&(FAV3p[id]->adc_config[1]), faV3ChanDisable[id]);
+  vmeWrite32(&(FAV3p[id]->adc_config[1]), faV3ChanDisableMask[id]);
   vmeWrite32(&(FAV3p[id]->adc_pl), PL);
   vmeWrite32(&(FAV3p[id]->adc_ptw), PTW);
   vmeWrite32(&(FAV3p[id]->adc_nsb), NSB);
@@ -1838,7 +1838,7 @@ faSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 }
 
 int
-faGetNSA(int id)
+faV3GetNSA(int id)
 {
   int ret;
 
@@ -1847,7 +1847,7 @@ faGetNSA(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetProcMode: ERROR : FADC in slot %d is not initialized \n",
+      logMsg("faV3SetProcMode: ERROR : FADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -1856,13 +1856,13 @@ faGetNSA(int id)
   ret = vmeRead32(&(FAV3p[id]->adc_nsa)) & 0xFFFF;
   FAV3UNLOCK;
 
-  /*  printf("faGetNSA returns %d\n",ret); */
+  /*  printf("faV3GetNSA returns %d\n",ret); */
 
   return (ret);
 }
 
 int
-faGetNSB(int id)
+faV3GetNSB(int id)
 {
   int ret;
 
@@ -1871,7 +1871,7 @@ faGetNSB(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetProcMode: ERROR : FADC in slot %d is not initialized \n",
+      logMsg("faV3SetProcMode: ERROR : FADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -1880,24 +1880,24 @@ faGetNSB(int id)
   ret = vmeRead32(&(FAV3p[id]->adc_nsb)) & 0xFFFF;
   FAV3UNLOCK;
 
-  /*  printf("faGetNSB returns %d\n",ret); */
+  /*  printf("faV3GetNSB returns %d\n",ret); */
 
   return (ret);
 }
 
 
 void
-faGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
+faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 	       uint32_t NSB, uint32_t NSA, uint32_t NP, int bank)
 {
   int ii, res;
 
   for(ii = 0; ii < nfaV3; ii++)
     {
-      res = faSetProcMode(faV3ID[ii], pmode, PL, PTW, NSB, NSA, NP, bank);
+      res = faV3SetProcMode(faV3ID[ii], pmode, PL, PTW, NSB, NSA, NP, bank);
 
       if(res < 0)
-	printf("ERROR: slot %d, in faSetProcMode()\n", faV3ID[ii]);
+	printf("ERROR: slot %d, in faV3SetProcMode()\n", faV3ID[ii]);
     }
 
 }
@@ -1922,7 +1922,7 @@ faGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
  */
 
 int
-faCalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np)
+faV3CalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np)
 {
   int max;
   int imode = 0, supported_modes[FAV3_SUPPORTED_NMODES] =
@@ -1969,7 +1969,7 @@ faCalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np)
  */
 
 int
-faSetTriggerStopCondition(int id, int trigger_max)
+faV3SetTriggerStopCondition(int id, int trigger_max)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -2016,7 +2016,7 @@ faSetTriggerStopCondition(int id, int trigger_max)
  */
 
 int
-faSetTriggerBusyCondition(int id, int trigger_max)
+faV3SetTriggerBusyCondition(int id, int trigger_max)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -2062,7 +2062,7 @@ faSetTriggerBusyCondition(int id, int trigger_max)
  *  @return OK if successful, otherwise ERROR.
  */
 int
-faSetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT)
+faV3SetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT)
 {
   uint32_t readback_nsa = 0, readback_config1 = 0;
 
@@ -2118,18 +2118,18 @@ faSetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT)
  *    all initialized fADC250s
  *  @param NSB Number of samples before threshold crossing
  *  @param NSA Number of samples after threshold crossing
- *  @sa faSetTriggerPathSamples
+ *  @sa faV3SetTriggerPathSamples
  */
 void
-faGSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT)
+faV3GSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT)
 {
   int ii, res;
 
   for(ii = 0; ii < nfaV3; ii++)
     {
-      res = faSetTriggerPathSamples(faV3ID[ii], TNSA, TNSAT);
+      res = faV3SetTriggerPathSamples(faV3ID[ii], TNSA, TNSAT);
       if(res < 0)
-	printf("ERROR: slot %d, in faSetTriggerPathSamples()\n", faV3ID[ii]);
+	printf("ERROR: slot %d, in faV3SetTriggerPathSamples()\n", faV3ID[ii]);
     }
 
 }
@@ -2143,7 +2143,7 @@ faGSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT)
  *  @return OK if successful, otherwise ERROR.
  */
 int
-faSetTriggerPathThreshold(int id, uint32_t TPT)
+faV3SetTriggerPathThreshold(int id, uint32_t TPT)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -2184,18 +2184,18 @@ faSetTriggerPathThreshold(int id, uint32_t TPT)
  *  @brief Set the threshold used to determine what samples are sent through the
  *     trigger path for all initialized fADC250s
  *  @param threshold Trigger Path Threshold
- *  @sa faSetTriggerPathThreshold
+ *  @sa faV3SetTriggerPathThreshold
  */
 void
-faGSetTriggerPathThreshold(uint32_t TPT)
+faV3GSetTriggerPathThreshold(uint32_t TPT)
 {
   int ii, res;
 
   for(ii = 0; ii < nfaV3; ii++)
     {
-      res = faSetTriggerPathThreshold(faV3ID[ii], TPT);
+      res = faV3SetTriggerPathThreshold(faV3ID[ii], TPT);
       if(res < 0)
-	printf("ERROR: slot %d, in faSetTriggerPathThreshold()\n",
+	printf("ERROR: slot %d, in faV3SetTriggerPathThreshold()\n",
 	       faV3ID[ii]);
     }
 }
@@ -2215,7 +2215,7 @@ faGSetTriggerPathThreshold(uint32_t TPT)
  *
  */
 static void
-faWaitForAdcReady(int id)
+faV3WaitForAdcReady(int id)
 {
   int iwait = 0;
 
@@ -2229,69 +2229,69 @@ faWaitForAdcReady(int id)
 
 }
 
-/* faSetNormalMode
+/* faV3SetNormalMode
  *    - Configure the ADC Processing in "Normal Mode"
  *      This is temporary until the firmware is confirmed to be stable
  *
  */
 void
-faSetNormalMode(int id, int opt)
+faV3SetNormalMode(int id, int opt)
 {
   if(id == 0)
     id = faV3ID[0];
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetProcMode: ERROR : FADC in slot %d is not initialized \n",
+      logMsg("faV3SetProcMode: ERROR : FADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return;
     }
 
   FAV3LOCK;
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[3], 0x0F02);
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
 
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[3], 0x179F);
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
 
   /* 01dec2011 This portion commented out... would change the input gain */
-  /*   faWaitForAdcReady(id); */
+  /*   faV3WaitForAdcReady(id); */
   /*   vmeWrite32(&FAV3p[id]->adc_config[3], 0x1811); */
-  /*   faWaitForAdcReady(id); */
+  /*   faV3WaitForAdcReady(id); */
   /*   vmeWrite32(&FAV3p[id]->adc_config[2], 0x40); */
-  /*   faWaitForAdcReady(id); */
+  /*   faV3WaitForAdcReady(id); */
   /*   vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);        */
 
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[3], 0xFF01);	/* transfer register values */
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
   /*
     printf("%s: ---- FADC %2d ADC chips initialized ----\n",
     __func__,id);
   */
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[3], 0x0D00);
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
 
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[3], 0xFF01);	/* transfer register values */
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
-  faWaitForAdcReady(id);
+  faV3WaitForAdcReady(id);
   vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
 
   FAV3UNLOCK;
@@ -2301,12 +2301,12 @@ faSetNormalMode(int id, int opt)
 
 /***********************
  *
- *  faSetPPG - Setup FADC Progammable Pulse Generator
+ *  faV3SetPPG - Setup FADC Progammable Pulse Generator
  *
  *
  */
 int
-faSetPPG(int id, int pmode, uint16_t * sdata, int nsamples)
+faV3SetPPG(int id, int pmode, uint16_t * sdata, int nsamples)
 {
 
   int ii;
@@ -2318,14 +2318,14 @@ faSetPPG(int id, int pmode, uint16_t * sdata, int nsamples)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetPPG: ERROR : FADC in slot %d is not initialized \n", id, 0,
+      logMsg("faV3SetPPG: ERROR : FADC in slot %d is not initialized \n", id, 0,
 	     0, 0, 0, 0);
       return (ERROR);
     }
 
   if(sdata == NULL)
     {
-      printf("faSetPPG: ERROR: Invalid Pointer to sample data\n");
+      printf("faV3SetPPG: ERROR: Invalid Pointer to sample data\n");
       return (ERROR);
     }
 
@@ -2339,7 +2339,7 @@ faSetPPG(int id, int pmode, uint16_t * sdata, int nsamples)
       vmeWrite32(&FAV3p[id]->adc_test_data, (sdata[ii] | FAV3_PPG_WRITE_VALUE));
       rval = vmeRead32(&FAV3p[id]->adc_test_data);
       if((rval & FAV3_PPG_SAMPLE_MASK) != sdata[ii])
-	printf("faSetPPG: ERROR: Write error %x != %x (ii=%d)\n", rval,
+	printf("faV3SetPPG: ERROR: Write error %x != %x (ii=%d)\n", rval,
 	       sdata[ii], ii);
 
     }
@@ -2348,13 +2348,13 @@ faSetPPG(int id, int pmode, uint16_t * sdata, int nsamples)
 	     (sdata[(nsamples - 2)] & FAV3_PPG_SAMPLE_MASK));
   rval = vmeRead32(&FAV3p[id]->adc_test_data);
   if(rval != sdata[(nsamples - 2)])
-    printf("faSetPPG: ERROR: Write error %x != %x\n",
+    printf("faV3SetPPG: ERROR: Write error %x != %x\n",
 	   rval, sdata[nsamples - 2]);
   vmeWrite32(&FAV3p[id]->adc_test_data,
 	     (sdata[(nsamples - 1)] & FAV3_PPG_SAMPLE_MASK));
   rval = vmeRead32(&FAV3p[id]->adc_test_data);
   if(rval != sdata[(nsamples - 1)])
-    printf("faSetPPG: ERROR: Write error %x != %x\n",
+    printf("faV3SetPPG: ERROR: Write error %x != %x\n",
 	   rval, sdata[nsamples - 1]);
 
   /*   vmeWrite32(&FAV3p[id]->adc_test_data, (sdata[(nsamples-2)]&FAV3_PPG_SAMPLE_MASK)); */
@@ -2366,7 +2366,7 @@ faSetPPG(int id, int pmode, uint16_t * sdata, int nsamples)
 }
 
 void
-faPPGEnable(int id)
+faV3PPGEnable(int id)
 {
   uint16_t val1;
 
@@ -2382,7 +2382,7 @@ faPPGEnable(int id)
 }
 
 void
-faPPGDisable(int id)
+faV3PPGDisable(int id)
 {
   uint16_t val1;
 
@@ -2417,7 +2417,7 @@ faPPGDisable(int id)
  *                   (0 - 262 microsec)
  */
 int
-faItrigBurstConfig(int id, uint32_t ntrig,
+faV3ItrigBurstConfig(int id, uint32_t ntrig,
 		   uint32_t burst_window, uint32_t busy_period)
 {
 
@@ -2458,7 +2458,7 @@ faItrigBurstConfig(int id, uint32_t ntrig,
  *    Units are in clock ticks (4ns/tick)
  */
 uint32_t
-faItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt)
+faV3ItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt)
 {
   uint32_t retval = 0;
 
@@ -2510,7 +2510,7 @@ faItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt)
  *                     and daisychain in place or SD being used)
  */
 int
-faReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
+faV3ReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
 {
   int ii;
   int stat, retVal, xferCount, rmode, async;
@@ -2678,7 +2678,7 @@ faReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
 #endif
 	      FAV3UNLOCK;
 	      if(rmode == 2)
-		faGetTokenStatus(1);
+		faV3GetTokenStatus(1);
 
 	      return (xferCount);
 	    }
@@ -2698,7 +2698,7 @@ faReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
 	  FAV3UNLOCK;
 
 	  if(rmode == 2)
-	    faGetTokenStatus(1);
+	    faV3GetTokenStatus(1);
 
 	  return (nwrds);
 	}
@@ -2715,7 +2715,7 @@ faReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
 	  FAV3UNLOCK;
 
 	  if(rmode == 2)
-	    faGetTokenStatus(1);
+	    faV3GetTokenStatus(1);
 
 	  return (retVal >> 2);
 	}
@@ -2816,7 +2816,7 @@ faReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
  *  @return OK if successful, otherwise ERROR.
  */
 int
-faGetBlockError(int pflag)
+faV3GetBlockError(int pflag)
 {
   int rval = 0;
   const char *block_error_names[FAV3_BLOCKERROR_NTYPES] = {
@@ -2832,7 +2832,7 @@ faGetBlockError(int pflag)
     {
       if(rval != FAV3_BLOCKERROR_NO_ERROR)
 	{
-	  logMsg("faGetBlockError: Block Transfer Error: %s\n",
+	  logMsg("faV3GetBlockError: Block Transfer Error: %s\n",
 		 block_error_names[rval], 2, 3, 4, 5, 6);
 	}
     }
@@ -2841,7 +2841,7 @@ faGetBlockError(int pflag)
 }
 
 int
-faReadBlockStatus(int id, volatile uint32_t * data, int nwrds, int rflag)
+faV3ReadBlockStatus(int id, volatile uint32_t * data, int nwrds, int rflag)
 {
 
   int stat, retVal, xferCount, rmode;
@@ -2940,7 +2940,7 @@ faReadBlockStatus(int id, volatile uint32_t * data, int nwrds, int rflag)
 }
 
 int
-faPrintBlock(int id, int rflag)
+faV3PrintBlock(int id, int rflag)
 {
 
   int ii;
@@ -2986,10 +2986,10 @@ faPrintBlock(int id, int rflag)
       ehead = LSWAP(ehead);
 #endif
       printf("%4d: ", dCnt + 1);
-      faDataDecode(bhead);
+      faV3DataDecode(bhead);
       dCnt++;
       printf("%4d: ", dCnt + 1);
-      faDataDecode(ehead);
+      faV3DataDecode(ehead);
       dCnt++;
     }
   else
@@ -3018,7 +3018,7 @@ faPrintBlock(int id, int rflag)
       data = LSWAP(data);
 #endif
       printf("%4d: ", dCnt + 1 + ii);
-      faDataDecode(data);
+      faV3DataDecode(data);
       if((data & FAV3_DATA_TYPE_DEFINE)
 	 && ((data & FAV3_DATA_TYPE_MASK) == FAV3_DATA_BLOCK_TRAILER))
 	break;
@@ -3044,7 +3044,7 @@ faPrintBlock(int id, int rflag)
 /*****************************************************************************/
 
 uint32_t
-faReadCSR(int id)
+faV3ReadCSR(int id)
 {
   uint32_t rval;
 
@@ -3067,7 +3067,7 @@ faReadCSR(int id)
 
 
 void
-faClear(int id)
+faV3Clear(int id)
 {
 
   if(id == 0)
@@ -3086,7 +3086,7 @@ faClear(int id)
 
 
 void
-faGClear()
+faV3GClear()
 {
 
   int ii, id;
@@ -3110,7 +3110,7 @@ faGClear()
 }
 
 void
-faClearError(int id)
+faV3ClearError(int id)
 {
 
   if(id == 0)
@@ -3131,7 +3131,7 @@ faClearError(int id)
 
 
 void
-faGClearError()
+faV3GClearError()
 {
 
   int ii, id;
@@ -3156,7 +3156,7 @@ faGClearError()
 
 
 void
-faReset(int id, int iFlag)
+faV3Reset(int id, int iFlag)
 {
   uint32_t a32addr, addrMB;
 
@@ -3197,7 +3197,7 @@ faReset(int id, int iFlag)
  *     - !0: Do not restore A32 readout after reset. (Useful for configuration changes)
  */
 void
-faGReset(int iFlag)
+faV3GReset(int iFlag)
 {
   uint32_t a32addr[(FAV3_MAX_BOARDS + 1)], addrMB[(FAV3_MAX_BOARDS + 1)];
   int ifa = 0, id = 0;
@@ -3207,7 +3207,7 @@ faGReset(int iFlag)
     {
       for(ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  id = faSlot(ifa);
+	  id = faV3Slot(ifa);
 	  a32addr[id] = vmeRead32(&(FAV3p[id]->adr32));
 	  addrMB[id] = vmeRead32(&(FAV3p[id]->adr_mb));
 	}
@@ -3215,7 +3215,7 @@ faGReset(int iFlag)
 
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      id = faSlot(ifa);
+      id = faV3Slot(ifa);
       vmeWrite32(&(FAV3p[id]->csr), FAV3_CSR_HARD_RESET);
     }
 
@@ -3225,7 +3225,7 @@ faGReset(int iFlag)
     {
       for(ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  id = faSlot(ifa);
+	  id = faV3Slot(ifa);
 	  vmeWrite32(&(FAV3p[id]->adr32), a32addr[id]);
 	  vmeWrite32(&(FAV3p[id]->adr_mb), addrMB[id]);
 	}
@@ -3236,7 +3236,7 @@ faGReset(int iFlag)
 }
 
 void
-faSoftReset(int id, int cflag)
+faV3SoftReset(int id, int cflag)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -3258,7 +3258,7 @@ faSoftReset(int id, int cflag)
 }
 
 void
-faResetToken(int id)
+faV3ResetToken(int id)
 {
 
   if(id == 0)
@@ -3277,7 +3277,7 @@ faResetToken(int id)
 }
 
 int
-faTokenStatus(int id)
+faV3TokenStatus(int id)
 {
   int rval = 0;
 
@@ -3299,29 +3299,29 @@ faTokenStatus(int id)
 }
 
 int
-faGTokenStatus()
+faV3GTokenStatus()
 {
   int ifa = 0, bit = 0, rval = 0;
 
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      bit = faTokenStatus(faSlot(ifa));
-      rval |= (bit << (faSlot(ifa)));
+      bit = faV3TokenStatus(faV3Slot(ifa));
+      rval |= (bit << (faV3Slot(ifa)));
     }
 
   return rval;
 }
 
 uint32_t
-faGetTokenStatus(int pflag)
+faV3GetTokenStatus(int pflag)
 {
   uint32_t rval = 0;
   int ifa = 0;
 
   if(pflag)
-    logMsg("faGetTokenStatus: Token in slot(s) ", 1, 2, 3, 4, 5, 6);
+    logMsg("faV3GetTokenStatus: Token in slot(s) ", 1, 2, 3, 4, 5, 6);
 
-  rval = faGTokenStatus();
+  rval = faV3GTokenStatus();
 
   if(pflag)
     {
@@ -3339,14 +3339,14 @@ faGetTokenStatus(int pflag)
 }
 
 void
-faSetCalib(int id, uint16_t sdelay, uint16_t tdelay)
+faV3SetCalib(int id, uint16_t sdelay, uint16_t tdelay)
 {
   if(id == 0)
     id = faV3ID[0];
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetCalib: ERROR : ADC in slot %d is not initialized \n", id,
+      logMsg("faV3SetCalib: ERROR : ADC in slot %d is not initialized \n", id,
 	     0, 0, 0, 0, 0);
       return;
     }
@@ -3358,7 +3358,7 @@ faSetCalib(int id, uint16_t sdelay, uint16_t tdelay)
 }
 
 void
-faChanDisable(int id, uint16_t cmask)
+faV3ChanDisable(int id, uint16_t cmask)
 {
 
   if(id == 0)
@@ -3371,7 +3371,7 @@ faChanDisable(int id, uint16_t cmask)
       return;
     }
 
-  faV3ChanDisable[id] = cmask;	/* Set Global Variable */
+  faV3ChanDisableMask[id] = cmask;	/* Set Global Variable */
 
   FAV3LOCK;
   /* Write New Disable Mask */
@@ -3382,7 +3382,7 @@ faChanDisable(int id, uint16_t cmask)
 
 
 uint32_t
-faGetChanMask(int id)
+faV3GetChanMask(int id)
 {
   uint32_t tmp, cmask = 0;
 
@@ -3391,7 +3391,7 @@ faGetChanMask(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faGetChanMask: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3GetChanMask: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (0);
     }
@@ -3400,7 +3400,7 @@ faGetChanMask(int id)
   FAV3LOCK;
   tmp = vmeRead32(&(FAV3p[id]->adc_config[1])) & 0xFFFF;
   cmask = (tmp & FAV3_ADC_CHAN_MASK);
-  faV3ChanDisable[id] = cmask;	/* Set Global Variable */
+  faV3ChanDisableMask[id] = cmask;	/* Set Global Variable */
   FAV3UNLOCK;
 
 
@@ -3410,7 +3410,7 @@ faGetChanMask(int id)
 
 /* opt=0 - disable, 1-enable, 2-verify */
 void
-faSetCompression(int id, int opt)
+faV3SetCompression(int id, int opt)
 {
   uint32_t ctrl2;
 
@@ -3419,7 +3419,7 @@ faSetCompression(int id, int opt)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetCompression: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetCompression: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return;
     }
@@ -3428,12 +3428,12 @@ faSetCompression(int id, int opt)
 
   ctrl2 = (vmeRead32(&(FAV3p[id]->ctrl2))) & FAV3_CONTROL2_MASK;
 #ifdef DEBUG_COMPRESSION
-  printf("faSetCompression: read ctrl2=0x%08x\n", ctrl2);
+  printf("faV3SetCompression: read ctrl2=0x%08x\n", ctrl2);
 #endif /* DEBUG_COMPRESSION */
 
   ctrl2 = ctrl2 & ~FAV3_CTRL_COMPRESS_MASK;
 #ifdef DEBUG_COMPRESSION
-  printf("faSetCompression: masked ctrl2=0x%08x\n", ctrl2);
+  printf("faV3SetCompression: masked ctrl2=0x%08x\n", ctrl2);
 #endif /* DEBUG_COMPRESSION */
 
   if(opt == 0)
@@ -3443,18 +3443,18 @@ faSetCompression(int id, int opt)
   else if(opt == 1)
     {
       ctrl2 = ctrl2 | FAV3_CTRL_COMPRESS_ENABLE;
-      printf("faSetCompression: setting mode 1 ctrl2=0x%08x\n", ctrl2);
+      printf("faV3SetCompression: setting mode 1 ctrl2=0x%08x\n", ctrl2);
     }
   else if(opt == 2)
     {
       ctrl2 = ctrl2 | FAV3_CTRL_COMPRESS_VERIFY;
-      printf("faSetCompression: setting mode 2 ctrl2=0x%08x\n", ctrl2);
+      printf("faV3SetCompression: setting mode 2 ctrl2=0x%08x\n", ctrl2);
     }
   else
-    printf("faSetCompression: illegal opt=%d\n", opt);
+    printf("faV3SetCompression: illegal opt=%d\n", opt);
 
 #ifdef DEBUG_COMPRESSION
-  printf("faSetCompression: writing ctrl2=0x%08x\n", ctrl2);
+  printf("faV3SetCompression: writing ctrl2=0x%08x\n", ctrl2);
 #endif /* DEBUG_COMPRESSION */
   vmeWrite32(&(FAV3p[id]->ctrl2), ctrl2);
 
@@ -3463,7 +3463,7 @@ faSetCompression(int id, int opt)
 
 
 int
-faGetCompression(int id)
+faV3GetCompression(int id)
 {
   uint32_t ctrl2;
   int opt;
@@ -3473,7 +3473,7 @@ faGetCompression(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faGetCompression: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3GetCompression: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (-1);
     }
@@ -3482,12 +3482,12 @@ faGetCompression(int id)
 
   ctrl2 = (vmeRead32(&(FAV3p[id]->ctrl2))) & FAV3_CONTROL2_MASK;
 #ifdef DEBUG_COMPRESSION
-  printf("faGetCompression: read ctrl2=0x%08x\n", ctrl2);
+  printf("faV3GetCompression: read ctrl2=0x%08x\n", ctrl2);
 #endif /* DEBUG_COMPRESSION */
 
   ctrl2 = ctrl2 & FAV3_CTRL_COMPRESS_MASK;
 #ifdef DEBUG_COMPRESSION
-  printf("faGetCompression: masked ctrl2=0x%08x\n", ctrl2);
+  printf("faV3GetCompression: masked ctrl2=0x%08x\n", ctrl2);
 #endif /* DEBUG_COMPRESSION */
 
   if(ctrl2 == FAV3_CTRL_COMPRESS_DISABLE)
@@ -3506,7 +3506,7 @@ faGetCompression(int id)
 
 /* opt=0 - disable, 1-enable */
 void
-faSetVXSReadout(int id, int opt)
+faV3SetVXSReadout(int id, int opt)
 {
   uint32_t ctrl2;
 
@@ -3515,7 +3515,7 @@ faSetVXSReadout(int id, int opt)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetVXSReadout: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetVXSReadout: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return;
     }
@@ -3539,20 +3539,20 @@ faSetVXSReadout(int id, int opt)
 }
 
 void
-faGSetVXSReadout(int opt)
+faV3GSetVXSReadout(int opt)
 {
   int ifa = 0;
 
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      faSetVXSReadout(faV3ID[ifa], opt);
+      faV3SetVXSReadout(faV3ID[ifa], opt);
     }
 
 }
 
 
 int
-faGetVXSReadout(int id)
+faV3GetVXSReadout(int id)
 {
   uint32_t ctrl2;
   int opt;
@@ -3562,7 +3562,7 @@ faGetVXSReadout(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faGetVXSReadout: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3GetVXSReadout: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (-1);
     }
@@ -3583,7 +3583,7 @@ faGetVXSReadout(int id)
 
 
 void
-faEnableSyncReset(int id)
+faV3EnableSyncReset(int id)
 {
   uint32_t ctrl2;
 
@@ -3604,7 +3604,7 @@ faEnableSyncReset(int id)
 }
 
 void
-faEnable(int id, int eflag, int bank)
+faV3Enable(int id, int eflag, int bank)
 {
   uint32_t ctrl2;
   int compress_opt, vxsro_opt;
@@ -3620,8 +3620,8 @@ faEnable(int id, int eflag, int bank)
     }
 
   /* call it BEFORE 'FAV3LOCK' !!! */
-  compress_opt = faGetCompression(id);
-  vxsro_opt = faGetVXSReadout(id);
+  compress_opt = faV3GetCompression(id);
+  vxsro_opt = faV3GetVXSReadout(id);
 
   FAV3LOCK;
 
@@ -3652,20 +3652,20 @@ faEnable(int id, int eflag, int bank)
 }
 
 void
-faGEnable(int eflag, int bank)
+faV3GEnable(int eflag, int bank)
 {
   int ii;
 
   for(ii = 0; ii < nfaV3; ii++)
-    faEnable(faV3ID[ii], eflag, bank);
+    faV3Enable(faV3ID[ii], eflag, bank);
 
   if(faV3UseSDC && !faV3SDCPassthrough)
-    faSDC_Enable(1);
+    faV3SDC_Enable(1);
 
 }
 
 void
-faDisable(int id, int eflag)
+faV3Disable(int id, int eflag)
 {
 
   if(id == 0)
@@ -3687,21 +3687,21 @@ faDisable(int id, int eflag)
 }
 
 void
-faGDisable(int eflag)
+faV3GDisable(int eflag)
 {
   int ii;
 
   if(faV3UseSDC && !faV3SDCPassthrough)
-    faSDC_Disable();
+    faV3SDC_Disable();
 
   for(ii = 0; ii < nfaV3; ii++)
-    faDisable(faV3ID[ii], eflag);
+    faV3Disable(faV3ID[ii], eflag);
 
 }
 
 
 void
-faTrig(int id)
+faV3Trig(int id)
 {
 
   if(id == 0)
@@ -3723,16 +3723,16 @@ faTrig(int id)
 }
 
 void
-faGTrig()
+faV3GTrig()
 {
   int ii;
 
   for(ii = 0; ii < nfaV3; ii++)
-    faTrig(faV3ID[ii]);
+    faV3Trig(faV3ID[ii]);
 }
 
 void
-faTrig2(int id)
+faV3Trig2(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -3752,16 +3752,16 @@ faTrig2(int id)
 }
 
 void
-faGTrig2()
+faV3GTrig2()
 {
   int ii;
 
   for(ii = 0; ii < nfaV3; ii++)
-    faTrig2(faV3ID[ii]);
+    faV3Trig2(faV3ID[ii]);
 }
 
 int
-faSetTrig21Delay(int id, int delay)
+faV3SetTrig21Delay(int id, int delay)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -3787,7 +3787,7 @@ faSetTrig21Delay(int id, int delay)
 }
 
 int
-faGetTrig21Delay(int id)
+faV3GetTrig21Delay(int id)
 {
   int rval = 0;
   if(id == 0)
@@ -3809,7 +3809,7 @@ faGetTrig21Delay(int id)
 
 
 int
-faEnableInternalPlaybackTrigger(int id)
+faV3EnableInternalPlaybackTrigger(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -3831,7 +3831,7 @@ faEnableInternalPlaybackTrigger(int id)
 }
 
 void
-faSync(int id)
+faV3Sync(int id)
 {
 
   if(id == 0)
@@ -3857,7 +3857,7 @@ faSync(int id)
 
 /* Return Event/Block count for ADC in slot id */
 int
-faDready(int id, int dflag)
+faV3Dready(int id, int dflag)
 {
   uint32_t dcnt = 0;
 
@@ -3884,7 +3884,7 @@ faDready(int id, int dflag)
 
 /* Return a Block Ready status for ADC. If Block Level is =1 then return Event Ready status */
 int
-faBready(int id)
+faV3Bready(int id)
 {
   int stat = 0;
 
@@ -3909,7 +3909,7 @@ faBready(int id)
 }
 
 uint32_t
-faGBready()
+faV3GBready()
 {
   int ii, id, stat = 0;
   uint32_t dmask = 0;
@@ -3930,7 +3930,7 @@ faGBready()
 }
 
 uint32_t
-faGBlockReady(uint32_t slotmask, int nloop)
+faV3GBlockReady(uint32_t slotmask, int nloop)
 {
   int iloop, islot, stat = 0;
   uint32_t dmask = 0;
@@ -3970,7 +3970,7 @@ faGBlockReady(uint32_t slotmask, int nloop)
 
 /* return Scan mask for all initialized FADCs */
 uint32_t
-faScanMask()
+faV3ScanMask()
 {
   int ifadc, id, dmask = 0;
 
@@ -3987,7 +3987,7 @@ faScanMask()
 /* if val>0 then set the busy level, if val=0 then read it back.
    if bflag>0 then force the module Busy */
 int
-faBusyLevel(int id, uint32_t val, int bflag)
+faV3BusyLevel(int id, uint32_t val, int bflag)
 {
   uint32_t blreg = 0;
 
@@ -4024,7 +4024,7 @@ faBusyLevel(int id, uint32_t val, int bflag)
 }
 
 int
-faBusy(int id)
+faV3Busy(int id)
 {
   uint32_t blreg = 0;
   uint32_t dreg = 0;
@@ -4052,7 +4052,7 @@ faBusy(int id)
 
 
 void
-faEnableSoftTrig(int id)
+faV3EnableSoftTrig(int id)
 {
 
   if(id == 0)
@@ -4077,21 +4077,21 @@ faEnableSoftTrig(int id)
 
 
 void
-faGEnableSoftTrig()
+faV3GEnableSoftTrig()
 {
   int ii, id;
 
   for(ii = 0; ii < nfaV3; ii++)
     {
       id = faV3ID[ii];
-      faEnableSoftTrig(id);
+      faV3EnableSoftTrig(id);
     }
 
 }
 
 
 void
-faDisableSoftTrig(int id)
+faV3DisableSoftTrig(int id)
 {
 
   if(id == 0)
@@ -4113,7 +4113,7 @@ faDisableSoftTrig(int id)
 }
 
 void
-faEnableSoftSync(int id)
+faV3EnableSoftSync(int id)
 {
 
   if(id == 0)
@@ -4138,7 +4138,7 @@ faEnableSoftSync(int id)
 }
 
 void
-faDisableSoftSync(int id)
+faV3DisableSoftSync(int id)
 {
 
   if(id == 0)
@@ -4160,7 +4160,7 @@ faDisableSoftSync(int id)
 }
 
 void
-faEnableClk(int id)
+faV3EnableClk(int id)
 {
 
   if(id == 0)
@@ -4182,7 +4182,7 @@ faEnableClk(int id)
 }
 
 void
-faDisableClk(int id)
+faV3DisableClk(int id)
 {
 
   if(id == 0)
@@ -4212,7 +4212,7 @@ faDisableClk(int id)
  */
 
 void
-faEnableTriggerOut(int id, int output)
+faV3EnableTriggerOut(int id, int output)
 {
   int bitset = 0;
   if(id == 0)
@@ -4254,7 +4254,7 @@ faEnableTriggerOut(int id, int output)
 }
 
 void
-faEnableBusError(int id)
+faV3EnableBusError(int id)
 {
 
   if(id == 0)
@@ -4276,7 +4276,7 @@ faEnableBusError(int id)
 
 
 void
-faGEnableBusError()
+faV3GEnableBusError()
 {
   int ii;
 
@@ -4292,7 +4292,7 @@ faGEnableBusError()
 
 
 void
-faDisableBusError(int id)
+faV3DisableBusError(int id)
 {
 
   if(id == 0)
@@ -4315,7 +4315,7 @@ faDisableBusError(int id)
 
 
 void
-faEnableMultiBlock(int tflag)
+faV3EnableMultiBlock(int tflag)
 {
   int ii, id;
   uint32_t mode;
@@ -4339,7 +4339,7 @@ faEnableMultiBlock(int tflag)
       FAV3LOCK;
       vmeWrite32(&(FAV3p[id]->ctrl1), vmeRead32(&(FAV3p[id]->ctrl1)) | mode);
       FAV3UNLOCK;
-      faDisableBusError(id);
+      faV3DisableBusError(id);
       if(id == faV3MinSlot)
 	{
 	  FAV3LOCK;
@@ -4353,14 +4353,14 @@ faEnableMultiBlock(int tflag)
 	  vmeWrite32(&(FAV3p[id]->ctrl1),
 		     vmeRead32(&(FAV3p[id]->ctrl1)) | FAV3_LAST_BOARD);
 	  FAV3UNLOCK;
-	  faEnableBusError(id);	/* Enable Bus Error only on Last Board */
+	  faV3EnableBusError(id);	/* Enable Bus Error only on Last Board */
 	}
     }
 
 }
 
 void
-faDisableMultiBlock()
+faV3DisableMultiBlock()
 {
   int ii;
 
@@ -4382,7 +4382,7 @@ faDisableMultiBlock()
 
 
 int
-faSetBlockLevel(int id, int level)
+faV3SetBlockLevel(int id, int level)
 {
   int rval;
 
@@ -4391,7 +4391,7 @@ faSetBlockLevel(int id, int level)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetBlockLevel: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetBlockLevel: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4399,7 +4399,7 @@ faSetBlockLevel(int id, int level)
   if(level <= 0)
     level = 1;
 
-  logMsg("faSetBlockLevel: INFO: Set ADC slot %d block level to %d \n", id,
+  logMsg("faV3SetBlockLevel: INFO: Set ADC slot %d block level to %d \n", id,
 	 level, 0, 0, 0, 0);
 
   FAV3LOCK;
@@ -4413,7 +4413,7 @@ faSetBlockLevel(int id, int level)
 }
 
 void
-faGSetBlockLevel(int level)
+faV3GSetBlockLevel(int level)
 {
   int ii;
 
@@ -4429,7 +4429,7 @@ faGSetBlockLevel(int level)
 
 
 int
-faSetClkSource(int id, int source)
+faV3SetClkSource(int id, int source)
 {
   int rval;
 
@@ -4438,7 +4438,7 @@ faSetClkSource(int id, int source)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetClkSource: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetClkSource: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4458,7 +4458,7 @@ faSetClkSource(int id, int source)
 }
 
 int
-faSetTrigSource(int id, int source)
+faV3SetTrigSource(int id, int source)
 {
   int rval;
 
@@ -4467,7 +4467,7 @@ faSetTrigSource(int id, int source)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetTrigSource: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetTrigSource: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4486,7 +4486,7 @@ faSetTrigSource(int id, int source)
 }
 
 int
-faSetSyncSource(int id, int source)
+faV3SetSyncSource(int id, int source)
 {
   int rval;
 
@@ -4495,7 +4495,7 @@ faSetSyncSource(int id, int source)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetSyncSource: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetSyncSource: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4516,7 +4516,7 @@ faSetSyncSource(int id, int source)
 /* Enable Front Panel Inputs (and Disable software triggers/syncs
    but leave the clock source alone */
 void
-faEnableFP(int id)
+faV3EnableFP(int id)
 {
 
   if(id == 0)
@@ -4551,21 +4551,21 @@ faEnableFP(int id)
  */
 
 int
-faSetTrigOut(int id, int trigout)
+faV3SetTrigOut(int id, int trigout)
 {
   if(id == 0)
     id = faV3ID[0];
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      printf("faSetTrigOut: ERROR : ADC in slot %d is not initialized \n",
+      printf("faV3SetTrigOut: ERROR : ADC in slot %d is not initialized \n",
 	     id);
       return ERROR;
     }
 
   if(trigout < 0 || trigout > 7)
     {
-      printf("faSetTrigOut: ERROR : Invalid trigout value (%d) \n", trigout);
+      printf("faV3SetTrigOut: ERROR : Invalid trigout value (%d) \n", trigout);
       return ERROR;
     }
 
@@ -4580,7 +4580,7 @@ faSetTrigOut(int id, int trigout)
 
 /* Routine to get the Trigger Counter value */
 uint32_t
-faGetTriggerCount(int id)
+faV3GetTriggerCount(int id)
 {
   uint32_t rval = 0;
 
@@ -4589,7 +4589,7 @@ faGetTriggerCount(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faGetTrigCount: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3GetTrigCount: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return 0xffffffff;
     }
@@ -4602,7 +4602,7 @@ faGetTriggerCount(int id)
 }
 
 int
-faResetTriggerCount(int id)
+faV3ResetTriggerCount(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -4623,7 +4623,7 @@ faResetTriggerCount(int id)
 }
 
 int
-faSetThreshold(int id, uint16_t tvalue, uint16_t chmask)
+faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask)
 {
 
   int ii, doWrite = 0;
@@ -4634,7 +4634,7 @@ faSetThreshold(int id, uint16_t tvalue, uint16_t chmask)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetThreshold: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetThreshold: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4642,7 +4642,7 @@ faSetThreshold(int id, uint16_t tvalue, uint16_t chmask)
   if(chmask == 0)
     chmask = 0xffff;		/* Set All channels the same */
 
-  /*printf("faSetThreshold: slot %d, value %d, mask 0x%04X\n", id, tvalue, chmask); */
+  /*printf("faV3SetThreshold: slot %d, value %d, mask 0x%04X\n", id, tvalue, chmask); */
 
   FAV3LOCK;
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
@@ -4679,7 +4679,7 @@ faSetThreshold(int id, uint16_t tvalue, uint16_t chmask)
 
 
 int
-faPrintThreshold(int id)
+faV3PrintThreshold(int id)
 {
   int ii;
   uint16_t tval[FAV3_MAX_ADC_CHANNELS];
@@ -4718,7 +4718,7 @@ faPrintThreshold(int id)
 
 
 int
-faSetDAC(int id, uint16_t dvalue, uint16_t chmask)
+faV3SetDAC(int id, uint16_t dvalue, uint16_t chmask)
 {
   int ii, doWrite = 0;
   uint32_t lovalue = 0, hivalue = 0;
@@ -4728,7 +4728,7 @@ faSetDAC(int id, uint16_t dvalue, uint16_t chmask)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetDAC: ERROR : ADC in slot %d is not initialized \n", id, 0,
+      logMsg("faV3SetDAC: ERROR : ADC in slot %d is not initialized \n", id, 0,
 	     0, 0, 0, 0);
       return (ERROR);
     }
@@ -4738,7 +4738,7 @@ faSetDAC(int id, uint16_t dvalue, uint16_t chmask)
 
   if(dvalue > 0xfff)
     {
-      logMsg("faSetDAC: ERROR : DAC value (%d) out of range (0-255) \n",
+      logMsg("faV3SetDAC: ERROR : DAC value (%d) out of range (0-255) \n",
 	     dvalue, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4780,7 +4780,7 @@ faSetDAC(int id, uint16_t dvalue, uint16_t chmask)
 
 
 void
-faPrintDAC(int id)
+faV3PrintDAC(int id)
 {
   int ii;
   uint16_t dval[FAV3_MAX_ADC_CHANNELS];
@@ -4813,7 +4813,7 @@ faPrintDAC(int id)
 }
 
 uint32_t
-faGetChannelDAC(int id, uint32_t chan)
+faV3GetChannelDAC(int id, uint32_t chan)
 {
   uint32_t val;
 
@@ -4822,7 +4822,7 @@ faGetChannelDAC(int id, uint32_t chan)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faGetChannelDAC: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3GetChannelDAC: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (0);
     }
@@ -4836,7 +4836,7 @@ faGetChannelDAC(int id, uint32_t chan)
 }
 
 int
-faSetChannelPedestal(int id, uint32_t chan, uint32_t ped)
+faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped)
 {
   uint32_t lovalue = 0, hivalue = 0;
   if(id == 0)
@@ -4845,7 +4845,7 @@ faSetChannelPedestal(int id, uint32_t chan, uint32_t ped)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetChannelPedestal: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetChannelPedestal: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4853,7 +4853,7 @@ faSetChannelPedestal(int id, uint32_t chan, uint32_t ped)
   if(chan > 16)
     {
       logMsg
-	("faSetChannelPedestal: ERROR : Channel (%d) out of range (0-15) \n",
+	("faV3SetChannelPedestal: ERROR : Channel (%d) out of range (0-15) \n",
 	 chan, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4861,7 +4861,7 @@ faSetChannelPedestal(int id, uint32_t chan, uint32_t ped)
   if(ped > 0xffff)
     {
       logMsg
-	("faSetChannelPedestal: ERROR : PED value (%d) out of range (0-65535) \n",
+	("faV3SetChannelPedestal: ERROR : PED value (%d) out of range (0-65535) \n",
 	 ped, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4883,7 +4883,7 @@ faSetChannelPedestal(int id, uint32_t chan, uint32_t ped)
 }
 
 int
-faGetChannelPedestal(int id, uint32_t chan)
+faV3GetChannelPedestal(int id, uint32_t chan)
 {
   uint32_t rval = 0;
 
@@ -4893,7 +4893,7 @@ faGetChannelPedestal(int id, uint32_t chan)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetChannelPedestal: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetChannelPedestal: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4901,7 +4901,7 @@ faGetChannelPedestal(int id, uint32_t chan)
   if(chan > 16)
     {
       logMsg
-	("faSetChannelPedestal: ERROR : Channel (%d) out of range (0-15) \n",
+	("faV3SetChannelPedestal: ERROR : Channel (%d) out of range (0-15) \n",
 	 chan, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4918,7 +4918,7 @@ faGetChannelPedestal(int id, uint32_t chan)
 #ifdef CLAS12
 
 int
-faSetChannelDelay(int id, uint32_t chan, uint32_t delay)
+faV3SetChannelDelay(int id, uint32_t chan, uint32_t delay)
 {
   uint32_t lovalue = 0, hivalue = 0;
   if(id == 0)
@@ -4927,14 +4927,14 @@ faSetChannelDelay(int id, uint32_t chan, uint32_t delay)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetChannelDelay: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetChannelDelay: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
 
   if(chan > 16)
     {
-      logMsg("faSetChannelDelay: ERROR : Channel (%d) out of range (0-15) \n",
+      logMsg("faV3SetChannelDelay: ERROR : Channel (%d) out of range (0-15) \n",
 	     chan, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4942,7 +4942,7 @@ faSetChannelDelay(int id, uint32_t chan, uint32_t delay)
   if(delay > 512)
     {
       logMsg
-	("faSetChannelDelay: ERROR : Delay value (%d) out of range (0-31) \n",
+	("faV3SetChannelDelay: ERROR : Delay value (%d) out of range (0-31) \n",
 	 delay, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -4965,16 +4965,16 @@ faSetChannelDelay(int id, uint32_t chan, uint32_t delay)
 
 /*Begin Andrea*/
 int
-faSetDelayAll(int id, uint32_t delay)
+faV3SetDelayAll(int id, uint32_t delay)
 {
   int ch = 0;
   int ret;
   for(ch = 0; ch < 16; ch++)
     {
-      ret = faSetChannelDelay(id, ch, delay);
+      ret = faV3SetChannelDelay(id, ch, delay);
       if(ret != OK)
 	{
-	  logMsg("faSetDelayAll: ERROR for slot %d ch %d\n", id, ch, 3, 4, 5,
+	  logMsg("faV3SetDelayAll: ERROR for slot %d ch %d\n", id, ch, 3, 4, 5,
 		 6);
 	  break;
 	}
@@ -4983,7 +4983,7 @@ faSetDelayAll(int id, uint32_t delay)
 }
 
 int
-faSetGlobalDelay(uint32_t delay)
+faV3SetGlobalDelay(uint32_t delay)
 {
   int fadc;
   int id;
@@ -4991,10 +4991,10 @@ faSetGlobalDelay(uint32_t delay)
   for(fadc = 0; fadc < nfaV3; fadc++)
     {
       id = faV3ID[fadc];
-      ret = faSetDelayAll(id, delay);
+      ret = faV3SetDelayAll(id, delay);
       if(ret != OK)
 	{
-	  logMsg("faSetGlobalDelay: ERROR for slot %d \n", fadc, 2, 3, 4, 5,
+	  logMsg("faV3SetGlobalDelay: ERROR for slot %d \n", fadc, 2, 3, 4, 5,
 		 6);
 	  break;
 	}
@@ -5004,7 +5004,7 @@ faSetGlobalDelay(uint32_t delay)
 
 /*End Andrea*/
 int
-faGetChannelDelay(int id, uint32_t chan)
+faV3GetChannelDelay(int id, uint32_t chan)
 {
   uint32_t rval = 0;
 
@@ -5014,14 +5014,14 @@ faGetChannelDelay(int id, uint32_t chan)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faGetChannelDelay: ERROR : ADC in slot %d is not initialized \n",
+	("faV3GetChannelDelay: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
 
   if(chan > 16)
     {
-      logMsg("faSetChannelDelay: ERROR : Channel (%d) out of range (0-15) \n",
+      logMsg("faV3SetChannelDelay: ERROR : Channel (%d) out of range (0-15) \n",
 	     chan, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5036,7 +5036,7 @@ faGetChannelDelay(int id, uint32_t chan)
 
 
 int
-faInvert(int id, uint16_t chmask)
+faV3Invert(int id, uint16_t chmask)
 {
   int ii;
   uint32_t lovalue = 0, hivalue = 0;
@@ -5078,7 +5078,7 @@ faInvert(int id, uint16_t chmask)
 }
 
 uint32_t
-faGetInvertMask(int id)
+faV3GetInvertMask(int id)
 {
   int ii;
   uint32_t tmp, cmask = 0;
@@ -5088,7 +5088,7 @@ faGetInvertMask(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faGetInvertMask: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3GetInvertMask: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (0);
     }
@@ -5106,7 +5106,7 @@ faGetInvertMask(int id)
 }
 
 int
-faSetHitbitTrigMask(int id, uint16_t chmask)
+faV3SetHitbitTrigMask(int id, uint16_t chmask)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -5114,7 +5114,7 @@ faSetHitbitTrigMask(int id, uint16_t chmask)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetHitbitTrigMask: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetHitbitTrigMask: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (-1);
     }
@@ -5126,7 +5126,7 @@ faSetHitbitTrigMask(int id, uint16_t chmask)
 }
 
 uint32_t
-faGetHitbitTrigMask(int id)
+faV3GetHitbitTrigMask(int id)
 {
   uint32_t rvalue = 0;
 
@@ -5136,7 +5136,7 @@ faGetHitbitTrigMask(int id)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faGetHitbitTrigMask: ERROR : ADC in slot %d is not initialized \n",
+	("faV3GetHitbitTrigMask: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (0);
     }
@@ -5148,30 +5148,30 @@ faGetHitbitTrigMask(int id)
 }
 
 int
-faGSetHitbitMinTOT(uint16_t width)
+faV3GSetHitbitMinTOT(uint16_t width)
 {
   int ii;
 
   for(ii = 0; ii < nfaV3; ii++)
-    faSetHitbitMinTOT(faV3ID[ii], width);
+    faV3SetHitbitMinTOT(faV3ID[ii], width);
 
   return (OK);
 }
 
 
 int
-faGSetHitbitMinMultiplicity(uint16_t mult)
+faV3GSetHitbitMinMultiplicity(uint16_t mult)
 {
   int ii;
 
   for(ii = 0; ii < nfaV3; ii++)
-    faSetHitbitMinMultiplicity(faV3ID[ii], mult);
+    faV3SetHitbitMinMultiplicity(faV3ID[ii], mult);
 
   return OK;
 }
 
 int
-faGetHitbitMinTOT(int id)
+faV3GetHitbitMinTOT(int id)
 {
   uint32_t val;
   if(id == 0)
@@ -5180,7 +5180,7 @@ faGetHitbitMinTOT(int id)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faGetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
+	("faV3GetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (-1);
     }
@@ -5192,7 +5192,7 @@ faGetHitbitMinTOT(int id)
 }
 
 int
-faSetHitbitMinTOT(int id, uint16_t width)
+faV3SetHitbitMinTOT(int id, uint16_t width)
 {
   uint32_t val;
   if(id == 0)
@@ -5201,7 +5201,7 @@ faSetHitbitMinTOT(int id, uint16_t width)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (-1);
     }
@@ -5215,7 +5215,7 @@ faSetHitbitMinTOT(int id, uint16_t width)
 }
 
 int
-faGetHitbitMinMultiplicity(int id)
+faV3GetHitbitMinMultiplicity(int id)
 {
   uint32_t val;
   if(id == 0)
@@ -5224,7 +5224,7 @@ faGetHitbitMinMultiplicity(int id)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faGetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
+	("faV3GetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (-1);
     }
@@ -5236,7 +5236,7 @@ faGetHitbitMinMultiplicity(int id)
 }
 
 int
-faSetHitbitMinMultiplicity(int id, uint16_t mult)
+faV3SetHitbitMinMultiplicity(int id, uint16_t mult)
 {
   uint32_t val;
   if(id == 0)
@@ -5245,7 +5245,7 @@ faSetHitbitMinMultiplicity(int id, uint16_t mult)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (-1);
     }
@@ -5259,7 +5259,7 @@ faSetHitbitMinMultiplicity(int id, uint16_t mult)
 }
 
 int
-faSetHitbitTrigWidth(int id, uint16_t width)
+faV3SetHitbitTrigWidth(int id, uint16_t width)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -5267,7 +5267,7 @@ faSetHitbitTrigWidth(int id, uint16_t width)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (-1);
     }
@@ -5279,7 +5279,7 @@ faSetHitbitTrigWidth(int id, uint16_t width)
 }
 
 uint32_t
-faGetHitbitTrigWidth(int id)
+faV3GetHitbitTrigWidth(int id)
 {
   uint32_t rvalue = 0;
 
@@ -5289,7 +5289,7 @@ faGetHitbitTrigWidth(int id)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faGetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
+	("faV3GetHitbitTrigWidth: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (0);
     }
@@ -5301,7 +5301,7 @@ faGetHitbitTrigWidth(int id)
 }
 
 int
-faThresholdIgnore(int id, uint16_t chmask)
+faV3ThresholdIgnore(int id, uint16_t chmask)
 {
   int ii;
   uint32_t lovalue = 0, hivalue = 0;
@@ -5344,7 +5344,7 @@ faThresholdIgnore(int id, uint16_t chmask)
 }
 
 uint32_t
-faGetThresholdIgnoreMask(int id)
+faV3GetThresholdIgnoreMask(int id)
 {
   int ii;
   uint32_t tmp, cmask = 0;
@@ -5355,7 +5355,7 @@ faGetThresholdIgnoreMask(int id)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faGetThresholdIgnoreMask: ERROR : ADC in slot %d is not initialized \n",
+	("faV3GetThresholdIgnoreMask: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (0);
     }
@@ -5373,7 +5373,7 @@ faGetThresholdIgnoreMask(int id)
 }
 
 int
-faPlaybackDisable(int id, uint16_t chmask)
+faV3PlaybackDisable(int id, uint16_t chmask)
 {
   int ii;
   uint32_t lovalue = 0, hivalue = 0;
@@ -5416,7 +5416,7 @@ faPlaybackDisable(int id, uint16_t chmask)
 }
 
 uint32_t
-faGetPlaybackDisableMask(int id)
+faV3GetPlaybackDisableMask(int id)
 {
   int ii;
   uint32_t tmp, cmask = 0;
@@ -5427,7 +5427,7 @@ faGetPlaybackDisableMask(int id)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faGetPlaybackDisableMask: ERROR : ADC in slot %d is not initialized \n",
+	("faV3GetPlaybackDisableMask: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (0);
     }
@@ -5446,7 +5446,7 @@ faGetPlaybackDisableMask(int id)
 
 
 int
-faGetChThreshold(int id, int ch)
+faV3GetChThreshold(int id, int ch)
 {
   uint32_t rvalue = 0;
 
@@ -5456,7 +5456,7 @@ faGetChThreshold(int id, int ch)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetThresholdAll: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetThresholdAll: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5469,15 +5469,15 @@ faGetChThreshold(int id, int ch)
 }
 
 int
-faSetChThreshold(int id, int ch, int threshold)
+faV3SetChThreshold(int id, int ch, int threshold)
 {
-  /*  printf("faSetChThreshold: slot %d, ch %d, threshold=%d\n",id,ch,threshold); */
+  /*  printf("faV3SetChThreshold: slot %d, ch %d, threshold=%d\n",id,ch,threshold); */
 
-  return faSetThreshold(id, threshold, (1 << ch));
+  return faV3SetThreshold(id, threshold, (1 << ch));
 }
 
 int
-faGLoadChannelPedestals(char *fname, int updateThresholds)
+faV3GLoadChannelPedestals(char *fname, int updateThresholds)
 {
   FILE *fd = NULL;
   float ped, adc_ped[FAV3_MAX_BOARDS + 1][FAV3_MAX_ADC_CHANNELS];
@@ -5528,22 +5528,22 @@ faGLoadChannelPedestals(char *fname, int updateThresholds)
   for(ii = 0; ii < nfaV3; ii++)
     {
       slot = faV3ID[ii];
-      nsamples = faGetNSA(slot) + faGetNSB(slot);
+      nsamples = faV3GetNSA(slot) + faV3GetNSB(slot);
       /*    printf("faGLoadChannelPedestals: slot=%d, nsamples=%d\n",slot,nsamples); */
       for(chan = 0; chan < FAV3_MAX_ADC_CHANNELS; chan++)
 	{
 	  ped = adc_ped[slot][chan] * ((float) nsamples);
 	  /*      printf("faGLoadChannelPedestals: chan=%d, ped=%d\n",chan,(int)ped); */
-	  faSetChannelPedestal(slot, chan, (int) ped);
+	  faV3SetChannelPedestal(slot, chan, (int) ped);
 
 	  if(updateThresholds)
 	    {
-	      threshold = faGetChThreshold(slot, chan);
+	      threshold = faV3GetChThreshold(slot, chan);
 	      /* if threshold=0, don't add pedestal since user is disabling zero suppression */
 	      if(threshold)
 		threshold += (int) adc_ped[slot][chan];
 	      /*        printf("faGLoadChannelPedestals: chan=%d, threshold=%d\n",chan,threshold); */
-	      faSetChThreshold(slot, chan, threshold);
+	      faV3SetChThreshold(slot, chan, threshold);
 	    }
 	}
     }
@@ -5554,12 +5554,12 @@ faGLoadChannelPedestals(char *fname, int updateThresholds)
 #define FAV3_MEASURE_PED_NTIMES		10
 
 int
-faMeasureChannelPedestal(int id, uint32_t chan, fa250Ped * ped)
+faV3MeasureChannelPedestal(int id, uint32_t chan, faV3Ped * ped)
 {
   int status, i, n;
   uint32_t sample0, sample1;
   double adc_val, nsamples;
-  fa250Ped p;
+  faV3Ped p;
 
   p.avg = 0.0;
   p.rms = 0.0;
@@ -5653,7 +5653,7 @@ faMeasureChannelPedestal(int id, uint32_t chan, fa250Ped * ped)
 // Mode=0: normal pulse integration trigger mode
 // Mode=1: discriminator trigger mode
 int
-faSetTriggerProcessingMode(int id, uint32_t chan, uint32_t mode)
+faV3SetTriggerProcessingMode(int id, uint32_t chan, uint32_t mode)
 {
   uint32_t rval = 0;
 
@@ -5663,7 +5663,7 @@ faSetTriggerProcessingMode(int id, uint32_t chan, uint32_t mode)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetTriggerProcessingMode: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetTriggerProcessingMode: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5671,7 +5671,7 @@ faSetTriggerProcessingMode(int id, uint32_t chan, uint32_t mode)
   if(chan > 16)
     {
       logMsg
-	("faSetTriggerProcessingMode: ERROR : Channel (%d) out of range (0-15) \n",
+	("faV3SetTriggerProcessingMode: ERROR : Channel (%d) out of range (0-15) \n",
 	 chan, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5689,7 +5689,7 @@ faSetTriggerProcessingMode(int id, uint32_t chan, uint32_t mode)
 }
 
 int
-faGetTriggerProcessingMode(int id, uint32_t chan)
+faV3GetTriggerProcessingMode(int id, uint32_t chan)
 {
   uint32_t rval = 0;
 
@@ -5699,7 +5699,7 @@ faGetTriggerProcessingMode(int id, uint32_t chan)
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faGetTriggerProcessingMode: ERROR : ADC in slot %d is not initialized \n",
+	("faV3GetTriggerProcessingMode: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5707,7 +5707,7 @@ faGetTriggerProcessingMode(int id, uint32_t chan)
   if(chan > 16)
     {
       logMsg
-	("faGetTriggerProcessingMode: ERROR : Channel (%d) out of range (0-15) \n",
+	("faV3GetTriggerProcessingMode: ERROR : Channel (%d) out of range (0-15) \n",
 	 chan, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5724,7 +5724,7 @@ faGetTriggerProcessingMode(int id, uint32_t chan)
 }
 
 int
-faSetChannelGain(int id, uint32_t chan, float gain)
+faV3SetChannelGain(int id, uint32_t chan, float gain)
 {
   uint32_t rval = 0;
   int igain;
@@ -5734,14 +5734,14 @@ faSetChannelGain(int id, uint32_t chan, float gain)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetChannelGain: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetChannelGain: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
 
   if(chan > 16)
     {
-      logMsg("faSetChannelGain: ERROR : Channel (%d) out of range (0-15) \n",
+      logMsg("faV3SetChannelGain: ERROR : Channel (%d) out of range (0-15) \n",
 	     chan, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5749,7 +5749,7 @@ faSetChannelGain(int id, uint32_t chan, float gain)
   if(gain >= 127.0 || gain < 0.0)
     {
       logMsg
-	("faSetChannelGain: ERROR : GAIN value (%f) out of range (0.0-127.0) \n",
+	("faV3SetChannelGain: ERROR : GAIN value (%f) out of range (0.0-127.0) \n",
 	 gain, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5767,7 +5767,7 @@ faSetChannelGain(int id, uint32_t chan, float gain)
 }
 
 float
-faGetChannelGain(int id, uint32_t chan)
+faV3GetChannelGain(int id, uint32_t chan)
 {
   uint32_t rval = 0;
 
@@ -5776,14 +5776,14 @@ faGetChannelGain(int id, uint32_t chan)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetChannelGain: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetChannelGain: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
 
   if(chan > 16)
     {
-      logMsg("faSetChannelGain: ERROR : Channel (%d) out of range (0-15) \n",
+      logMsg("faV3SetChannelGain: ERROR : Channel (%d) out of range (0-15) \n",
 	     chan, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -5796,7 +5796,7 @@ faGetChannelGain(int id, uint32_t chan)
 }
 
 int
-faResetMGT(int id, int reset)
+faV3ResetMGT(int id, int reset)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -5808,7 +5808,7 @@ faResetMGT(int id, int reset)
       return (ERROR);
     }
 
-  //  faSetMGTSettings(id, 0, 2, 2);
+  //  faV3SetMGTSettings(id, 0, 2, 2);
 
   FAV3LOCK;
   if(reset)
@@ -5823,7 +5823,7 @@ faResetMGT(int id, int reset)
 }
 
 int
-faGetMGTChannelStatus(int id)
+faV3GetMGTChannelStatus(int id)
 {
   int status = 0;
 
@@ -5851,7 +5851,7 @@ faGetMGTChannelStatus(int id)
 
 /*
   int
-  faSetMGTSettings(int id, int txpre, int txswing, int rxequ)
+  faV3SetMGTSettings(int id, int txpre, int txswing, int rxequ)
   {
   int val;
 
@@ -5885,7 +5885,7 @@ faGetMGTChannelStatus(int id)
 
 /**************************************************************************************
  *
- *  faSetMGTTestMode -
+ *  faV3SetMGTTestMode -
  *  faSyncResetMode  -  Set the fa250 operation when Sync Reset is received
  *
  *        When SYNC RESET is received by the module, the module may:
@@ -5898,7 +5898,7 @@ faGetMGTChannelStatus(int id)
  */
 
 int
-faSetMGTTestMode(int id, uint32_t mode)
+faV3SetMGTTestMode(int id, uint32_t mode)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -5928,9 +5928,9 @@ faSetMGTTestMode(int id, uint32_t mode)
 }
 
 int
-faSyncResetMode(int id, uint32_t mode)
+faV3SyncResetMode(int id, uint32_t mode)
 {
-  return faSetMGTTestMode(id, mode);
+  return faV3SetMGTTestMode(id, mode);
 }
 
 /**************************************************************************************
@@ -5950,7 +5950,7 @@ faSyncResetMode(int id, uint32_t mode)
  *   RETURNS the number of 32bit words read, or ERROR if unsuccessful.
  */
 int
-faReadScalers(int id, volatile uint32_t * data, uint32_t chmask, int rflag)
+faV3ReadScalers(int id, volatile uint32_t * data, uint32_t chmask, int rflag)
 {
   int doLatch = 0, doClear = 0, ichan = 0;
   int dCnt = 0;
@@ -6013,7 +6013,7 @@ faReadScalers(int id, volatile uint32_t * data, uint32_t chmask, int rflag)
  *   RETURNS ok if successful , or ERROR if unsuccessful.
  */
 int
-faPrintScalers(int id, int rflag)
+faV3PrintScalers(int id, int rflag)
 {
   int doLatch = 0, doClear = 0, ichan = 0;
   uint32_t data[16], time_count;
@@ -6069,7 +6069,7 @@ faPrintScalers(int id, int rflag)
 }
 
 int
-faClearScalers(int id)
+faV3ClearScalers(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -6091,7 +6091,7 @@ faClearScalers(int id)
 
 
 int
-faLatchScalers(int id)
+faV3LatchScalers(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -6112,7 +6112,7 @@ faLatchScalers(int id)
 }
 
 int
-faEnableScalers(int id)
+faV3EnableScalers(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -6132,7 +6132,7 @@ faEnableScalers(int id)
 }
 
 int
-faDisableScalers(int id)
+faV3DisableScalers(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -6169,7 +6169,7 @@ faDisableScalers(int id)
  *   RETURNS the number of 32bit words read, or ERROR if unsuccessful.
  */
 int
-faReadChargeScalers(int id, volatile uint64_t * data, uint32_t chmask)
+faV3ReadChargeScalers(int id, volatile uint64_t * data, uint32_t chmask)
 {
   int ichan = 0;
   int dCnt = 0;
@@ -6217,7 +6217,7 @@ faReadChargeScalers(int id, volatile uint64_t * data, uint32_t chmask)
  */
 
 uint32_t
-faGetA32(int id)
+faV3GetA32(int id)
 {
   uint32_t rval = 0;
   if(FAV3pd[id])
@@ -6226,7 +6226,7 @@ faGetA32(int id)
     }
   else
     {
-      logMsg("faGetA32(%d): A32 pointer not initialized\n",
+      logMsg("faV3GetA32(%d): A32 pointer not initialized\n",
 	     id, 2, 3, 4, 5, 6);
       rval = ERROR;
     }
@@ -6242,7 +6242,7 @@ faGetA32(int id)
  */
 
 uint32_t
-faGetA32M()
+faV3GetA32M()
 {
   uint32_t rval = 0;
   if(FAV3pmb)
@@ -6251,7 +6251,7 @@ faGetA32M()
     }
   else
     {
-      logMsg("faGetA32M: A32M pointer not initialized\n", 1, 2, 3, 4, 5, 6);
+      logMsg("faV3GetA32M: A32M pointer not initialized\n", 1, 2, 3, 4, 5, 6);
       rval = ERROR;
     }
 
@@ -6267,7 +6267,7 @@ faGetA32M()
  *  @return multiblock min address if successful, otherwise ERROR.
  */
 uint32_t
-faGetMinA32MB(int id)
+faV3GetMinA32MB(int id)
 {
   uint32_t rval = 0, a32addr, addrMB;
   if(id == 0)
@@ -6289,7 +6289,7 @@ faGetMinA32MB(int id)
   addrMB = (addrMB & FAV3_AMB_MIN_MASK) << 16;
 
 #ifdef DEBUG
-  printf("faGetMinA32MB: a32addr=0x%08x addrMB=0x%08x for slot %d\n", a32addr,
+  printf("faV3GetMinA32MB: a32addr=0x%08x addrMB=0x%08x for slot %d\n", a32addr,
 	 addrMB, id);
 #endif
 
@@ -6299,7 +6299,7 @@ faGetMinA32MB(int id)
 
   rval = a32addr;
 #ifdef DEBUG
-  printf("faGetMinA32MB: rval=0x%08x\n", rval);
+  printf("faV3GetMinA32MB: rval=0x%08x\n", rval);
 #endif
 
   FAV3UNLOCK;
@@ -6315,7 +6315,7 @@ faGetMinA32MB(int id)
  *  @return multiblock max address if successful, otherwise ERROR.
  */
 uint32_t
-faGetMaxA32MB(int id)
+faV3GetMaxA32MB(int id)
 {
   uint32_t rval = 0, a32addr, addrMB;
 
@@ -6339,9 +6339,9 @@ faGetMaxA32MB(int id)
   rval = addrMB;
 
 #ifdef DEBUG
-  printf("faGetMaxA32MB: a32addr=0x%08x addrMB=0x%08x for slot %d\n", a32addr,
+  printf("faV3GetMaxA32MB: a32addr=0x%08x addrMB=0x%08x for slot %d\n", a32addr,
 	 addrMB, id);
-  printf("faGetMaxA32MB: rval=0x%08x\n", rval);
+  printf("faV3GetMaxA32MB: rval=0x%08x\n", rval);
 #endif
 
   FAV3UNLOCK;
@@ -6371,7 +6371,7 @@ faGetMaxA32MB(int id)
 */
 
 void
-faPrintAuxScal(int id)
+faV3PrintAuxScal(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -6396,7 +6396,7 @@ faPrintAuxScal(int id)
 }
 
 void
-faPrintFifoStatus(int id)
+faV3PrintFifoStatus(int id)
 {
   uint32_t ibuf, bbuf, obuf, dflow;
   uint32_t wc[2], mt[2], full[2];
@@ -6477,7 +6477,7 @@ faPrintFifoStatus(int id)
 }
 
 int
-faLive(int id, int sflag)
+faV3Live(int id, int sflag)
 {
   int ilt = 0;
   uint32_t live;
@@ -6508,7 +6508,7 @@ faLive(int id, int sflag)
 
 
 void
-faDataDecode(uint32_t data)
+faV3DataDecode(uint32_t data)
 {
   int i_print = 1;
   static uint32_t type_last = 15;	/* initialize to type FILLER WORD */
@@ -6763,7 +6763,7 @@ faDataDecode(uint32_t data)
 }
 
 void
-faTestSetSystemTestMode(int id, int mode)
+faV3TestSetSystemTestMode(int id, int mode)
 {
   int reg = 0;
   if(id == 0)
@@ -6791,7 +6791,7 @@ faTestSetSystemTestMode(int id, int mode)
 }
 
 void
-faTestSetTrigOut(int id, int mode)
+faV3TestSetTrigOut(int id, int mode)
 {
   int reg = 0;
   if(id == 0)
@@ -6816,7 +6816,7 @@ faTestSetTrigOut(int id, int mode)
 }
 
 void
-faTestSetBusyOut(int id, int mode)
+faV3TestSetBusyOut(int id, int mode)
 {
   int reg = 0;
   if(id == 0)
@@ -6841,7 +6841,7 @@ faTestSetBusyOut(int id, int mode)
 }
 
 void
-faTestSetSdLink(int id, int mode)
+faV3TestSetSdLink(int id, int mode)
 {
   int reg = 0;
   if(id == 0)
@@ -6866,7 +6866,7 @@ faTestSetSdLink(int id, int mode)
 }
 
 void
-faTestSetTokenOut(int id, int mode)
+faV3TestSetTokenOut(int id, int mode)
 {
   int reg = 0;
   if(id == 0)
@@ -6891,7 +6891,7 @@ faTestSetTokenOut(int id, int mode)
 }
 
 int
-faTestGetStatBitB(int id)
+faV3TestGetStatBitB(int id)
 {
   int reg = 0;
   if(id == 0)
@@ -6913,7 +6913,7 @@ faTestGetStatBitB(int id)
 }
 
 int
-faTestGetTokenIn(int id)
+faV3TestGetTokenIn(int id)
 {
   int reg = 0;
   if(id == 0)
@@ -6935,7 +6935,7 @@ faTestGetTokenIn(int id)
 }
 
 int
-faTestGetClock250CounterStatus(int id)
+faV3TestGetClock250CounterStatus(int id)
 {
   int reg = 0;
   if(id == 0)
@@ -6957,7 +6957,7 @@ faTestGetClock250CounterStatus(int id)
 }
 
 uint32_t
-faTestGetClock250Counter(int id)
+faV3TestGetClock250Counter(int id)
 {
   uint32_t reg = 0;
   if(id == 0)
@@ -6979,7 +6979,7 @@ faTestGetClock250Counter(int id)
 }
 
 uint32_t
-faTestGetSyncCounter(int id)
+faV3TestGetSyncCounter(int id)
 {
   uint32_t reg = 0;
   if(id == 0)
@@ -7001,7 +7001,7 @@ faTestGetSyncCounter(int id)
 }
 
 uint32_t
-faTestGetTrig1Counter(int id)
+faV3TestGetTrig1Counter(int id)
 {
   uint32_t reg = 0;
   if(id == 0)
@@ -7023,7 +7023,7 @@ faTestGetTrig1Counter(int id)
 }
 
 uint32_t
-faTestGetTrig2Counter(int id)
+faV3TestGetTrig2Counter(int id)
 {
   uint32_t reg = 0;
   if(id == 0)
@@ -7045,7 +7045,7 @@ faTestGetTrig2Counter(int id)
 }
 
 void
-faTestResetClock250Counter(int id)
+faV3TestResetClock250Counter(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -7065,7 +7065,7 @@ faTestResetClock250Counter(int id)
 }
 
 void
-faTestResetSyncCounter(int id)
+faV3TestResetSyncCounter(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -7084,7 +7084,7 @@ faTestResetSyncCounter(int id)
 }
 
 void
-faTestResetTrig1Counter(int id)
+faV3TestResetTrig1Counter(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -7103,7 +7103,7 @@ faTestResetTrig1Counter(int id)
 }
 
 void
-faTestResetTrig2Counter(int id)
+faV3TestResetTrig2Counter(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -7122,7 +7122,7 @@ faTestResetTrig2Counter(int id)
 }
 
 uint32_t
-faTestGetTestBitReg(int id)
+faV3TestGetTestBitReg(int id)
 {
   uint32_t rval = 0;
   if(id == 0)
@@ -7148,10 +7148,10 @@ faTestGetTestBitReg(int id)
  *
  *   Enable and disables test mode during operation
  *
- *  @sa faTestSetSystemTestMode
- *  @sa faTestGetClock250CounterStatus
- *  @sa faTestGetClock250Counter
- *  @sa faTestResetClock250Counter
+ *  @sa faV3TestSetSystemTestMode
+ *  @sa faV3TestGetClock250CounterStatus
+ *  @sa faV3TestGetClock250Counter
+ *  @sa faV3TestResetClock250Counter
  *
  *  @param id Slot number
  *  @param pflag print to standard output if > 0
@@ -7160,7 +7160,7 @@ faTestGetTestBitReg(int id)
  */
 
 int
-faTestSystemClock(int id, int pflag)
+faV3TestSystemClock(int id, int pflag)
 {
   uint32_t rval = OK;
 
@@ -7175,23 +7175,23 @@ faTestSystemClock(int id, int pflag)
     }
 
   /* Enable test mode */
-  faTestSetSystemTestMode(id, 1);
+  faV3TestSetSystemTestMode(id, 1);
 
   /* reset clock counter */
-  faTestResetClock250Counter(id);
+  faV3TestResetClock250Counter(id);
 
   int iwait = 0;
   /* Wait for the 20us internal timer */
   while(iwait++ < 50)
     {
-      if(faTestGetClock250CounterStatus(id) == 0)
+      if(faV3TestGetClock250CounterStatus(id) == 0)
 	break;
     }
 
   /* Counter should return 5000 if the system clock is 250Mhz */
   int expected = 5000, measured = 0, diff = 0;
 
-  measured = faTestGetClock250Counter(id);
+  measured = faV3TestGetClock250Counter(id);
   diff = abs(expected - measured);
 
   if(diff < 5)
@@ -7200,7 +7200,7 @@ faTestSystemClock(int id, int pflag)
     rval = ERROR;
 
   /* Disable test mode */
-  faTestSetSystemTestMode(id, 0);
+  faV3TestSetSystemTestMode(id, 0);
 
   if(pflag)
     {
@@ -7214,7 +7214,7 @@ faTestSystemClock(int id, int pflag)
 
 /**************************************************************************************
  *
- *  faGetSerialNumber - Available for firmware>=0x0211
+ *  faV3GetSerialNumber - Available for firmware>=0x0211
  *      Fills 'rval' with a character array containing the fa250 serial number.
  *
  *      If snfix >= 1, will attempt to format the serial number to maintain
@@ -7231,7 +7231,7 @@ faTestSystemClock(int id, int pflag)
  */
 
 int
-faGetSerialNumber(int id, char **rval, int snfix)
+faV3GetSerialNumber(int id, char **rval, int snfix)
 {
   uint32_t sn[3];
   int i = 0, ivme = 0, ibyte = 0;
@@ -7363,7 +7363,7 @@ faGetSerialNumber(int id, char **rval, int snfix)
 
 /**************************************************************************************
  *
- *  faSetScalerBlockInterval
+ *  faV3SetScalerBlockInterval
  *      Data from scalers may be inserted into the readout data stream
  *      at regular event count intervals.  The interval is specified in
  *      multiples of blocks.
@@ -7380,7 +7380,7 @@ faGetSerialNumber(int id, char **rval, int snfix)
  */
 
 int
-faSetScalerBlockInterval(int id, uint32_t nblock)
+faV3SetScalerBlockInterval(int id, uint32_t nblock)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -7406,7 +7406,7 @@ faSetScalerBlockInterval(int id, uint32_t nblock)
 }
 
 int
-faGetScalerBlockInterval(int id)
+faV3GetScalerBlockInterval(int id)
 {
   int rval = 0;
 
@@ -7443,7 +7443,7 @@ faGetScalerBlockInterval(int id)
  */
 
 int
-faForceEndOfBlock(int id, int scalers)
+faV3ForceEndOfBlock(int id, int scalers)
 {
   int rval = OK, icheck = 0, timeout = 1000, csr = 0;
   int proc_config = 0;
@@ -7506,13 +7506,13 @@ faForceEndOfBlock(int id, int scalers)
 }
 
 void
-faGForceEndOfBlock(int scalers)
+faV3GForceEndOfBlock(int scalers)
 {
   int ii, res;
 
   for(ii = 0; ii < nfaV3; ii++)
     {
-      res = faForceEndOfBlock(faV3ID[ii], scalers);
+      res = faV3ForceEndOfBlock(faV3ID[ii], scalers);
       if(res < 0)
 	printf("%s: ERROR: slot %d, in faForceEndOfBlock()\n",
 	       __func__, faV3ID[ii]);
@@ -7533,7 +7533,7 @@ faGForceEndOfBlock(int scalers)
 */
 
 int
-faSDC_Config(uint16_t cFlag, uint16_t bMask)
+faV3SDC_Config(uint16_t cFlag, uint16_t bMask)
 {
 
   if(FAV3SDCp == NULL)
@@ -7577,7 +7577,7 @@ faSDC_Config(uint16_t cFlag, uint16_t bMask)
 }
 
 void
-faSDC_Status(int sFlag)
+faV3SDC_Status(int sFlag)
 {
 
   uint16_t sdc[4];
@@ -7667,7 +7667,7 @@ faSDC_Status(int sFlag)
 
 
 void
-faSDC_Enable(int nsync)
+faV3SDC_Enable(int nsync)
 {
 
   if(FAV3SDCp == NULL)
@@ -7686,7 +7686,7 @@ faSDC_Enable(int nsync)
 }
 
 void
-faSDC_Disable()
+faV3SDC_Disable()
 {
 
   if(FAV3SDCp == NULL)
@@ -7705,7 +7705,7 @@ faSDC_Disable()
 
 
 void
-faSDC_Sync()
+faV3SDC_Sync()
 {
 
   if(FAV3SDCp == NULL)
@@ -7721,7 +7721,7 @@ faSDC_Sync()
 }
 
 void
-faSDC_Trig()
+faV3SDC_Trig()
 {
   if(FAV3SDCp == NULL)
     {
@@ -7736,7 +7736,7 @@ faSDC_Trig()
 }
 
 int
-faSDC_Busy()
+faV3SDC_Busy()
 {
   int busy = 0;
 
@@ -7762,7 +7762,7 @@ faSDC_Busy()
 
 
 int
-faGetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
+faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 	      uint32_t * NSB, uint32_t * NSA, uint32_t * NP)
 {
   uint32_t tmp;
@@ -7771,7 +7771,7 @@ faGetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
     id = faV3ID[0];
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faGetProcMode: ERROR : FADC in slot %d is not initialized \n",
+      logMsg("faV3GetProcMode: ERROR : FADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -7792,14 +7792,14 @@ faGetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 
 
 int
-faGetNfadc()
+faV3GetNfadc()
 {
   return (nfaV3);
 }
 
 /*
   int
-  faSlot(uint32_t id)
+  faV3Slot(uint32_t id)
   {
   if(id>=nfaV3)
   {
@@ -7813,7 +7813,7 @@ faGetNfadc()
 
 
 int
-faId(uint32_t slot)
+faV3Id(uint32_t slot)
 {
   int id;
 
@@ -7831,7 +7831,7 @@ faId(uint32_t slot)
 }
 
 int
-faSetThresholdAll(int id, uint16_t tvalue[16])
+faV3SetThresholdAll(int id, uint16_t tvalue[16])
 {
   int ii;
 
@@ -7841,14 +7841,14 @@ faSetThresholdAll(int id, uint16_t tvalue[16])
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
-	("faSetThresholdAll: ERROR : ADC in slot %d is not initialized \n",
+	("faV3SetThresholdAll: ERROR : ADC in slot %d is not initialized \n",
 	 id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
 
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
     {
-      faSetChThreshold(id, ii, tvalue[ii]);
+      faV3SetChThreshold(id, ii, tvalue[ii]);
     }
 
   return (OK);
@@ -7865,7 +7865,7 @@ faSetThresholdAll(int id, uint16_t tvalue[16])
 */
 
 int
-faSetPedestal(int id, uint32_t wvalue)
+faV3SetPedestal(int id, uint32_t wvalue)
 {
   int ii;
 
@@ -7874,7 +7874,7 @@ faSetPedestal(int id, uint32_t wvalue)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faSetPedestal: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3SetPedestal: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (ERROR);
     }
@@ -7892,7 +7892,7 @@ faSetPedestal(int id, uint32_t wvalue)
 }
 
 int
-faPrintPedestal(int id)
+faV3PrintPedestal(int id)
 {
   int ii;
   uint32_t tval[FAV3_MAX_ADC_CHANNELS];
@@ -7976,7 +7976,7 @@ faPrintPedestal(int id)
 */
 
 int
-faArmStatesStorage(int id)
+faV3ArmStatesStorage(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -7999,7 +7999,7 @@ faArmStatesStorage(int id)
 }
 
 int
-faDisarmStatesStorage(int id)
+faV3DisarmStatesStorage(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -8022,7 +8022,7 @@ faDisarmStatesStorage(int id)
 }
 
 int
-faReadStatesStorage(int id)
+faV3ReadStatesStorage(int id)
 {
   int ii;
   uint32_t value, fifo;
@@ -8083,7 +8083,7 @@ faReadStatesStorage(int id)
  * @return OK if successful, otherwise ERROR
  */
 int
-faSetSparsificationMode(int id, int mode)
+faV3SetSparsificationMode(int id, int mode)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -8115,7 +8115,7 @@ faSetSparsificationMode(int id, int mode)
  * @return OK if successful, otherwise ERROR
  */
 void
-faGSetSparsificationMode(int mode)
+faV3GSetSparsificationMode(int mode)
 {
   int id = 0;
 
@@ -8137,7 +8137,7 @@ faGSetSparsificationMode(int mode)
  * @return 1 if sparsification is enabled, 0 if bypassed, otherwise ERROR
  */
 int
-faGetSparsificationMode(int id)
+faV3GetSparsificationMode(int id)
 {
   int mode = 0, rval = 0;
   if(id == 0)
@@ -8162,7 +8162,7 @@ faGetSparsificationMode(int id)
 }
 
 int
-faGetSparsificationStatus(int id)
+faV3GetSparsificationStatus(int id)
 {
   int rval = 0;
   if(id == 0)
@@ -8183,7 +8183,7 @@ faGetSparsificationStatus(int id)
 }
 
 int
-faClearSparsificationStatus(int id)
+faV3ClearSparsificationStatus(int id)
 {
   if(id == 0)
     id = faV3ID[0];
@@ -8203,7 +8203,7 @@ faClearSparsificationStatus(int id)
 }
 
 void
-faGClearSparsificationStatus()
+faV3GClearSparsificationStatus()
 {
   int id = 0;
 
@@ -8215,7 +8215,7 @@ faGClearSparsificationStatus()
 }
 
 uint32_t
-faGetFirstTriggerMismatch(int id)
+faV3GetFirstTriggerMismatch(int id)
 {
   uint32_t rval = 0;
   if(id == 0)
@@ -8236,7 +8236,7 @@ faGetFirstTriggerMismatch(int id)
 }
 
 uint32_t
-faGetMismatchTriggerCount(int id)
+faV3GetMismatchTriggerCount(int id)
 {
   uint32_t rval = 0;
   if(id == 0)
@@ -8257,7 +8257,7 @@ faGetMismatchTriggerCount(int id)
 }
 
 uint32_t
-faGetTriggersProcessedCount(int id)
+faV3GetTriggersProcessedCount(int id)
 {
   uint32_t rval = 0;
   if(id == 0)
@@ -8287,7 +8287,7 @@ faGetTriggersProcessedCount(int id)
  * @return OK if successful, otherwise ERROR
  */
 int
-faSetAccumulatorScalerMode(int id, uint16_t chmask)
+faV3SetAccumulatorScalerMode(int id, uint16_t chmask)
 {
   int ii;
   uint16_t lovalue = 0, hivalue = 0;
@@ -8338,19 +8338,19 @@ faSetAccumulatorScalerMode(int id, uint16_t chmask)
  * @return OK if successful, otherwise ERROR
  */
 int
-faGSetAccumulatorScalerMode(uint16_t chmask)
+faV3GSetAccumulatorScalerMode(uint16_t chmask)
 {
   int ifa = 0, rval = OK;
 
   for(ifa = 0; ifa < nfaV3; ifa++)
-    rval |= faSetAccumulatorScalerMode(ifa, chmask);
+    rval |= faV3SetAccumulatorScalerMode(ifa, chmask);
 
   return (rval);
 }
 
 
 uint32_t
-faGetAccumulatorScalerMode(int id)
+faV3GetAccumulatorScalerMode(int id)
 {
   int ii;
   uint32_t tmp, cmask = 0;
@@ -8360,7 +8360,7 @@ faGetAccumulatorScalerMode(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faGetInvertMask: ERROR : ADC in slot %d is not initialized \n",
+      logMsg("faV3GetInvertMask: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return (0);
     }

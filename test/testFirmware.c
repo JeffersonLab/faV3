@@ -40,13 +40,13 @@ main(int argc, char *argv[]) {
 	mcs_filename = argv[1];
       }
 
-    if(fadcFirmwareReadMcsFile(mcs_filename) != OK)
+    if(faV3FirmwareReadMcsFile(mcs_filename) != OK)
       {
 	exit(-1);
       }
 
-    fadcFirmwareChipFromFpgaID(1);
-    fadcFirmwareRevFromFpgaID(1);
+    faV3FirmwareChipFromFpgaID(1);
+    faV3FirmwareRevFromFpgaID(1);
 
     exit(0);
 }
