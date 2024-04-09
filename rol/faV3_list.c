@@ -102,9 +102,9 @@ rocDownload()
 
   /* Program/Init FADC Modules Here */
   iflag = 0xea00; /* SDC Board address */
-  iflag |= FA_INIT_EXT_SYNCRESET;  /* Front panel sync-reset */
-  iflag |= FA_INIT_FP_TRIG;  /* Front Panel Input trigger source */
-  iflag |= FA_INIT_FP_CLKSRC;  /* Internal 250MHz Clock source */
+  iflag |= FAV3_INIT_EXT_SYNCRESET;  /* Front panel sync-reset */
+  iflag |= FAV3_INIT_FP_TRIG;  /* Front Panel Input trigger source */
+  iflag |= FAV3_INIT_FP_CLKSRC;  /* Internal 250MHz Clock source */
 
   faV3A32Base = 0x09000000;
 

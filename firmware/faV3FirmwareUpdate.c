@@ -114,12 +114,12 @@ main(int argc, char *argv[])
   printf(" Will update firmware for ");
   if(fpga_choice == 1)
     {
-      firmware_choice = FADC_FIRMWARE_FX70T;
+      firmware_choice = FAV3_FIRMWARE_FX70T;
       printf("FX70T (Control FPGA) ");
     }
   else if((fpga_choice == 2) || (fpga_choice == 0))
     {
-      firmware_choice = FADC_FIRMWARE_LX110;
+      firmware_choice = FAV3_FIRMWARE_LX110;
       printf("LX110 (Processing FPGA) ");
     }
 

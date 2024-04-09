@@ -125,8 +125,8 @@ rocDownload()
   /* FADC Initialization flags */
   iflag = 0; /* NO SDC */
   iflag |= (1<<0);  /* VXS sync-reset */
-  iflag |= FA_INIT_VXS_TRIG;  /* VXS trigger source */
-  iflag |= FA_INIT_VXS_CLKSRC;  /* VXS 250MHz Clock source */
+  iflag |= FAV3_INIT_VXS_TRIG;  /* VXS trigger source */
+  iflag |= FAV3_INIT_VXS_CLKSRC;  /* VXS 250MHz Clock source */
 
   faV3A32Base = 0x09000000;
 

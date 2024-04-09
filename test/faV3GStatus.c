@@ -27,7 +27,7 @@ main(int argc, char *argv[])
 
     vmeBusLock();
     /* Set the FADC structure pointer */
-    faInit( 3 << 19 , 1 << 19, 18, FA_INIT_SKIP);
+    faInit( 3 << 19 , 1 << 19, 18, FAV3_INIT_SKIP);
 
     faGStatus(0);
     vmeBusUnlock();

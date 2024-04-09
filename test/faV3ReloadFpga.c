@@ -18,7 +18,7 @@
 #include "faV3Lib.h"
 
 char *progName;
-extern volatile faV3_t *FAV3p[(FA_MAX_BOARDS + 1)];
+extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];
 
 int  TestReady(int id, int n_try, int pFlag);
 void
@@ -74,15 +74,15 @@ main(int argc, char *argv[])
     {
     case 0:
       doBoth = 1;
-      fpga_choice = FADC_FIRMWARE_FX70T;
+      fpga_choice = FAV3_FIRMWARE_FX70T;
       break;
 
     case 1:
-      fpga_choice = FADC_FIRMWARE_FX70T;
+      fpga_choice = FAV3_FIRMWARE_FX70T;
       break;
 
     case 2:
-      fpga_choice = FADC_FIRMWARE_LX110;
+      fpga_choice = FAV3_FIRMWARE_LX110;
       break;
 
     }
@@ -92,7 +92,7 @@ main(int argc, char *argv[])
   vmeBusLock();
 
 
-  iFlag = FA_INIT_SKIP | FA_INIT_SKIP_FIRMWARE_CHECK;
+  iFlag = FAV3_INIT_SKIP | FAV3_INIT_SKIP_FIRMWARE_CHECK;
   stat = faInit(fadc_address, 0, 1, iFlag);
 
   if(nfaV3 < 0)
@@ -117,15 +117,15 @@ main(int argc, char *argv[])
       printf(" %2d ", id);
       fflush(stdout);
 
-      if(fpga_choice == FADC_FIRMWARE_LX110)
+      if(fpga_choice == FAV3_FIRMWARE_LX110)
 	{
-	  vmeWrite32(&FAV3p[id]->prom_reg1,FA_PROMREG1_REBOOT_FPGA1);
+	  vmeWrite32(&FAV3p[id]->prom_reg1,FAV3_PROMREG1_REBOOT_FPGA1);
 	  if(doBoth)
 	    doBoth = 0;
 	}
-      else if (fpga_choice == FADC_FIRMWARE_FX70T)
+      else if (fpga_choice == FAV3_FIRMWARE_FX70T)
 	{
-	  vmeWrite32(&FAV3p[id]->prom_reg1,FA_PROMREG1_REBOOT_FPGA2);
+	  vmeWrite32(&FAV3p[id]->prom_reg1,FAV3_PROMREG1_REBOOT_FPGA2);
 	}
     }
 
@@ -145,7 +145,7 @@ main(int argc, char *argv[])
 
   if(doBoth)
     {
-      fpga_choice = FADC_FIRMWARE_LX110;
+      fpga_choice = FAV3_FIRMWARE_LX110;
       goto RELOAD;
     }
 
@@ -182,7 +182,7 @@ TestReady(int id, int n_try, int pFlag)
       if( value == 0xFFFFFFFF)
 	continue;
 
-      if(value & FA_PROMREG1_READY)
+      if(value & FAV3_PROMREG1_READY)
 	{
 	  result = OK;
 	  break;

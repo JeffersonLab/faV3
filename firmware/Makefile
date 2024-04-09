@@ -32,7 +32,7 @@ LINUXVME_LIB		?= ../../lib
 LINUXVME_INC		?= ../../include
 LINUXVME_BIN		?= ../../bin
 
-CFLAGS			= -L. -L.. -L${LINUXVME_LIB} ${LIB_CODA} -DLinux_vme -DLinux -ljvme -lfadc
+CFLAGS			= -L. -L.. -L${LINUXVME_LIB} ${LIB_CODA} -DLinux_vme -DLinux -ljvme -lfaV3
 INCS			= -I. -I.. -I${LINUXVME_INC} ${INC_CODA}
 
 ifdef DEBUG

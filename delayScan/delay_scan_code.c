@@ -22,9 +22,9 @@
 
 extern pthread_mutex_t   faV3Mutex;
 
-extern volatile faV3_t *FAV3p[(FA_MAX_BOARDS+1)]; /* pointers to FADC memory map */
+extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS+1)]; /* pointers to FADC memory map */
 extern int nfaV3;                                           /* Number of FADCs in Crate */
-extern int faV3ID[FA_MAX_BOARDS];                           /* array of slot numbers for FADCs */
+extern int faV3ID[FAV3_MAX_BOARDS];                           /* array of slot numbers for FADCs */
 
 FILE *filep;
 char *progName;
@@ -175,14 +175,14 @@ faGRunDelayScan(int pflag)
 {
   int id, ifa, idelay, ich, ret = OK;
   struct timespec delay_scan_waittime, rem;
-  char sn[(FA_MAX_BOARDS+1)][20];
+  char sn[(FAV3_MAX_BOARDS+1)][20];
 
-  uint64_t errors_array[(FA_MAX_BOARDS+1)][64];
+  uint64_t errors_array[(FAV3_MAX_BOARDS+1)][64];
   unsigned short errors = 0;
   struct b_field_short *bit_short;
   bit_short = (struct b_field_short *) &errors;
 
-  uint64_t delay_scan[(FA_MAX_BOARDS+1)][16];
+  uint64_t delay_scan[(FAV3_MAX_BOARDS+1)][16];
   struct scan_struct scan_results;
 
   /* Initialize errors_array and delay_scan */
@@ -410,15 +410,15 @@ faSetIdelay(int id, int ch, int delay_p, int delay_n)
       return ERROR;
     }
 
-  val = (ch << 12) & FA_ADC_CONFIG4_IDELAY_CHAN_MASK;
+  val = (ch << 12) & FAV3_ADC_CONFIG4_IDELAY_CHAN_MASK;
 
   FALOCK;
   vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for Idelay settings */
 
-  val |= FA_ADC_CONFIG4_IDELAY_RESET;
+  val |= FAV3_ADC_CONFIG4_IDELAY_RESET;
   vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Reset Idelay to default setting */
 
-  val &= ~FA_ADC_CONFIG4_IDELAY_RESET;
+  val &= ~FAV3_ADC_CONFIG4_IDELAY_RESET;
   vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release reset */
 
   delay_p_current = idelay_default_settings[ch];
@@ -426,10 +426,10 @@ faSetIdelay(int id, int ch, int delay_p, int delay_n)
 
   while (delay_p_current != delay_p)	/* Increment P delay until input value is reached */
     {
-      val |= FA_ADC_CONFIG4_IDELAY_INC_P;
+      val |= FAV3_ADC_CONFIG4_IDELAY_INC_P;
       vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Increment P delay */
 
-      val &= ~FA_ADC_CONFIG4_IDELAY_INC_P;
+      val &= ~FAV3_ADC_CONFIG4_IDELAY_INC_P;
       vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release increment P of delay */
 
       delay_p_current = (delay_p_current + 1) & 0x3f;
@@ -437,10 +437,10 @@ faSetIdelay(int id, int ch, int delay_p, int delay_n)
 
   while (delay_n_current != delay_n)	/* Increment N delay until input value is reached */
     {
-      val |= FA_ADC_CONFIG4_IDELAY_INC_N;
+      val |= FAV3_ADC_CONFIG4_IDELAY_INC_N;
       vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Increment N delay */
 
-      val &= ~FA_ADC_CONFIG4_IDELAY_INC_N;
+      val &= ~FAV3_ADC_CONFIG4_IDELAY_INC_N;
       vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release increment of N delay */
 
       delay_n_current = (delay_n_current + 1) & 0x3f;
@@ -469,13 +469,13 @@ faMeasureIdelayErrors(int id)
 
   for (ch = 0; ch < 16; ch++)
     {
-      val = (ch << 12) & FA_ADC_CONFIG4_IDELAY_CHAN_MASK;
+      val = (ch << 12) & FAV3_ADC_CONFIG4_IDELAY_CHAN_MASK;
       vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for Idelay settings */
 
-      val |= FA_ADC_CONFIG4_CMP_RESET;
+      val |= FAV3_ADC_CONFIG4_CMP_RESET;
       vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Reset comparator */
 
-      val &= ~FA_ADC_CONFIG4_CMP_RESET;
+      val &= ~FAV3_ADC_CONFIG4_CMP_RESET;
       vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release comparator reset */
     }
 
@@ -502,10 +502,10 @@ faGetIdelayErrors(int id)
 
   for (ch = 0; ch < 16; ch++)
     {
-      val = (ch << 12) & FA_ADC_CONFIG4_IDELAY_CHAN_MASK;
+      val = (ch << 12) & FAV3_ADC_CONFIG4_IDELAY_CHAN_MASK;
       vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for error status */
 
-      if (vmeRead32(&FAV3p[id]->status4) & FA_ADC_STATUS4_CMP_ERR)
+      if (vmeRead32(&FAV3p[id]->status4) & FAV3_ADC_STATUS4_CMP_ERR)
 	errors |= (1 << ch);
     }
 

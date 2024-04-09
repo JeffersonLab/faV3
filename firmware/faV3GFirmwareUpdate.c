@@ -104,13 +104,13 @@ main(int argc, char *argv[])
   faInit((uint32_t) (FADC_ADDR), (1 << 19), NFADC, iFlag);
 #endif
 
-  if(nfadc == 0)
+  if(nfaV3 == 0)
     {
       printf(" Unable to initialize any FADCs.\n");
       goto CLOSE;
     }
 
-  for(ifa = 0; ifa < nfadc; ifa++)
+  for(ifa = 0; ifa < nfaV3; ifa++)
     {
       cfw = faGetFirmwareVersions(faSlot(ifa), 0);
       printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
@@ -120,12 +120,12 @@ main(int argc, char *argv[])
   printf(" Will update firmware for ");
   if(fpga_choice == 1)
     {
-      firmware_choice = FADC_FIRMWARE_FX70T;
+      firmware_choice = FAV3_FIRMWARE_FX70T;
       printf("FX70T (Control FPGA) ");
     }
   else if((fpga_choice == 2) || (fpga_choice == 0))
     {
-      firmware_choice = FADC_FIRMWARE_LX110;
+      firmware_choice = FAV3_FIRMWARE_LX110;
       printf("LX110 (Processing FPGA) ");
     }
 

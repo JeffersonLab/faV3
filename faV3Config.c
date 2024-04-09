@@ -831,7 +831,7 @@ fadc250UploadAll(char *string, int length)
 
       fa250[slot].accumulatorMask = faGetAccumulatorScalerMode(slot);
 
-      for(i=0;i<FA_MAX_ADC_CHANNELS;i++)
+      for(i=0;i<FAV3_MAX_ADC_CHANNELS;i++)
 	{
 	  fa250[slot].delay[i] = 4*faGetChannelDelay(slot, i);
 	  fa250[slot].dac[i] = faGetChannelDAC(slot, i);
@@ -871,16 +871,16 @@ fadc250UploadAll(char *string, int length)
 	  sprintf(sss,"FADC250_VXSREADOUT %d\n", fa250[slot].vxsReadout);
 	  ADD_TO_STRING;
 
-	  sprintf(sss,"FADC250_W_OFFSET %d\n",  fa250[slot].winOffset*FA_ADC_NS_PER_CLK);
+	  sprintf(sss,"FADC250_W_OFFSET %d\n",  fa250[slot].winOffset*FAV3_ADC_NS_PER_CLK);
 	  ADD_TO_STRING;
 
-	  sprintf(sss,"FADC250_W_WIDTH  %d\n",  fa250[slot].winWidth*FA_ADC_NS_PER_CLK);
+	  sprintf(sss,"FADC250_W_WIDTH  %d\n",  fa250[slot].winWidth*FAV3_ADC_NS_PER_CLK);
 	  ADD_TO_STRING;
 
-	  sprintf(sss,"FADC250_NSA %d\n",       fa250[slot].nsa*FA_ADC_NS_PER_CLK);
+	  sprintf(sss,"FADC250_NSA %d\n",       fa250[slot].nsa*FAV3_ADC_NS_PER_CLK);
 	  ADD_TO_STRING;
 
-	  sprintf(sss,"FADC250_NSB %d\n",       fa250[slot].nsb*FA_ADC_NS_PER_CLK);
+	  sprintf(sss,"FADC250_NSB %d\n",       fa250[slot].nsb*FAV3_ADC_NS_PER_CLK);
 	  ADD_TO_STRING;
 
 	  sprintf(sss,"FADC250_NPEAK %d\n",     fa250[slot].npeak);

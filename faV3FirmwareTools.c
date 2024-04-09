@@ -17,10 +17,10 @@
 
 #include <ctype.h>
 
-#define        FA_FPGAID_MASK     0xFFFFF000
-#define        FA_FPGAID_CTRL     0xf2501000
-#define        FA_FPGAID_PROC     0xf2502000
-#define        FA_FPGAID_REV_MASK 0x00000FFF
+#define        FAV3_FPGAID_MASK     0xFFFFF000
+#define        FAV3_FPGAID_CTRL     0xf2501000
+#define        FAV3_FPGAID_PROC     0xf2502000
+#define        FAV3_FPGAID_REV_MASK 0x00000FFF
 
 #define        MSC_MAX_SIZE    8000000
 uint32_t MCS_FPGAID = -1;	/* FPGA ID defined in the MCS file */
@@ -29,8 +29,8 @@ unsigned char MSC_ARRAY[MSC_MAX_SIZE];	/* The array holding the firmware */
 char *MSC_filename_LX110 = "LX110_firmware.dat";	/* Default firmware for LX110 */
 char *MSC_filename_FX70T = "FX70T_firmware.dat";	/* Default firmware for FX70T */
 int MSC_loaded = 0;		/* 1(0) if firmware loaded (not loaded) */
-VOIDFUNCPTR faUpdateWatcherRoutine = NULL;
-faUpdateWatcherArgs_t faUpdateWatcherArgs;
+VOIDFUNCPTR faV3UpdateWatcherRoutine = NULL;
+faV3UpdateWatcherArgs_t faV3UpdateWatcherArgs;
 
 /*************************************************************
  * fadcFirmwareLoad
@@ -44,7 +44,7 @@ faUpdateWatcherArgs_t faUpdateWatcherArgs;
 int
 fadcFirmwareLoad(int id, int chip, int pFlag)
 {
-  faUpdateWatcherArgs_t updateArgs;
+  faV3UpdateWatcherArgs_t updateArgs;
   if(id == 0)
     id = faV3ID[0];
 
@@ -62,7 +62,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
     }
 
   if(chip == 2)			/* Fix for discrepancy between Linux and vxWorks implementation */
-    chip = FADC_FIRMWARE_LX110;
+    chip = FAV3_FIRMWARE_LX110;
 
   /* Perform a hardware and software reset */
   FAV3LOCK;
@@ -70,7 +70,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   FAV3UNLOCK;
   taskDelay(60);
 
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Check if ready \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -86,7 +86,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
     {
       printf("%s: ERROR: FADC %2d not configured to read/write PROM.\n\tCheck U90 DIP Switches.\n",
 	     __func__, id);
-      updateArgs.step = FA_ARGS_SHOW_STRING;
+      updateArgs.step = FAV3_ARGS_SHOW_STRING;
       sprintf(updateArgs.title,
 	      "ERROR: FADC %2d FAILED PROM READ/WRITE TEST\n", id);
       fadcFirmwareUpdateWatcher(updateArgs);
@@ -94,7 +94,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
     }
 
   /* Data to SRAM */
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading SRAM with data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -109,15 +109,15 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
 
   /* SRAM TO PROM */
   taskDelay(1);
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading PROM with SRAM data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
   FAV3LOCK;
-  if(chip == FADC_FIRMWARE_LX110)
-    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM1);
-  else if(chip == FADC_FIRMWARE_FX70T)
-    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM2);
+  if(chip == FAV3_FIRMWARE_LX110)
+    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_SRAM_TO_PROM1);
+  else if(chip == FAV3_FIRMWARE_FX70T)
+    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_SRAM_TO_PROM2);
   FAV3UNLOCK;
   taskDelay(1);
 
@@ -129,17 +129,17 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
     }
 
   /* PROM TO SRAM (For verification) */
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading SRAM with PROM data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
   fadcFirmwareZeroSRAM(id);
 
   FAV3LOCK;
-  if(chip == FADC_FIRMWARE_LX110)
-    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM1_TO_SRAM);
-  else if(chip == FADC_FIRMWARE_FX70T)
-    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
+  if(chip == FAV3_FIRMWARE_LX110)
+    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM1_TO_SRAM);
+  else if(chip == FAV3_FIRMWARE_FX70T)
+    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM2_TO_SRAM);
   FAV3UNLOCK;
   taskDelay(1);
 
@@ -151,7 +151,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
     }
 
   /* Compare SRAM to Data Array */
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Verifying data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -162,15 +162,15 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
     }
 
   /* PROM to FPGA (Reboot FPGA) */
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Rebooting FPGA \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
   FAV3LOCK;
-  if(chip == FADC_FIRMWARE_LX110)
-    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA1);
-  else if(chip == FADC_FIRMWARE_FX70T)
-    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA2);
+  if(chip == FAV3_FIRMWARE_LX110)
+    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_REBOOT_FPGA1);
+  else if(chip == FAV3_FIRMWARE_FX70T)
+    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_REBOOT_FPGA2);
   FAV3UNLOCK;
   taskDelay(1);
 
@@ -181,7 +181,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
       return ERROR;
     }
 
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Done programming FADC %2d\n", id);
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -189,7 +189,7 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
 
 }
 
-static uint32_t passed[FA_MAX_BOARDS + 1], stepfail[FA_MAX_BOARDS + 1];
+static uint32_t passed[FAV3_MAX_BOARDS + 1], stepfail[FAV3_MAX_BOARDS + 1];
 
 int
 fadcFirmwarePassedMask()
@@ -219,9 +219,9 @@ int
 fadcFirmwareGLoad(int chip, int pFlag)
 {
   int ifadc = 0, id = 0, step = 0;
-  faUpdateWatcherArgs_t updateArgs;
+  faV3UpdateWatcherArgs_t updateArgs;
 
-  /*   uint32_t passed[FA_MAX_BOARDS+1], stepfail[FA_MAX_BOARDS+1]; */
+  /*   uint32_t passed[FAV3_MAX_BOARDS+1], stepfail[FAV3_MAX_BOARDS+1]; */
 
   if(chip < 0 || chip > 2)
     {
@@ -230,7 +230,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
     }
 
   if(chip == 2)			/* Fix for discrepancy between Linux and vxWorks implementation */
-    chip = FADC_FIRMWARE_LX110;
+    chip = FAV3_FIRMWARE_LX110;
 
   /* Perform a hardware and software reset */
   step = 0;
@@ -257,7 +257,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
   /* Check if FADC is Ready */
   step = 1;
 
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Check if ready \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -282,7 +282,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 		 __func__, id);
 	  passed[id] = 0;
 	  stepfail[id] = step;
-	  updateArgs.step = FA_ARGS_SHOW_STRING;
+	  updateArgs.step = FAV3_ARGS_SHOW_STRING;
 	  sprintf(updateArgs.title,
 		  "ERROR: FADC %2d FAILED PROM READ/WRITE TEST\n", id);
 	  fadcFirmwareUpdateWatcher(updateArgs);
@@ -293,7 +293,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
   /* Data to SRAM */
   step = 2;
 
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading SRAM with data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -301,7 +301,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
     {
       id = faV3ID[ifadc];
 
-      updateArgs.step = FA_ARGS_SHOW_ID;
+      updateArgs.step = FAV3_ARGS_SHOW_ID;
       updateArgs.id = id;
       fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -318,7 +318,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 	    }
 	  else
 	    {
-	      updateArgs.step = FA_ARGS_SHOW_DONE;
+	      updateArgs.step = FAV3_ARGS_SHOW_DONE;
 	      fadcFirmwareUpdateWatcher(updateArgs);
 	    }
 	}
@@ -328,7 +328,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
   step = 3;
   taskDelay(1);
 
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Loading PROM with SRAM data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -338,10 +338,10 @@ fadcFirmwareGLoad(int chip, int pFlag)
       id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  if(chip == FADC_FIRMWARE_LX110)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM1);
-	  else if(chip == FADC_FIRMWARE_FX70T)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM2);
+	  if(chip == FAV3_FIRMWARE_LX110)
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_SRAM_TO_PROM1);
+	  else if(chip == FAV3_FIRMWARE_FX70T)
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_SRAM_TO_PROM2);
 	}
     }
   FAV3UNLOCK;
@@ -365,7 +365,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
   /* PROM TO SRAM (For verification) */
   step = 4;
 
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   fadcFirmwareUpdateWatcher(updateArgs);
   sprintf(updateArgs.title, "Loading SRAM with PROM data \n");
 
@@ -376,10 +376,10 @@ fadcFirmwareGLoad(int chip, int pFlag)
 	{
 	  fadcFirmwareZeroSRAM(id);
 	  FAV3LOCK;
-	  if(chip == FADC_FIRMWARE_LX110)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM1_TO_SRAM);
-	  else if(chip == FADC_FIRMWARE_FX70T)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
+	  if(chip == FAV3_FIRMWARE_LX110)
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM1_TO_SRAM);
+	  else if(chip == FAV3_FIRMWARE_FX70T)
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM2_TO_SRAM);
 	  FAV3UNLOCK;
 	}
     }
@@ -404,7 +404,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
   /* Compare SRAM to Data Array */
   step = 5;
 
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Verifying data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -412,7 +412,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
     {
       id = faV3ID[ifadc];
 
-      updateArgs.step = FA_ARGS_SHOW_ID;
+      updateArgs.step = FAV3_ARGS_SHOW_ID;
       updateArgs.id = id;
       fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -427,7 +427,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
 	    }
 	  else
 	    {
-	      updateArgs.step = FA_ARGS_SHOW_DONE;
+	      updateArgs.step = FAV3_ARGS_SHOW_DONE;
 	      fadcFirmwareUpdateWatcher(updateArgs);
 	    }
 	}
@@ -436,7 +436,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
   /* PROM to FPGA (Reboot FPGA) */
   step = 6;
 
-  updateArgs.step = FA_ARGS_SHOW_STRING;
+  updateArgs.step = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Rebooting FPGA \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
@@ -446,10 +446,10 @@ fadcFirmwareGLoad(int chip, int pFlag)
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
 	  FAV3LOCK;
-	  if(chip == FADC_FIRMWARE_LX110)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA1);
-	  else if(chip == FADC_FIRMWARE_FX70T)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA2);
+	  if(chip == FAV3_FIRMWARE_LX110)
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_REBOOT_FPGA1);
+	  else if(chip == FAV3_FIRMWARE_FX70T)
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_REBOOT_FPGA2);
 	  FAV3UNLOCK;
 	}
     }
@@ -475,7 +475,7 @@ fadcFirmwareGLoad(int chip, int pFlag)
       id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  updateArgs.step = FA_ARGS_SHOW_STRING;
+	  updateArgs.step = FAV3_ARGS_SHOW_STRING;
 	  sprintf(updateArgs.title, "Done programming FADC %2d\n", id);
 	  fadcFirmwareUpdateWatcher(updateArgs);
 	}
@@ -587,7 +587,7 @@ fadcFirmwareVerifyDownload(int id)
   /* write SRAM address register */
   /* start at 0 and increment address after read from mem1 data register */
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM1);
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FAV3_MEM_ADR_INCR_MEM1);
 #ifdef DEBUG
   value = vmeRead32(&FAV3p[id]->mem_adr);
 #endif
@@ -659,7 +659,7 @@ fadcFirmwareTestReady(int id, int n_try, int pFlag)
 {
   int ii;
   int result;
-  faUpdateWatcherArgs_t updateArgs;
+  faV3UpdateWatcherArgs_t updateArgs;
   uint32_t value = 0;
 
   if(id == 0)
@@ -674,13 +674,13 @@ fadcFirmwareTestReady(int id, int n_try, int pFlag)
 
   result = ERROR;
 
-  updateArgs.step = FA_ARGS_SHOW_ID;
+  updateArgs.step = FAV3_ARGS_SHOW_ID;
   updateArgs.id = id;
   fadcFirmwareUpdateWatcher(updateArgs);
 
   for(ii = 0; ii < n_try; ii++)	/* poll for ready bit */
     {
-      updateArgs.step = FA_ARGS_SHOW_PROGRESS;
+      updateArgs.step = FAV3_ARGS_SHOW_PROGRESS;
       fadcFirmwareUpdateWatcher(updateArgs);
 
       taskDelay(1);		/* wait */
@@ -691,13 +691,13 @@ fadcFirmwareTestReady(int id, int n_try, int pFlag)
       if(value == 0xFFFFFFFF)
 	continue;
 
-      if(value & FA_PROMREG1_READY)
+      if(value & FAV3_PROMREG1_READY)
 	{
 	  result = OK;
 	  break;
 	}
     }
-  updateArgs.step = FA_ARGS_SHOW_DONE;
+  updateArgs.step = FAV3_ARGS_SHOW_DONE;
   fadcFirmwareUpdateWatcher(updateArgs);
 
   if(pFlag)
@@ -731,7 +731,7 @@ fadcFirmwareZeroSRAM(int id)
 
   /* set address = 0; allow increment on mem2 access */
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM2);
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FAV3_MEM_ADR_INCR_MEM2);
 
   for(ii = 0; ii < 0x80000; ii++)	/* write ZERO to entire memory */
     {
@@ -740,7 +740,7 @@ fadcFirmwareZeroSRAM(int id)
     }
 
   /* reset address = 0; allow increment on mem2 access */
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM2);
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FAV3_MEM_ADR_INCR_MEM2);
 
   FAV3UNLOCK;
 
@@ -801,7 +801,7 @@ fadcFirmwareCheckSRAM(int id)
   fadcFirmwareZeroSRAM(id);
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
+  vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM2_TO_SRAM);
   FAV3UNLOCK;
   taskDelay(1);
 
@@ -813,7 +813,7 @@ fadcFirmwareCheckSRAM(int id)
     }
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM1);
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FAV3_MEM_ADR_INCR_MEM1);
 #ifdef DEBUG
   value = vmeRead32(&FAV3p[id]->mem_adr);
 #endif
@@ -848,9 +848,9 @@ fadcFirmwareCheckSRAM(int id)
 void
 fadcFirmwareSetFilename(char *filename, int chip)
 {
-  if(chip == FADC_FIRMWARE_LX110)
+  if(chip == FAV3_FIRMWARE_LX110)
     MSC_filename_LX110 = filename;
-  else if(chip == FADC_FIRMWARE_FX70T)
+  else if(chip == FAV3_FIRMWARE_FX70T)
     MSC_filename_FX70T = filename;
 
 }
@@ -950,15 +950,15 @@ fadcFirmwareChipFromFpgaID(int pflag)
   int rval = 0;
   uint32_t id;
 
-  id = MCS_FPGAID & FA_FPGAID_MASK;
+  id = MCS_FPGAID & FAV3_FPGAID_MASK;
 
   switch (id)
     {
-    case FA_FPGAID_PROC:
-      rval = FADC_FIRMWARE_LX110;
+    case FAV3_FPGAID_PROC:
+      rval = FAV3_FIRMWARE_LX110;
       break;
-    case FA_FPGAID_CTRL:
-      rval = FADC_FIRMWARE_FX70T;
+    case FAV3_FPGAID_CTRL:
+      rval = FAV3_FIRMWARE_FX70T;
       break;
     case -1:
     default:
@@ -987,7 +987,7 @@ fadcFirmwareRevFromFpgaID(int pflag)
 {
   int rval = 0;
 
-  rval = MCS_FPGAID & FA_FPGAID_REV_MASK;
+  rval = MCS_FPGAID & FAV3_FPGAID_REV_MASK;
 
   if(pflag)
     {
@@ -1103,49 +1103,49 @@ fadcFirmwareReadMcsFile(char *filename)
 
 int
 fadcFirmwareAttachUpdateWatcher(VOIDFUNCPTR routine,
-				faUpdateWatcherArgs_t arg)
+				faV3UpdateWatcherArgs_t arg)
 {
 
   if(routine)
     {
-      faUpdateWatcherRoutine = routine;
-      faUpdateWatcherArgs = arg;
+      faV3UpdateWatcherRoutine = routine;
+      faV3UpdateWatcherArgs = arg;
     }
   else
     {
-      faUpdateWatcherRoutine = NULL;
-      memset(&faUpdateWatcherArgs, 0, sizeof(faUpdateWatcherArgs_t));
+      faV3UpdateWatcherRoutine = NULL;
+      memset(&faV3UpdateWatcherArgs, 0, sizeof(faV3UpdateWatcherArgs_t));
     }
 
   return OK;
 }
 
 void
-fadcFirmwareUpdateWatcher(faUpdateWatcherArgs_t arg)
+fadcFirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg)
 {
-  faUpdateWatcherArgs_t rArg;
+  faV3UpdateWatcherArgs_t rArg;
   static int step1_ticks = 0;
 
-  if((arg.step >= FA_ARGS_SHOW_ID) && (arg.step < FA_ARGS_LAST))
+  if((arg.step >= FAV3_ARGS_SHOW_ID) && (arg.step < FAV3_ARGS_LAST))
     rArg = arg;
   else
-    rArg = faUpdateWatcherArgs;
+    rArg = faV3UpdateWatcherArgs;
 
-  if(faUpdateWatcherRoutine != NULL)
+  if(faV3UpdateWatcherRoutine != NULL)
     {
-      (*faUpdateWatcherRoutine) (rArg);
+      (*faV3UpdateWatcherRoutine) (rArg);
     }
   else
     {
       switch (rArg.step)
 	{
-	case FA_ARGS_SHOW_ID:
+	case FAV3_ARGS_SHOW_ID:
 	  step1_ticks = 0;
 	  printf("%2d: ", arg.id);
 	  fflush(stdout);
 	  break;
 
-	case FA_ARGS_SHOW_PROGRESS:
+	case FAV3_ARGS_SHOW_PROGRESS:
 	  step1_ticks++;
 	  if((step1_ticks % 180) == 0)
 	    {
@@ -1154,13 +1154,13 @@ fadcFirmwareUpdateWatcher(faUpdateWatcherArgs_t arg)
 	    }
 	  break;
 
-	case FA_ARGS_SHOW_DONE:
+	case FAV3_ARGS_SHOW_DONE:
 	  step1_ticks = 0;
 	  printf(" Done\n");
 	  fflush(stdout);
 	  break;
 
-	case FA_ARGS_SHOW_STRING:
+	case FAV3_ARGS_SHOW_STRING:
 	  printf("%s", arg.title);
 	  fflush(stdout);
 	  break;
