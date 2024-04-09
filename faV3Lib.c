@@ -1,11 +1,21 @@
-/********************************************************************************
- *  faV3Lib.c  -    Library for JLAB configuration and readout of JLAB 250MHz FLASH
- *                  ADC V3 using a VxWorks >=5.4 or Linux >=2.6.18 based Single
- *                  Board computer.
+/**
+ * @copyright Copyright 2024, Jefferson Science Associates, LLC.
+ *            Subject to the terms in the LICENSE file found in the
+ *            top-level directory.
  *
- *  Author: David Abbott & Bryan Moffit
- *          Jefferson Lab Data Acquisition Group
- *          April 2024
+ * @author    Bryan Moffit
+ *            moffit@jlab.org                   Jefferson Lab, MS-12B3
+ *            Phone: (757) 269-5660             12000 Jefferson Ave.
+ *                                              Newport News, VA 23606
+ *
+ * @author    David Abbott
+ *            abbottd@jlab.org                  Jefferson Lab, MS-12B3
+ *            Phone: (757) 269-7190             12000 Jefferson Ave.
+ *                                              Newport News, VA 23606
+ * @file      faV3Lib.c
+ *
+ * @brief     Library for JLAB configuration and readout of JLAB 250MHz
+ *            FLASH ADC V3
  *
  */
 

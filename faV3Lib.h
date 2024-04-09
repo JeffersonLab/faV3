@@ -1,25 +1,21 @@
 #pragma once
-/******************************************************************************
+/**
+ * @copyright Copyright 2024, Jefferson Science Associates, LLC.
+ *            Subject to the terms in the LICENSE file found in the
+ *            top-level directory.
  *
- *  fadcLib.h  - Driver library header file for readout of the JLAB 250MHz FLASH
- *                ADC using a VxWorks 5.5 or later based single board
- *                computer.
+ * @author    Bryan Moffit
+ *            moffit@jlab.org                   Jefferson Lab, MS-12B3
+ *            Phone: (757) 269-5660             12000 Jefferson Ave.
+ *                                              Newport News, VA 23606
  *
- *  Author: David Abbott
- *          Jefferson Lab Data Acquisition Group
- *          June 2007
+ * @author    David Abbott
+ *            abbottd@jlab.org                  Jefferson Lab, MS-12B3
+ *            Phone: (757) 269-7190             12000 Jefferson Ave.
+ *                                              Newport News, VA 23606
+ * @file      faV3Lib.h
  *
- *  Revision  1.0 - Initial Revision
- *                    - Supports up to 20 FADC boards in a Crate
- *                    - Programmed I/O and Block reads
- *
- *  Revision  1.1 - Updated for new firmware (0x0111 or later)
- *                  Supports FADC Signal Distribution Module
- *
- *  Revision  1.2 - Updated to support Internal (HITSUM) triggering
- *                  and Moller firmware revisions of the FADC
- *
- *  Revision  2.0 - Updated to support FADC V2.
+ * @brief     Header for JLAB 250MHz FLASH ADC V3 library
  *
  */
 
