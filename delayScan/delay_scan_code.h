@@ -15,8 +15,8 @@
 #define FA_ADC_STATUS4_CMP_ERR           0x0400
 #define IDELAY_PN_OFFSET  3
 
-#define FALOCK      if(pthread_mutex_lock(&faMutex)<0) perror("pthread_mutex_lock");
-#define FAUNLOCK    if(pthread_mutex_unlock(&faMutex)<0) perror("pthread_mutex_unlock");
+#define FALOCK      if(pthread_mutex_lock(&faV3Mutex)<0) perror("pthread_mutex_lock");
+#define FAUNLOCK    if(pthread_mutex_unlock(&faV3Mutex)<0) perror("pthread_mutex_unlock");
 
 struct scan_struct
 {

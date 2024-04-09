@@ -16,9 +16,9 @@ faItrigStatus(int id, int sFlag)
   int vers, disabled, mode;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("faItrigStatus: ERROR : FADC in slot %d is not initialized \n",
 	     id);
@@ -26,19 +26,19 @@ faItrigStatus(int id, int sFlag)
     }
 
   /* Express Time in ns - 4ns/clk  */
-  FALOCK;
-  status = vmeRead32(&FAp[id]->hitsum_status) & 0xffff;
-  config = vmeRead32(&FAp[id]->hitsum_cfg) & 0xffff;
+  FAV3LOCK;
+  status = vmeRead32(&FAV3p[id]->hitsum_status) & 0xffff;
+  config = vmeRead32(&FAV3p[id]->hitsum_cfg) & 0xffff;
   twidth =
-    (vmeRead32(&FAp[id]->hitsum_trig_width) & 0xffff) * FA_ADC_NS_PER_CLK;
-  wMask = vmeRead32(&FAp[id]->hitsum_window_bits) & 0xffff;
+    (vmeRead32(&FAV3p[id]->hitsum_trig_width) & 0xffff) * FA_ADC_NS_PER_CLK;
+  wMask = vmeRead32(&FAV3p[id]->hitsum_window_bits) & 0xffff;
   wWidth =
-    (vmeRead32(&FAp[id]->hitsum_window_width) & 0xffff) * FA_ADC_NS_PER_CLK;
-  cMask = vmeRead32(&FAp[id]->hitsum_coin_bits) & 0xffff;
-  sum_th = vmeRead32(&FAp[id]->hitsum_sum_thresh) & 0xffff;
-  itrigCnt = vmeRead32(&FAp[id]->internal_trig_scal);
-  trigOut = vmeRead32(&FAp[id]->ctrl1) & FA_ITRIG_OUT_MASK;
-  FAUNLOCK;
+    (vmeRead32(&FAV3p[id]->hitsum_window_width) & 0xffff) * FA_ADC_NS_PER_CLK;
+  cMask = vmeRead32(&FAV3p[id]->hitsum_coin_bits) & 0xffff;
+  sum_th = vmeRead32(&FAV3p[id]->hitsum_sum_thresh) & 0xffff;
+  itrigCnt = vmeRead32(&FAV3p[id]->internal_trig_scal);
+  trigOut = vmeRead32(&FAV3p[id]->ctrl1) & FA_ITRIG_OUT_MASK;
+  FAV3UNLOCK;
 
   vers = status & FA_ITRIG_VERSION_MASK;
   mode = config & FA_ITRIG_MODE_MASK;
@@ -96,9 +96,9 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
   uint32_t config, stat, wTime;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("faItrigSetMode: ERROR : FADC in slot %d is not initialized \n",
 	     id);
@@ -106,9 +106,9 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
     }
 
   /* Make sure we are not enabled or running */
-  FALOCK;
-  config = vmeRead32(&FAp[id]->hitsum_cfg) & FA_ITRIG_CONFIG_MASK;
-  FAUNLOCK;
+  FAV3LOCK;
+  config = vmeRead32(&FAV3p[id]->hitsum_cfg) & FA_ITRIG_CONFIG_MASK;
+  FAV3UNLOCK;
   if((config & FA_ITRIG_ENABLE_MASK) == 0)
     {
       printf("faItrigSetMode: ERROR: Internal triggers are enabled - Disable first\n");
@@ -127,97 +127,97 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
     {
       printf("faItrigSetMode: Loading trigger table from address 0x%lx \n",
 	     (unsigned long) tTable);
-      FALOCK;
-      vmeWrite32(&FAp[id]->s_adr, FA_SADR_AUTO_INCREMENT);
-      vmeWrite32(&FAp[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
+      FAV3LOCK;
+      vmeWrite32(&FAV3p[id]->s_adr, FA_SADR_AUTO_INCREMENT);
+      vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
       for(ii = 1; ii <= 0xffff; ii++)
 	{
 	  if(tTable[ii])
-	    vmeWrite32(&FAp[id]->hitsum_pattern, 1);
+	    vmeWrite32(&FAV3p[id]->hitsum_pattern, 1);
 	  else
-	    vmeWrite32(&FAp[id]->hitsum_pattern, 0);
+	    vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);
 	}
-      FAUNLOCK;
+      FAV3UNLOCK;
     }
 
   switch (tmode)
     {
     case FA_ITRIG_SUM_MODE:
       /* Load Sum Threshhold if in range */
-      FALOCK;
+      FAV3LOCK;
       if((sumThresh > 0) && (sumThresh <= 0xffff))
 	{
-	  vmeWrite32(&FAp[id]->hitsum_sum_thresh, sumThresh);
+	  vmeWrite32(&FAV3p[id]->hitsum_sum_thresh, sumThresh);
 	}
       else
 	{
 	  printf("faItrigSetMode: ERROR: Sum Threshold out of range (0<st<=0xffff)\n");
-	  FAUNLOCK;
+	  FAV3UNLOCK;
 	  return (ERROR);
 	}
       stat = (config & ~FA_ITRIG_MODE_MASK) | FA_ITRIG_SUM_MODE;
-      vmeWrite32(&FAp[id]->hitsum_cfg, stat);
-      FAUNLOCK;
+      vmeWrite32(&FAV3p[id]->hitsum_cfg, stat);
+      FAV3UNLOCK;
       printf("faItrigSetMode: Configure for SUM Mode (Threshold = 0x%x)\n",
 	     sumThresh);
       break;
 
     case FA_ITRIG_COIN_MODE:
       /* Set Coincidence Input Channels */
-      FALOCK;
+      FAV3LOCK;
       if((cMask > 0) && (cMask <= 0xffff))
 	{
-	  vmeWrite32(&FAp[id]->hitsum_coin_bits, cMask);
+	  vmeWrite32(&FAV3p[id]->hitsum_coin_bits, cMask);
 	}
       else
 	{
 	  printf("faItrigSetMode: ERROR: Coincidence channel mask out of range (0<cc<=0xffff)\n");
-	  FAUNLOCK;
+	  FAV3UNLOCK;
 	  return (ERROR);
 	}
       stat = (config & ~FA_ITRIG_MODE_MASK) | FA_ITRIG_COIN_MODE;
-      vmeWrite32(&FAp[id]->hitsum_cfg, stat);
-      FAUNLOCK;
+      vmeWrite32(&FAV3p[id]->hitsum_cfg, stat);
+      FAV3UNLOCK;
       printf("faItrigSetMode: Configure for COINCIDENCE Mode (channel mask = 0x%x)\n",
 	 cMask);
       break;
 
     case FA_ITRIG_WINDOW_MODE:
       /* Set Trigger Window width and channel mask */
-      FALOCK;
+      FAV3LOCK;
       if((wMask > 0) && (wMask <= 0xffff))
 	{
-	  vmeWrite32(&FAp[id]->hitsum_window_bits, wMask);
+	  vmeWrite32(&FAV3p[id]->hitsum_window_bits, wMask);
 	}
       else
 	{
 	  printf("faItrigSetMode: ERROR: Trigger Window channel mask out of range (0<wc<=0xffff)\n");
-	  FAUNLOCK;
+	  FAV3UNLOCK;
 	  return (ERROR);
 	}
       if((wWidth > 0) && (wWidth <= FA_ITRIG_MAX_WIDTH))
 	{
-	  vmeWrite32(&FAp[id]->hitsum_window_width, wWidth);
+	  vmeWrite32(&FAV3p[id]->hitsum_window_width, wWidth);
 	  wTime = 4 * wWidth;
 	}
       else
 	{
 	  printf("faItrigSetMode: ERROR: Trigger Window width out of range (0<ww<=0x200)\n");
-	  FAUNLOCK;
+	  FAV3UNLOCK;
 	  return (ERROR);
 	}
       stat = (config & ~FA_ITRIG_MODE_MASK) | FA_ITRIG_WINDOW_MODE;
-      vmeWrite32(&FAp[id]->hitsum_cfg, stat);
-      FAUNLOCK;
+      vmeWrite32(&FAV3p[id]->hitsum_cfg, stat);
+      FAV3UNLOCK;
       printf("faItrigSetMode: Configure for Trigger WINDOW Mode (channel mask = 0x%x, width = %d ns)\n",
 	     wMask, wTime);
       break;
 
     case FA_ITRIG_TABLE_MODE:
-      FALOCK;
+      FAV3LOCK;
       stat = (config & ~FA_ITRIG_MODE_MASK) | FA_ITRIG_TABLE_MODE;
-      vmeWrite32(&FAp[id]->hitsum_cfg, stat);
-      FAUNLOCK;
+      vmeWrite32(&FAV3p[id]->hitsum_cfg, stat);
+      FAV3UNLOCK;
       printf("faItrigSetMode: Configure for Trigger TABLE Mode\n");
     }
 
@@ -244,9 +244,9 @@ faItrigInitTable(int id, uint32_t * table)
   uint32_t config;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("faItrigInitTable: ERROR : FADC in slot %d is not initialized \n",
 	     id);
@@ -254,12 +254,12 @@ faItrigInitTable(int id, uint32_t * table)
     }
 
   /* Check and make sure we are not running */
-  FALOCK;
-  config = vmeRead32(&FAp[id]->hitsum_cfg);
+  FAV3LOCK;
+  config = vmeRead32(&FAV3p[id]->hitsum_cfg);
   if((config & FA_ITRIG_ENABLE_MASK) != FA_ITRIG_DISABLED)
     {
       printf("faItrigInitTable: ERROR: Cannot update Trigger Table while trigger is Enabled\n");
-      FAUNLOCK;
+      FAV3UNLOCK;
       return (ERROR);
     }
 
@@ -267,29 +267,29 @@ faItrigInitTable(int id, uint32_t * table)
   if(table == NULL)
     {
       /* Use default Initialization - all combinations of inputs will be a valid trigger */
-      vmeWrite32(&FAp[id]->s_adr, FA_SADR_AUTO_INCREMENT);
-      vmeWrite32(&FAp[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
+      vmeWrite32(&FAV3p[id]->s_adr, FA_SADR_AUTO_INCREMENT);
+      vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
       for(ii = 1; ii <= 0xffff; ii++)
 	{
-	  vmeWrite32(&FAp[id]->hitsum_pattern, 1);
+	  vmeWrite32(&FAV3p[id]->hitsum_pattern, 1);
 	}
 
     }
   else
     {				/* Load specified table into hitsum FPGA */
 
-      vmeWrite32(&FAp[id]->s_adr, FA_SADR_AUTO_INCREMENT);
-      vmeWrite32(&FAp[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
+      vmeWrite32(&FAV3p[id]->s_adr, FA_SADR_AUTO_INCREMENT);
+      vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
       for(ii = 1; ii <= 0xffff; ii++)
 	{
 	  if(table[ii])
-	    vmeWrite32(&FAp[id]->hitsum_pattern, 1);
+	    vmeWrite32(&FAV3p[id]->hitsum_pattern, 1);
 	  else
-	    vmeWrite32(&FAp[id]->hitsum_pattern, 0);
+	    vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);
 	}
 
     }
-  FAUNLOCK;
+  FAV3UNLOCK;
 
   return (OK);
 }
@@ -304,9 +304,9 @@ faItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask)
   uint32_t config, hbval;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("faItrigSetHBwidth: ERROR : FADC in slot %d is not initialized \n",
 	     id);
@@ -314,12 +314,12 @@ faItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask)
     }
 
   /* Check and make sure we are not running */
-  FAUNLOCK;
-  config = vmeRead32(&FAp[id]->hitsum_cfg);
+  FAV3UNLOCK;
+  config = vmeRead32(&FAV3p[id]->hitsum_cfg);
   if((config & FA_ITRIG_ENABLE_MASK) != FA_ITRIG_DISABLED)
     {
       printf("faItrigSetHBwidth: ERROR: Cannot set HB widths while trigger is Enabled\n");
-      FAUNLOCK;
+      FAV3UNLOCK;
       return (ERROR);
     }
 
@@ -332,14 +332,14 @@ faItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask)
     {
       if((1 << ii) & hbMask)
 	{
-	  vmeWrite32(&FAp[id]->s_adr, ii);	/* Set Channel to Read/Write */
+	  vmeWrite32(&FAV3p[id]->s_adr, ii);	/* Set Channel to Read/Write */
 	  hbval =
-	    vmeRead32(&FAp[id]->hitsum_hit_info) & ~FA_ITRIG_HB_WIDTH_MASK;
+	    vmeRead32(&FAV3p[id]->hitsum_hit_info) & ~FA_ITRIG_HB_WIDTH_MASK;
 	  hbval = hbval | hbWidth;
-	  vmeWrite32(&FAp[id]->hitsum_hit_info, hbval);	/* Set Value */
+	  vmeWrite32(&FAV3p[id]->hitsum_hit_info, hbval);	/* Set Value */
 	}
     }
-  FAUNLOCK;
+  FAV3UNLOCK;
 
   return (OK);
 }
@@ -350,9 +350,9 @@ faItrigGetHBwidth(int id, uint32_t chan)
   uint32_t rval;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
 	("faItrigGetHBwidth: ERROR : FADC in slot %d is not initialized \n",
@@ -367,11 +367,11 @@ faItrigGetHBwidth(int id, uint32_t chan)
       return (0xffffffff);
     }
 
-  FALOCK;
-  vmeWrite32(&FAp[id]->s_adr, chan);	/* Set Channel */
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->s_adr, chan);	/* Set Channel */
   EIEIO;
-  rval = vmeRead32(&FAp[id]->hitsum_hit_info) & FA_ITRIG_HB_WIDTH_MASK;	/* Get Value */
-  FAUNLOCK;
+  rval = vmeRead32(&FAV3p[id]->hitsum_hit_info) & FA_ITRIG_HB_WIDTH_MASK;	/* Get Value */
+  FAV3UNLOCK;
 
   return (rval);
 }
@@ -383,9 +383,9 @@ faItrigSetHBdelay(int id, uint16_t hbDelay, uint16_t hbMask)
   uint32_t config, hbval;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("faItrigSetHBdelay: ERROR : FADC in slot %d is not initialized \n",
 	     id);
@@ -393,12 +393,12 @@ faItrigSetHBdelay(int id, uint16_t hbDelay, uint16_t hbMask)
     }
 
   /* Check and make sure we are not running */
-  FALOCK;
-  config = vmeRead32(&FAp[id]->hitsum_cfg);
+  FAV3LOCK;
+  config = vmeRead32(&FAV3p[id]->hitsum_cfg);
   if((config & FA_ITRIG_ENABLE_MASK) != FA_ITRIG_DISABLED)
     {
       printf("faItrigSetHBdelay: ERROR: Cannot set HB delays while trigger is Enabled\n");
-      FAUNLOCK;
+      FAV3UNLOCK;
       return (ERROR);
     }
 
@@ -412,14 +412,14 @@ faItrigSetHBdelay(int id, uint16_t hbDelay, uint16_t hbMask)
     {
       if((1 << ii) & hbMask)
 	{
-	  vmeWrite32(&FAp[id]->s_adr, ii);	/* Set Channel */
+	  vmeWrite32(&FAV3p[id]->s_adr, ii);	/* Set Channel */
 	  hbval =
-	    vmeRead32(&FAp[id]->hitsum_hit_info) & ~FA_ITRIG_HB_DELAY_MASK;
+	    vmeRead32(&FAV3p[id]->hitsum_hit_info) & ~FA_ITRIG_HB_DELAY_MASK;
 	  hbval |= (hbDelay << 8);
-	  vmeWrite32(&FAp[id]->hitsum_hit_info, hbval);	/* Set Value */
+	  vmeWrite32(&FAV3p[id]->hitsum_hit_info, hbval);	/* Set Value */
 	}
     }
-  FAUNLOCK;
+  FAV3UNLOCK;
 
   return (OK);
 }
@@ -430,9 +430,9 @@ faItrigGetHBdelay(int id, uint32_t chan)
   uint32_t rval;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
 	("faItrigGetHBdelay: ERROR : FADC in slot %d is not initialized \n",
@@ -447,11 +447,11 @@ faItrigGetHBdelay(int id, uint32_t chan)
       return (0xffffffff);
     }
 
-  FALOCK;
-  vmeWrite32(&FAp[id]->s_adr, chan);	/* Set Channel */
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->s_adr, chan);	/* Set Channel */
   EIEIO;
-  rval = (vmeRead32(&FAp[id]->hitsum_hit_info) & FA_ITRIG_HB_DELAY_MASK) >> 8;	/* Get Value */
-  FAUNLOCK;
+  rval = (vmeRead32(&FAV3p[id]->hitsum_hit_info) & FA_ITRIG_HB_DELAY_MASK) >> 8;	/* Get Value */
+  FAV3UNLOCK;
 
   return (rval);
 }
@@ -464,23 +464,23 @@ faItrigPrintHBinfo(int id)
   uint32_t hbval[16], wval, dval;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("faItrigPrintHBinfo: ERROR : FADC in slot %d is not initialized \n",
 	     id);
       return;
     }
 
-  FALOCK;
-  vmeWrite32(&FAp[id]->s_adr, ii);
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->s_adr, ii);
   for(ii = 0; ii < FA_MAX_ADC_CHANNELS; ii++)
     {
-      vmeWrite32(&FAp[id]->s_adr, ii);
-      hbval[ii] = vmeRead32(&FAp[id]->hitsum_hit_info) & FA_ITRIG_HB_INFO_MASK;	/* Get Values */
+      vmeWrite32(&FAV3p[id]->s_adr, ii);
+      hbval[ii] = vmeRead32(&FAV3p[id]->hitsum_hit_info) & FA_ITRIG_HB_INFO_MASK;	/* Get Values */
     }
-  FAUNLOCK;
+  FAV3UNLOCK;
 
   printf(" HitBit (width,delay) in nsec for FADC Inputs in slot %d:", id);
   for(ii = 0; ii < FA_MAX_ADC_CHANNELS; ii++)
@@ -502,9 +502,9 @@ faItrigSetOutWidth(int id, uint16_t itrigWidth)
   uint32_t retval = 0;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
 	("faItrigSetOutWidth: ERROR : FADC in slot %d is not initialized \n",
@@ -515,13 +515,13 @@ faItrigSetOutWidth(int id, uint16_t itrigWidth)
   if(itrigWidth > FA_ITRIG_MAX_WIDTH)
     itrigWidth = FA_ITRIG_MAX_WIDTH;
 
-  FALOCK;
+  FAV3LOCK;
   if(itrigWidth)
-    vmeWrite32(&FAp[id]->hitsum_trig_width, itrigWidth);
+    vmeWrite32(&FAV3p[id]->hitsum_trig_width, itrigWidth);
 
   EIEIO;
-  retval = vmeRead32(&FAp[id]->hitsum_trig_width) & 0xffff;
-  FAUNLOCK;
+  retval = vmeRead32(&FAV3p[id]->hitsum_trig_width) & 0xffff;
+  FAV3UNLOCK;
 
   return (retval);
 }
@@ -532,27 +532,27 @@ faItrigEnable(int id, int eflag)
   uint32_t rval;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg("faItrigEnable: ERROR : FADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return;
     }
 
-  FALOCK;
-  rval = vmeRead32(&FAp[id]->hitsum_cfg);
+  FAV3LOCK;
+  rval = vmeRead32(&FAV3p[id]->hitsum_cfg);
   rval &= ~(FA_ITRIG_DISABLED);
 
-  vmeWrite32(&FAp[id]->hitsum_cfg, rval);
+  vmeWrite32(&FAV3p[id]->hitsum_cfg, rval);
 
   if(eflag)
     {				/* Enable Live trigger to Front Panel Output */
-      vmeWrite32(&FAp[id]->ctrl1, vmeRead32(&FAp[id]->ctrl1)
+      vmeWrite32(&FAV3p[id]->ctrl1, vmeRead32(&FAV3p[id]->ctrl1)
 		 | (FA_ENABLE_LIVE_TRIG_OUT | FA_ENABLE_TRIG_OUT_FP));
     }
-  FAUNLOCK;
+  FAV3UNLOCK;
 
 }
 
@@ -562,28 +562,28 @@ faItrigDisable(int id, int dflag)
   uint32_t rval;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg("faItrigDisable: ERROR : FADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
       return;
     }
 
-  FALOCK;
-  rval = vmeRead32(&FAp[id]->hitsum_cfg);
+  FAV3LOCK;
+  rval = vmeRead32(&FAV3p[id]->hitsum_cfg);
   rval |= FA_ITRIG_DISABLED;
 
-  vmeWrite32(&FAp[id]->hitsum_cfg, rval);
+  vmeWrite32(&FAV3p[id]->hitsum_cfg, rval);
 
   if(dflag)
     {				/* Disable Live trigger to Front Panel Output */
-      rval = vmeRead32(&FAp[id]->ctrl1);
+      rval = vmeRead32(&FAV3p[id]->ctrl1);
       rval &= ~(FA_ENABLE_LIVE_TRIG_OUT | FA_ENABLE_TRIG_OUT_FP);
-      vmeWrite32(&FAp[id]->ctrl1, rval);
+      vmeWrite32(&FAV3p[id]->ctrl1, rval);
     }
-  FAUNLOCK;
+  FAV3UNLOCK;
 
 }
 
@@ -594,9 +594,9 @@ faItrigGetTableVal(int id, uint16_t pMask)
   int rval;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
 	("faItrigGetTableVal: ERROR : FADC in slot %d is not initialized \n",
@@ -604,11 +604,11 @@ faItrigGetTableVal(int id, uint16_t pMask)
       return (ERROR);
     }
 
-  FALOCK;
-  vmeWrite32(&FAp[id]->s_adr, pMask);
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->s_adr, pMask);
   EIEIO;			/* Make sure write comes before read */
-  rval = vmeRead32(&FAp[id]->hitsum_pattern) & 0x1;
-  FAUNLOCK;
+  rval = vmeRead32(&FAV3p[id]->hitsum_pattern) & 0x1;
+  FAV3UNLOCK;
 
   return (rval);
 }
@@ -618,9 +618,9 @@ faItrigSetTableVal(int id, uint16_t tval, uint16_t pMask)
 {
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       logMsg
 	("faItrigSetTableVal: ERROR : FADC in slot %d is not initialized \n",
@@ -628,12 +628,12 @@ faItrigSetTableVal(int id, uint16_t tval, uint16_t pMask)
       return;
     }
 
-  FALOCK;
-  vmeWrite32(&FAp[id]->s_adr, pMask);
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->s_adr, pMask);
   if(tval)
-    vmeWrite32(&FAp[id]->hitsum_pattern, 1);
+    vmeWrite32(&FAV3p[id]->hitsum_pattern, 1);
   else
-    vmeWrite32(&FAp[id]->hitsum_pattern, 0);
-  FAUNLOCK;
+    vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);
+  FAV3UNLOCK;
 
 }

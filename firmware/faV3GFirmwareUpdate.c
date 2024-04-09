@@ -19,7 +19,7 @@
 #define NFADC     16
 #define SKIPSS
 
-extern int nfadc;
+extern int nfaV3;
 char *progName;
 
 void Usage();

@@ -18,7 +18,7 @@
 #include "faV3Lib.h"
 
 char *progName;
-extern volatile struct fadc_struct *FAp[(FA_MAX_BOARDS + 1)];
+extern volatile faV3_t *FAV3p[(FA_MAX_BOARDS + 1)];
 
 int  TestReady(int id, int n_try, int pFlag);
 void
@@ -37,12 +37,12 @@ int
 main(int argc, char *argv[])
 {
   int stat = 0, rval = OK, iFlag = 0, pFlag = 0;
-  extern int nfadc;
+  extern int nfaV3;
   int ifadc = 0, id = 0, user_choice = 0, fpga_choice = 0, doBoth = 0;
 
   progName = argv[0];
 
-  printf("\nfADC250-V2 FPGA Reload\n");
+  printf("\nfaV3250-V2 FPGA Reload\n");
   printf
     ("--------------------------------------------------------------------------------\n\n");
 
@@ -94,7 +94,7 @@ main(int argc, char *argv[])
   iFlag = FA_INIT_SKIP | FA_INIT_SKIP_FIRMWARE_CHECK;
   stat = faInit((3<<19) , (1<<19), 20, iFlag);
 
-  if(nfadc < 0)
+  if(nfaV3 < 0)
     {
       printf(" ERROR: Unable to initialize FADCs.\n");
       vmeBusUnlock();
@@ -110,7 +110,7 @@ main(int argc, char *argv[])
  RELOAD:
   printf("Reloading %s: ", fpga_names[fpga_choice]);
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faSlot(ifadc);
       printf(" %2d ", id);
@@ -118,18 +118,18 @@ main(int argc, char *argv[])
 
       if(fpga_choice == FADC_FIRMWARE_LX110)
 	{
-	  vmeWrite32(&FAp[id]->prom_reg1,FA_PROMREG1_REBOOT_FPGA1);
+	  vmeWrite32(&FAV3p[id]->prom_reg1,FA_PROMREG1_REBOOT_FPGA1);
 	  if(doBoth)
 	    doBoth = 0;
 	}
       else if (fpga_choice == FADC_FIRMWARE_FX70T)
 	{
-	  vmeWrite32(&FAp[id]->prom_reg1,FA_PROMREG1_REBOOT_FPGA2);
+	  vmeWrite32(&FAV3p[id]->prom_reg1,FA_PROMREG1_REBOOT_FPGA2);
 	}
     }
 
   taskDelay(1);
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faSlot(ifadc);
       if(TestReady(id, 60000, pFlag) != OK) /* Wait til it's done */
@@ -175,7 +175,7 @@ TestReady(int id, int n_try, int pFlag)
     {
       taskDelay(1);		/* wait */
 
-      value = vmeRead32(&FAp[id]->prom_reg1);
+      value = vmeRead32(&FAV3p[id]->prom_reg1);
 
 
       if( value == 0xFFFFFFFF)

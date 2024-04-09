@@ -1,3 +1,4 @@
+#pragma once
 /******************************************************************************
  *
  *  fadcLib.h  - Driver library header file for readout of the JLAB 250MHz FLASH
@@ -22,8 +23,6 @@
  *
  */
 
-#ifndef __FADCLIB__
-#define __FADCLIB__
 
 #include <stdint.h>
 
@@ -44,7 +43,7 @@
 #define FA_SUPPORTED_PROC_FIRMWARE_NUMBER 1
 
 
-typedef struct fadc_struct
+typedef struct faV3_struct
 {
   /* 0x0000 */ volatile uint32_t version;
   /* 0x0004 */ volatile uint32_t csr;
@@ -182,9 +181,9 @@ typedef struct fadc_struct
   /* 0x0588 */ volatile uint32_t hist_data[16];
 #endif
 
-} fadc_t;
+} faV3_t;
 
-typedef struct fadc_data_struct
+typedef struct faV3_data_struct
 {
   uint32_t new_type;
   uint32_t type;
@@ -226,16 +225,16 @@ typedef struct fadc_data_struct
   uint32_t trig_state_int;	/* e.g. helicity */
   uint32_t evt_num_int;
   uint32_t err_status_int;
-} fadata_t;
+} faV3data_t;
 
 
-typedef struct fadc_sdc_struct
+typedef struct faV3_sdc_struct
 {
   volatile uint16_t csr;
   volatile uint16_t ctrl;
   volatile uint16_t busy_enable;
   volatile uint16_t busy_status;
-} fasdc_t;
+} faV3sdc_t;
 
 
 /* FADC Special Board IDs */
@@ -970,5 +969,3 @@ uint32_t faGetTriggersProcessedCount(int id);
 int faSetAccumulatorScalerMode(int id, uint16_t chmask);
 int faGSetAccumulatorScalerMode(uint16_t chmask);
 uint32_t faGetAccumulatorScalerMode(int id);
-
-#endif /* __FADCLIB__ */

@@ -46,9 +46,9 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
 {
   faUpdateWatcherArgs_t updateArgs;
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__, id);
@@ -65,9 +65,9 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
     chip = FADC_FIRMWARE_LX110;
 
   /* Perform a hardware and software reset */
-  FALOCK;
-  vmeWrite32(&FAp[id]->reset, 0xFFFF);
-  FAUNLOCK;
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->reset, 0xFFFF);
+  FAV3UNLOCK;
   taskDelay(60);
 
   updateArgs.step = FA_ARGS_SHOW_STRING;
@@ -113,12 +113,12 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   sprintf(updateArgs.title, "Loading PROM with SRAM data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
-  FALOCK;
+  FAV3LOCK;
   if(chip == FADC_FIRMWARE_LX110)
-    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM1);
+    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM1);
   else if(chip == FADC_FIRMWARE_FX70T)
-    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM2);
-  FAUNLOCK;
+    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM2);
+  FAV3UNLOCK;
   taskDelay(1);
 
   if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
@@ -135,12 +135,12 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
 
   fadcFirmwareZeroSRAM(id);
 
-  FALOCK;
+  FAV3LOCK;
   if(chip == FADC_FIRMWARE_LX110)
-    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_PROM1_TO_SRAM);
+    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM1_TO_SRAM);
   else if(chip == FADC_FIRMWARE_FX70T)
-    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
-  FAUNLOCK;
+    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
+  FAV3UNLOCK;
   taskDelay(1);
 
   if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
@@ -166,12 +166,12 @@ fadcFirmwareLoad(int id, int chip, int pFlag)
   sprintf(updateArgs.title, "Rebooting FPGA \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
-  FALOCK;
+  FAV3LOCK;
   if(chip == FADC_FIRMWARE_LX110)
-    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA1);
+    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA1);
   else if(chip == FADC_FIRMWARE_FX70T)
-    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA2);
-  FAUNLOCK;
+    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA2);
+  FAV3UNLOCK;
   taskDelay(1);
 
   if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
@@ -197,9 +197,9 @@ fadcFirmwarePassedMask()
   uint32_t retMask = 0;
   int id, ifadc;
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(passed[id] == 1)
 	retMask |= (1 << id);
     }
@@ -234,11 +234,11 @@ fadcFirmwareGLoad(int chip, int pFlag)
 
   /* Perform a hardware and software reset */
   step = 0;
-  FALOCK;
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  FAV3LOCK;
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
-      if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+      id = faV3ID[ifadc];
+      if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
 	{
 	  printf("%s: ERROR : ADC in slot %d is not initialized \n",
 		 __func__, id);
@@ -248,10 +248,10 @@ fadcFirmwareGLoad(int chip, int pFlag)
       else
 	{
 	  passed[id] = 1;
-	  vmeWrite32(&FAp[id]->reset, 0xFFFF);
+	  vmeWrite32(&FAV3p[id]->reset, 0xFFFF);
 	}
     }
-  FAUNLOCK;
+  FAV3UNLOCK;
   taskDelay(60);
 
   /* Check if FADC is Ready */
@@ -261,9 +261,9 @@ fadcFirmwareGLoad(int chip, int pFlag)
   sprintf(updateArgs.title, "Check if ready \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(fadcFirmwareTestReady(id, 60, pFlag) != OK)
 	{
 	  printf("%s: ERROR: FADC %2d not ready after reset\n", __func__, id);
@@ -273,9 +273,9 @@ fadcFirmwareGLoad(int chip, int pFlag)
     }
 
   /* Check if FADC has write access to SRAM from U90 JTAG DIP-switches */
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(fadcFirmwareCheckSRAM(id) != OK)
 	{
 	  printf("%s: ERROR: FADC %2d not configured to read/write PROM.\n\tCheck U90 DIP Switches.\n",
@@ -297,9 +297,9 @@ fadcFirmwareGLoad(int chip, int pFlag)
   sprintf(updateArgs.title, "Loading SRAM with data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
 
       updateArgs.step = FA_ARGS_SHOW_ID;
       updateArgs.id = id;
@@ -332,24 +332,24 @@ fadcFirmwareGLoad(int chip, int pFlag)
   sprintf(updateArgs.title, "Loading PROM with SRAM data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
-  FALOCK;
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  FAV3LOCK;
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
 	  if(chip == FADC_FIRMWARE_LX110)
-	    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM1);
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM1);
 	  else if(chip == FADC_FIRMWARE_FX70T)
-	    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM2);
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_SRAM_TO_PROM2);
 	}
     }
-  FAUNLOCK;
+  FAV3UNLOCK;
   taskDelay(1);
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
 	  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
@@ -369,26 +369,26 @@ fadcFirmwareGLoad(int chip, int pFlag)
   fadcFirmwareUpdateWatcher(updateArgs);
   sprintf(updateArgs.title, "Loading SRAM with PROM data \n");
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
 	  fadcFirmwareZeroSRAM(id);
-	  FALOCK;
+	  FAV3LOCK;
 	  if(chip == FADC_FIRMWARE_LX110)
-	    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_PROM1_TO_SRAM);
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM1_TO_SRAM);
 	  else if(chip == FADC_FIRMWARE_FX70T)
-	    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
-	  FAUNLOCK;
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
+	  FAV3UNLOCK;
 	}
     }
 
   taskDelay(1);
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
 	  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
@@ -408,9 +408,9 @@ fadcFirmwareGLoad(int chip, int pFlag)
   sprintf(updateArgs.title, "Verifying data \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
 
       updateArgs.step = FA_ARGS_SHOW_ID;
       updateArgs.id = id;
@@ -440,24 +440,24 @@ fadcFirmwareGLoad(int chip, int pFlag)
   sprintf(updateArgs.title, "Rebooting FPGA \n");
   fadcFirmwareUpdateWatcher(updateArgs);
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  FALOCK;
+	  FAV3LOCK;
 	  if(chip == FADC_FIRMWARE_LX110)
-	    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA1);
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA1);
 	  else if(chip == FADC_FIRMWARE_FX70T)
-	    vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA2);
-	  FAUNLOCK;
+	    vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_REBOOT_FPGA2);
+	  FAV3UNLOCK;
 	}
     }
   taskDelay(1);
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
 	  if(fadcFirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
@@ -470,9 +470,9 @@ fadcFirmwareGLoad(int chip, int pFlag)
 	}
     }
 
-  for(ifadc = 0; ifadc < nfadc; ifadc++)
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = fadcID[ifadc];
+      id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
 	  updateArgs.step = FA_ARGS_SHOW_STRING;
@@ -511,12 +511,12 @@ fadcFirmwareDownloadConfigData(int id)
 
   /* write SRAM address register */
   /* start at 0 and increment address after write to mem1 data register */
-  FALOCK;
-  vmeWrite32(&FAp[id]->mem_adr, 0x80000000);
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x80000000);
 #ifdef DEBUG
-  value = vmeRead32(&FAp[id]->mem_adr);
+  value = vmeRead32(&FAV3p[id]->mem_adr);
 #endif
-  FAUNLOCK;
+  FAV3UNLOCK;
 #ifdef DEBUG
   printf("%s: FADC %2d memory address at start of writes = 0x%08x\n\n",
 	 __func__, id, value);
@@ -537,15 +537,15 @@ fadcFirmwareDownloadConfigData(int id)
 	}
 
       /* write 32-bit data word to  mem1 data register */
-      FALOCK;
-      vmeWrite32(&FAp[id]->mem1_data, Word32Bits);
-      FAUNLOCK;
+      FAV3LOCK;
+      vmeWrite32(&FAV3p[id]->mem1_data, Word32Bits);
+      FAV3UNLOCK;
     }
 
 #ifdef DEBUG
-  FALOCK;
-  value = vmeRead32(&FAp[id]->mem_adr);
-  FAUNLOCK;
+  FAV3LOCK;
+  value = vmeRead32(&FAV3p[id]->mem_adr);
+  FAV3UNLOCK;
   printf("%s: FADC %2d memory address after write = 0x%08x\n\n",
 	 __func__, id, value);
 #endif
@@ -566,9 +566,9 @@ fadcFirmwareVerifyDownload(int id)
 #endif
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__, id);
@@ -586,12 +586,12 @@ fadcFirmwareVerifyDownload(int id)
 
   /* write SRAM address register */
   /* start at 0 and increment address after read from mem1 data register */
-  FALOCK;
-  vmeWrite32(&FAp[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM1);
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM1);
 #ifdef DEBUG
-  value = vmeRead32(&FAp[id]->mem_adr);
+  value = vmeRead32(&FAV3p[id]->mem_adr);
 #endif
-  FAUNLOCK;
+  FAV3UNLOCK;
 #ifdef DEBUG
   printf("%s: FADC %2d memory address at start of read = 0x%08x\n\n",
 	 __func__, id, value);
@@ -610,9 +610,9 @@ fadcFirmwareVerifyDownload(int id)
 	}
 
       /* read 32-bit data word from mem1 data register */
-      FALOCK;
-      RdWord32Bits = (uint32_t) vmeRead32(&FAp[id]->mem1_data);
-      FAUNLOCK;
+      FAV3LOCK;
+      RdWord32Bits = (uint32_t) vmeRead32(&FAV3p[id]->mem1_data);
+      FAV3UNLOCK;
 
 #ifdef DEBUG
       if(ByteCount < 40)
@@ -639,9 +639,9 @@ fadcFirmwareVerifyDownload(int id)
     }
 
 #ifdef DEBUG
-  FALOCK;
-  value = vmeRead32(&FAp[id]->mem_adr);
-  FAUNLOCK;
+  FAV3LOCK;
+  value = vmeRead32(&FAV3p[id]->mem_adr);
+  FAV3UNLOCK;
   printf("%s: memory address after read = 0x%08x\n\n", __func__, value);
 #endif
   if(ErrorCount)
@@ -663,9 +663,9 @@ fadcFirmwareTestReady(int id, int n_try, int pFlag)
   uint32_t value = 0;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__, id);
@@ -684,9 +684,9 @@ fadcFirmwareTestReady(int id, int n_try, int pFlag)
       fadcFirmwareUpdateWatcher(updateArgs);
 
       taskDelay(1);		/* wait */
-      FALOCK;
-      value = vmeRead32(&FAp[id]->prom_reg1);
-      FAUNLOCK;
+      FAV3LOCK;
+      value = vmeRead32(&FAV3p[id]->prom_reg1);
+      FAV3UNLOCK;
 
       if(value == 0xFFFFFFFF)
 	continue;
@@ -720,9 +720,9 @@ fadcFirmwareZeroSRAM(int id)
   int ErrorCount = 0, stopPrint = 0;
 
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__, id);
@@ -730,34 +730,34 @@ fadcFirmwareZeroSRAM(int id)
     }
 
   /* set address = 0; allow increment on mem2 access */
-  FALOCK;
-  vmeWrite32(&FAp[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM2);
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM2);
 
   for(ii = 0; ii < 0x80000; ii++)	/* write ZERO to entire memory */
     {
-      vmeWrite32(&FAp[id]->mem1_data, 0);
-      vmeWrite32(&FAp[id]->mem2_data, 0);
+      vmeWrite32(&FAV3p[id]->mem1_data, 0);
+      vmeWrite32(&FAV3p[id]->mem2_data, 0);
     }
 
   /* reset address = 0; allow increment on mem2 access */
-  vmeWrite32(&FAp[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM2);
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM2);
 
-  FAUNLOCK;
+  FAV3UNLOCK;
 
   /* read and test expected memory data */
   for(ii = 0; ii < 0x80000; ii++)
     {
-      FALOCK;
-      value_1 = vmeRead32(&FAp[id]->mem1_data);
-      value_2 = vmeRead32(&FAp[id]->mem2_data);
-      FAUNLOCK;
+      FAV3LOCK;
+      value_1 = vmeRead32(&FAV3p[id]->mem1_data);
+      value_2 = vmeRead32(&FAV3p[id]->mem2_data);
+      FAV3UNLOCK;
 
       if((value_1 != 0) || (value_2 != 0))
 	{
 	  ErrorCount++;
-	  FALOCK;
-	  value = vmeRead32(&FAp[id]->mem_adr) & 0xFFFFF;
-	  FAUNLOCK;
+	  FAV3LOCK;
+	  value = vmeRead32(&FAV3p[id]->mem_adr) & 0xFFFFF;
+	  FAV3UNLOCK;
 	  if(!stopPrint)
 	    {
 	      printf("%s: ERROR: FADC %2d  address = %8X    mem1 read = %8X    mem2 read = %8X\n",
@@ -789,9 +789,9 @@ fadcFirmwareCheckSRAM(int id)
   uint32_t value;
 #endif
   if(id == 0)
-    id = fadcID[0];
+    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAp[id] == NULL))
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__, id);
@@ -800,9 +800,9 @@ fadcFirmwareCheckSRAM(int id)
 
   fadcFirmwareZeroSRAM(id);
 
-  FALOCK;
-  vmeWrite32(&FAp[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
-  FAUNLOCK;
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->prom_reg1, FA_PROMREG1_PROM2_TO_SRAM);
+  FAV3UNLOCK;
   taskDelay(1);
 
   if(fadcFirmwareTestReady(id, 60000, 0) != OK)	/* Wait til it's done */
@@ -812,12 +812,12 @@ fadcFirmwareCheckSRAM(int id)
       return ERROR;
     }
 
-  FALOCK;
-  vmeWrite32(&FAp[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM1);
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FA_MEM_ADR_INCR_MEM1);
 #ifdef DEBUG
-  value = vmeRead32(&FAp[id]->mem_adr);
+  value = vmeRead32(&FAV3p[id]->mem_adr);
 #endif
-  FAUNLOCK;
+  FAV3UNLOCK;
 #ifdef DEBUG
   printf("%s: FADC %2d memory address at start of read = 0x%08x\n\n",
 	 __func__, id, value);
@@ -826,9 +826,9 @@ fadcFirmwareCheckSRAM(int id)
 
   for(ByteCount = 0; ByteCount < MSC_arraySize; ByteCount += 4)
     {
-      FALOCK;
-      RdWord32Bits = (uint32_t) vmeRead32(&FAp[id]->mem1_data);
-      FAUNLOCK;
+      FAV3LOCK;
+      RdWord32Bits = (uint32_t) vmeRead32(&FAV3p[id]->mem1_data);
+      FAV3UNLOCK;
 
       if(RdWord32Bits != 0)
 	{

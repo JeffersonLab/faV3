@@ -20,11 +20,11 @@
 #include "faV3Lib.h"
 #include "delay_scan_code.h"
 
-extern pthread_mutex_t   faMutex;
+extern pthread_mutex_t   faV3Mutex;
 
-extern volatile struct fadc_struct *FAp[(FA_MAX_BOARDS+1)]; /* pointers to FADC memory map */
-extern int nfadc;                                           /* Number of FADCs in Crate */
-extern int fadcID[FA_MAX_BOARDS];                           /* array of slot numbers for FADCs */
+extern volatile faV3_t *FAV3p[(FA_MAX_BOARDS+1)]; /* pointers to FADC memory map */
+extern int nfaV3;                                           /* Number of FADCs in Crate */
+extern int faV3ID[FA_MAX_BOARDS];                           /* array of slot numbers for FADCs */
 
 FILE *filep;
 char *progName;
@@ -61,13 +61,13 @@ main(int argc, char *argv[])
       {
 	output_filename = argv[1];
 	fadc_address = (3 << 19);
-	nfadc = 18; /* extern: Will be properly redefined in faInit */
+	nfaV3 = 18; /* extern: Will be properly redefined in faInit */
       }
     else if(argc == 3)
       {
 	output_filename = argv[1];
 	fadc_address = (unsigned int) strtoll(argv[2], NULL, 16) & 0xffffffff;
-	nfadc = 1;
+	nfaV3 = 1;
       }
 
     /* Check for existence of the output file */
@@ -126,9 +126,9 @@ main(int argc, char *argv[])
 
     /* Initialize FADCs */
     int iFlag = 0;
-    status = faInit(fadc_address, (1<<19), nfadc, iFlag);
+    status = faInit(fadc_address, (1<<19), nfaV3, iFlag);
 
-    if((status<0) && (nfadc == 0))
+    if((status<0) && (nfaV3 == 0))
       {
 	printf(" Unable to initialize FADC.\n");
 	goto CLOSE;
@@ -198,7 +198,7 @@ faGRunDelayScan(int pflag)
     {
       printf(" Setup ADC Chips: \n");
     }
-  for(ifa = 0; ifa < nfadc; ifa++)
+  for(ifa = 0; ifa < nfaV3; ifa++)
     {
       id = faSlot(ifa);
 
@@ -228,7 +228,7 @@ faGRunDelayScan(int pflag)
       printf(" %2d:", idelay);
       fflush(stdout);
 
-      for(ifa = 0; ifa < nfadc; ifa++)
+      for(ifa = 0; ifa < nfaV3; ifa++)
 	{
 	  id = faSlot(ifa);
 
@@ -251,7 +251,7 @@ faGRunDelayScan(int pflag)
       if(ret < 0)
 	perror("nanosleep");
 
-      for(ifa = 0; ifa < nfadc; ifa++)
+      for(ifa = 0; ifa < nfaV3; ifa++)
 	{
 	  id = faSlot(ifa);
 
@@ -267,7 +267,7 @@ faGRunDelayScan(int pflag)
     }
 
   // create scan array for each channel
-  for (ifa = 0; ifa < nfadc; ifa++)
+  for (ifa = 0; ifa < nfaV3; ifa++)
     {
       id = faSlot(ifa);
       for (ich = 0; ich < 16; ich++)
@@ -283,7 +283,7 @@ faGRunDelayScan(int pflag)
   if(pflag)
     {
       /* Printout for each FADC */
-      for (ifa = 0; ifa < nfadc; ifa++)
+      for (ifa = 0; ifa < nfaV3; ifa++)
 	{
 	  id = faSlot(ifa);
 	  printf("--------------------------"
@@ -332,7 +332,7 @@ faGRunDelayScan(int pflag)
 
   if(filep)
     {
-      for (ifa = 0; ifa < nfadc; ifa++)
+      for (ifa = 0; ifa < nfaV3; ifa++)
 	{
 	  id = faSlot(ifa);
 	  fprintf(filep,"# FADC250-V2 %s\n", sn[id]);
@@ -348,9 +348,9 @@ faGRunDelayScan(int pflag)
 int
 faSetPrbsMode(int id, int pflag)
 {
-  if(id==0) id=fadcID[0];
+  if(id==0) id=faV3ID[0];
 
-  if((id<=0) || (id>21) || (FAp[id] == NULL))
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__,id);
@@ -361,22 +361,22 @@ faSetPrbsMode(int id, int pflag)
     printf("\n%2d:   ---- Put ADC chips in  PN 23  sequence test mode ----\n", id);
 
   FALOCK;
-  vmeWrite32(&FAp[id]->adc_config[3], 0x0D05);
+  vmeWrite32(&FAV3p[id]->adc_config[3], 0x0D05);
   taskDelay(1);
 
-  vmeWrite32(&FAp[id]->adc_config[2], 0x40);
+  vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
   taskDelay(1);
 
-  vmeWrite32(&FAp[id]->adc_config[2], 0xC0);
+  vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
   taskDelay(1);
 
-  vmeWrite32(&FAp[id]->adc_config[3], 0xFF01);	/* transfer register values */
+  vmeWrite32(&FAV3p[id]->adc_config[3], 0xFF01);	/* transfer register values */
   taskDelay(1);
 
-  vmeWrite32(&FAp[id]->adc_config[2], 0x40);
+  vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
   taskDelay(1);
 
-  vmeWrite32(&FAp[id]->adc_config[2], 0xC0);
+  vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
   taskDelay(1);
   FAUNLOCK;
 
@@ -393,9 +393,9 @@ faSetIdelay(int id, int ch, int delay_p, int delay_n)
   int idelay_default_settings[16] =
     { 46, 47, 50, 53, 55, 53, 54, 52, 60, 60, 59, 59, 60, 60, 57, 53 };
 
-  if(id==0) id=fadcID[0];
+  if(id==0) id=faV3ID[0];
 
-  if((id<=0) || (id>21) || (FAp[id] == NULL))
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__,id);
@@ -413,13 +413,13 @@ faSetIdelay(int id, int ch, int delay_p, int delay_n)
   val = (ch << 12) & FA_ADC_CONFIG4_IDELAY_CHAN_MASK;
 
   FALOCK;
-  vmeWrite32(&FAp[id]->adc_config[2], val);	/* Select channel for Idelay settings */
+  vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for Idelay settings */
 
   val |= FA_ADC_CONFIG4_IDELAY_RESET;
-  vmeWrite32(&FAp[id]->adc_config[2], val);	/* Reset Idelay to default setting */
+  vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Reset Idelay to default setting */
 
   val &= ~FA_ADC_CONFIG4_IDELAY_RESET;
-  vmeWrite32(&FAp[id]->adc_config[2], val);	/* Release reset */
+  vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release reset */
 
   delay_p_current = idelay_default_settings[ch];
   delay_n_current = idelay_default_settings[ch];
@@ -427,10 +427,10 @@ faSetIdelay(int id, int ch, int delay_p, int delay_n)
   while (delay_p_current != delay_p)	/* Increment P delay until input value is reached */
     {
       val |= FA_ADC_CONFIG4_IDELAY_INC_P;
-      vmeWrite32(&FAp[id]->adc_config[2], val);	/* Increment P delay */
+      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Increment P delay */
 
       val &= ~FA_ADC_CONFIG4_IDELAY_INC_P;
-      vmeWrite32(&FAp[id]->adc_config[2], val);	/* Release increment P of delay */
+      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release increment P of delay */
 
       delay_p_current = (delay_p_current + 1) & 0x3f;
     }
@@ -438,10 +438,10 @@ faSetIdelay(int id, int ch, int delay_p, int delay_n)
   while (delay_n_current != delay_n)	/* Increment N delay until input value is reached */
     {
       val |= FA_ADC_CONFIG4_IDELAY_INC_N;
-      vmeWrite32(&FAp[id]->adc_config[2], val);	/* Increment N delay */
+      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Increment N delay */
 
       val &= ~FA_ADC_CONFIG4_IDELAY_INC_N;
-      vmeWrite32(&FAp[id]->adc_config[2], val);	/* Release increment of N delay */
+      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release increment of N delay */
 
       delay_n_current = (delay_n_current + 1) & 0x3f;
     }
@@ -456,9 +456,9 @@ faMeasureIdelayErrors(int id)
 {
   int val, ch;
 
-  if(id==0) id=fadcID[0];
+  if(id==0) id=faV3ID[0];
 
-  if((id<=0) || (id>21) || (FAp[id] == NULL))
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__,id);
@@ -470,13 +470,13 @@ faMeasureIdelayErrors(int id)
   for (ch = 0; ch < 16; ch++)
     {
       val = (ch << 12) & FA_ADC_CONFIG4_IDELAY_CHAN_MASK;
-      vmeWrite32(&FAp[id]->adc_config[2], val);	/* Select channel for Idelay settings */
+      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for Idelay settings */
 
       val |= FA_ADC_CONFIG4_CMP_RESET;
-      vmeWrite32(&FAp[id]->adc_config[2], val);	/* Reset comparator */
+      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Reset comparator */
 
       val &= ~FA_ADC_CONFIG4_CMP_RESET;
-      vmeWrite32(&FAp[id]->adc_config[2], val);	/* Release comparator reset */
+      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release comparator reset */
     }
 
   FAUNLOCK;
@@ -489,9 +489,9 @@ faGetIdelayErrors(int id)
 {
   int val, ch, errors = 0;
 
-  if(id==0) id=fadcID[0];
+  if(id==0) id=faV3ID[0];
 
-  if((id<=0) || (id>21) || (FAp[id] == NULL))
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
     {
       printf("%s: ERROR : ADC in slot %d is not initialized \n",
 	     __func__,id);
@@ -503,9 +503,9 @@ faGetIdelayErrors(int id)
   for (ch = 0; ch < 16; ch++)
     {
       val = (ch << 12) & FA_ADC_CONFIG4_IDELAY_CHAN_MASK;
-      vmeWrite32(&FAp[id]->adc_config[2], val);	/* Select channel for error status */
+      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for error status */
 
-      if (vmeRead32(&FAp[id]->status4) & FA_ADC_STATUS4_CMP_ERR)
+      if (vmeRead32(&FAV3p[id]->status4) & FA_ADC_STATUS4_CMP_ERR)
 	errors |= (1 << ch);
     }
 

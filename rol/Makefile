@@ -44,9 +44,9 @@ CFLAGS			= -O3
 endif
 CFLAGS			+= -w -DLINUX -DDAYTIME=\""`date`"\"
 
-INCS			= -I. -I${LINUXVME_INC} ${INC_CODA_VME} \
+INCS			= -I. -I.. -I${LINUXVME_INC} ${INC_CODA_VME} \
 				-isystem${CODA}/common/include
-LIBS			= -L. -L${LINUXVME_LIB} ${LIB_CODA_VME} -DJLAB \
+LIBS			= -L. -L.. -L${LINUXVME_LIB} ${LIB_CODA_VME} -DJLAB \
 				-lrt -lpthread -ljvme -lti $(ROLLIBS)
 
 # DEFs for compiling CODA readout lists

@@ -27,9 +27,11 @@
 #define BUFFERLEVEL 1
 
 /* FADC Library Variables */
-extern int fadcA32Base, nfadc;
+extern uint32_t faV3A32Base = 0x09000000;
+extern int nfaV3 = 0;
+
 /* Number of fadc250 to initialize */
-#define NFADC     1
+#define NFAV3     1
 /* Address of first fADC250 (set to slot# << 19 )*/
 #define FADC_ADDR (4 << 19)
 /* Increment address to find next fADC250 (increment by 1 slot) */
@@ -104,13 +106,13 @@ rocDownload()
   iflag |= FA_INIT_FP_TRIG;  /* Front Panel Input trigger source */
   iflag |= FA_INIT_FP_CLKSRC;  /* Internal 250MHz Clock source */
 
-  fadcA32Base = 0x09000000;
+  faV3A32Base = 0x09000000;
 
   vmeSetQuietFlag(1);
-  faInit(FADC_ADDR, FADC_INCR, NFADC, iflag);
+  faInit(FADC_ADDR, FADC_INCR, NFAV3, iflag);
   vmeSetQuietFlag(0);
 
-  for(ifa = 0; ifa < nfadc; ifa++)
+  for(ifa = 0; ifa < nfaV3; ifa++)
     {
       faEnableBusError(faSlot(ifa));
 
@@ -165,7 +167,7 @@ rocPrestart()
   int ifa;
 
   /* Program/Init VME Modules Here */
-  for(ifa=0; ifa < nfadc; ifa++)
+  for(ifa=0; ifa < nfaV3; ifa++)
     {
       faSoftReset(faSlot(ifa),0);
       faResetTriggerCount(faSlot(ifa));
@@ -199,13 +201,13 @@ rocGo()
   faGSetBlockLevel(blockLevel);
 
   /* Set Max words from fadc (proc mode == 1 produces the most)
-     nfadc * ( Block Header + Trailer + 2  # 2 possible filler words
+     nfaV3 * ( Block Header + Trailer + 2  # 2 possible filler words
                blockLevel * ( Event Header + Header2 + Timestamp1 + Timestamp2 +
 	                      nchan * (Channel Header + (WindowSize / 2) )
              ) +
      scaler readout # 16 channels + header/trailer
    */
-  MAXFADCWORDS = nfadc * (4 + blockLevel * (4 + 16 * (1 + (ptw / 2))) + 18);
+  MAXFADCWORDS = nfaV3 * (4 + blockLevel * (4 + 16 * (1 + (ptw / 2))) + 18);
 
   /*  Enable FADC */
   faGEnable(0, 0);
@@ -269,7 +271,7 @@ rocTrigger(int arg)
 
   if(stat)
     {
-      for(ifa = 0; ifa < nfadc; ifa++)
+      for(ifa = 0; ifa < nfaV3; ifa++)
 	{
 	  nwords = faReadBlock(faSlot(ifa), dma_dabufp, MAXFADCWORDS, 1);
 
@@ -314,7 +316,7 @@ rocTrigger(int arg)
 	    }
 	}
 
-      for(ifa = 0; ifa < nfadc; ifa++)
+      for(ifa = 0; ifa < nfaV3; ifa++)
 	{
 	  davail = faBready(faSlot(ifa));
 	  if(davail > 0)
@@ -343,6 +345,6 @@ rocCleanup()
 
 /*
   Local Variables:
-  compile-command: "make -k fadc_list.so"
+  compile-command: "make -k faV3_list.so"
   End:
  */
