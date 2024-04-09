@@ -1,56 +1,82 @@
 This README describes the use of the faV3Config library of routines to configure one or more fadc250 V3s.  The configuration file routines here were adapted from the Hall-B implementation.
 
-* Example faV3Config file (contains all definitions recognized by faV3Config):
-     config/example.cnf
+* Example faV3Config file
+- contains all definitions recognized by faV3Config:
+#+begin_example
+config/example.cnf
+#+end_example
 
 * Default Usage:
-** include faV3Config header in program/readout list
 
-     #include "faV3Config.h"
+** include =faV3Config.h=
+- in a program/readout list
 
-** Call faV3Config(...) after fadc initialization with faInit(...):
+#+begin_src C
+#include "faV3Config.h"
+#+end_src
 
-     int faV3Config(char *fname);
+** Call =faV3Config=
+- after fadc initialization with =faInit(...)=:
 
-   Examples:
+#+begin_src C
+int faV3Config(char *fname);
+#+end_src
 
-** Filename with relative path
+*** Examples:
 
-     faV3Config("example.cnf");
+**** Filename with relative path
 
-   PATHS checked:
-     ${FAV3_PARAMS}/example.cnf
-     ./faV3/example.cnf
+#+begin_src C
+faV3Config("example.cnf");
+#+end_src
 
-** Filename with ./ relative path
+- PATHS checked:
+#+begin_example
+${FAV3_PARAMS}/example.cnf
+./faV3/example.cnf
+#+end_example
 
-     faV3Config("./example.cnf");
+**** Filename with ./ relative path
 
-   PATHS checked:
-     ./example.cnf
+#+begin_src C
+faV3Config("./example.cnf");
+#+end_src
+
+- PATHS checked:
+#+begin_example
+./example.cnf
+#+end_example
      
-** Filename with full path
+**** Filename with full path
 
-     faV3Config("/full/path/example.cnf");
+#+begin_src C
+faV3Config("/full/path/example.cnf");
+#+end_src
 
-   PATHS checked:
-     /full/path/example.cnf
+- PATHS checked:
+#+begin_example
+/full/path/example.cnf
+#+end_example
      
-** No filename
+**** No filename
 
-     faV3Config("");
+#+begin_src C
+faV3Config("");
+#+end_src
 
-   PATHS checked:
-     ${FAV3_PARAMS}/faV3/${EXPID}.cnf
-     ./faV3/${EXPID}.cnf     
+- PATHS checked:
+#+begin_example
+${FAV3_PARAMS}/faV3/${EXPID}.cnf
+./faV3/${EXPID}.cnf     
+#+end_example
 
 
-* =FADC_READ_CONF_FILE=
-- Ddefined in the example readout list (rol/fadc_vxs_list.c) as
+** =FADC_READ_CONF_FILE=
+- Defined in the example readout list (rol/fadc_vxs_list.c) as
 #+begin_src C
 #define FADC_READ_CONF_FILE {			\
     faV3Config("");				\
-    if(rol->usrConfig)				\
+    if(rol->usrConfig)			\
       faV3Config(rol->usrConfig);		\
   }
 #+end_src
