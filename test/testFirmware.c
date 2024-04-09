@@ -12,14 +12,14 @@
 #include <string.h>
 #include <stdio.h>
 #include "jvme.h"
-#include "fadcLib.h"
+#include "faV3Lib.h"
 
 char *progName;
 
 void
 Usage();
 
-int 
+int
 main(int argc, char *argv[]) {
 
     char *mcs_filename;
@@ -44,7 +44,7 @@ main(int argc, char *argv[]) {
       {
 	exit(-1);
       }
-    
+
     fadcFirmwareChipFromFpgaID(1);
     fadcFirmwareRevFromFpgaID(1);
 

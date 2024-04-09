@@ -34,7 +34,7 @@
 
 
 /* Include ADC definitions */
-#include "fadcLib.h"
+#include "faV3Lib.h"
 
 #ifdef VXWORKS
 #define FALOCK
@@ -102,7 +102,7 @@ int fadcBlockError = FA_BLOCKERROR_NO_ERROR;	/* Whether (>0) or not (0) Block Tr
 static int proc_mode[(FA_MAX_BOARDS + 1)];
 
 /* Include Firmware Tools */
-#include "fadcFirmwareTools.c"
+#include "faV3FirmwareTools.c"
 
 /*******************************************************************************
  *

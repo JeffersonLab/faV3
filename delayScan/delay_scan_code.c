@@ -17,7 +17,7 @@
 #include <sys/signal.h>
 #include <time.h>
 #include "jvme.h"
-#include "fadcLib.h"
+#include "faV3Lib.h"
 #include "delay_scan_code.h"
 
 extern pthread_mutex_t   faMutex;

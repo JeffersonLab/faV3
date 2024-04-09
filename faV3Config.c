@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *  fadc250Config.c  -  configuration library file for fADC250 board
+ *  faV3Config.c  -  configuration library file for fADC250 V3 board
  *
  *  SP, 07-Nov-2013
  * Sergey Boyarinov Nov 2013 - simplify/adjust for Hall B
@@ -80,9 +80,9 @@ FADC250_CONF_FILE  <filename> <- another config filename to be processed on next
 #include <string.h>
 #include <ctype.h>
 
-#include "fadc250Config.h"
+#include "faV3Config.h"
 #include "jvme.h"
-#include "fadcLib.h"
+#include "faV3Lib.h"
 
 #undef DEBUG
 

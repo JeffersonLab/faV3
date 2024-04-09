@@ -1,7 +1,7 @@
 /*************************************************************************
  *
- *  fadc_list.c - Library of routines for the user to write for
- *                readout and buffering of events from JLab FADC using
+ *  faV3_list.c - Library of routines for the user to write for
+ *                readout and buffering of events from JLab FADC V3 using
  *                a JLab pipeline TI module and Linux VME controller.
  *
  *                In this example, clock, syncreset, and trigger are
@@ -22,7 +22,7 @@
 
 #include "dmaBankTools.h"
 #include "tiprimary_list.c" /* source required for CODA */
-#include "fadcLib.h"        /* library of FADC250 routines */
+#include "faV3Lib.h"        /* library of FADC250 routines */
 
 #define BUFFERLEVEL 1
 

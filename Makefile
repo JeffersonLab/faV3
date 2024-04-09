@@ -7,7 +7,7 @@
 #      running vxWorks or Linux
 #
 #
-BASENAME=fadc
+BASENAME=faV3
 #
 # Uncomment DEBUG line, to include some debugging info ( -g and -Wall)
 DEBUG	?= 1
@@ -74,9 +74,9 @@ CFLAGS			+= -Wall -g
 else
 CFLAGS			+= -O2
 endif
-SRC			= ${BASENAME}Lib.c fadc250Config.c
+SRC			= ${BASENAME}Lib.c faV3Config.c
 HDRS			= $(SRC:.c=.h)
-OBJ			= ${BASENAME}Lib.o fadc250Config.o
+OBJ			= ${BASENAME}Lib.o faV3Config.o
 DEPS			= $(SRC:.c=.d)
 
 ifeq ($(OS),LINUX)
@@ -89,7 +89,7 @@ endif
 	@echo " CC     $@"
 	${Q}$(CC) $(CFLAGS) $(INCS) -c -o $@ $<
 
-libfadc.so: ${SRC}
+libfaV3.so: ${SRC}
 	@echo " CC     $@"
 	${Q}$(CC) -fpic -shared $(CFLAGS) -lm $(INCS) -o $@ ${SRC}
 
@@ -128,7 +128,7 @@ coda_install: $(LIBS)
 endif
 
 clean:
-	@rm -vf ${BASENAME}Lib.{o,d} fadc250Config.{o,d} lib${BASENAME}.{a,so}
+	@rm -vf ${BASENAME}Lib.{o,d} faV3Config.{o,d} lib${BASENAME}.{a,so}
 
 echoarch:
 	@echo "Make for $(OS)-$(ARCH)"

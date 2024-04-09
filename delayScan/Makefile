@@ -19,8 +19,8 @@ CROSS_COMPILE		=
 CC			= $(CROSS_COMPILE)gcc
 AR                      = ar
 RANLIB                  = ranlib
-INCS			= -I. -I${LINUXVME_INC}
-CFLAGS			= -L. -L${LINUXVME_LIB} -lrt -ljvme -lfadc
+INCS			= -I. -I.. -I${LINUXVME_INC}
+CFLAGS			= -L. -L.. -L${LINUXVME_LIB} -lrt -ljvme -lfaV3
 ifeq ($(DEBUG),1)
 	CFLAGS		+= -Wall -g
 endif

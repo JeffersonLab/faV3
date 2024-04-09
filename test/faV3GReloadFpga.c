@@ -1,9 +1,9 @@
 /*
  * File:
- *    faGReloadFpga.c
+ *    faV3GReloadFpga.c
  *
  * Description:
- *    Reload the specified FPGA(s) for all fADC250s found in the crate
+ *    Reload the specified FPGA(s) for all fADC250 V3s found in the crate
  *
  *
  */
@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "jvme.h"
-#include "fadcLib.h"
+#include "faV3Lib.h"
 
 char *progName;
 extern volatile struct fadc_struct *FAp[(FA_MAX_BOARDS + 1)];

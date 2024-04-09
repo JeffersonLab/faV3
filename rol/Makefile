@@ -18,9 +18,9 @@ else
 endif
 
 # Plug in your primary readout lists here..
-VMEROL			= fadc_list.so fadc_vxs_list.so
+VMEROL			= faV3_list.so faV3_vxs_list.so
 # Add shared library dependencies here.  (jvme, ti, are already included)
-ROLLIBS			= -lfadc
+ROLLIBS			= -lfaV3
 
 ifdef CODA_VME
 INC_CODA_VME	= -I${CODA_VME}/include

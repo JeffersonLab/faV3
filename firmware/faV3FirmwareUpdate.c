@@ -1,10 +1,10 @@
 /*
  * File:
- *    firmwareGTest.c
+ *    faV3FirmwareUpdate
  *
  * Description:
- *    Test JLab Flash ADC firmware updating
- *
+ *    JLab Flash250 V3 firmware updating
+ *     Single board
  *
  */
 
@@ -13,13 +13,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "jvme.h"
-#include "fadcLib.h"
+#include "faV3Lib.h"
 
-#define FADC_ADDR (3<<19)
-#define NFADC     16
-#define SKIPSS
-
-extern int nfadc;
 char *progName;
 
 void Usage();
@@ -28,34 +23,34 @@ int
 main(int argc, char *argv[])
 {
 
-  int32_t status;
+  int status;
+  int stat = 0;
   int fpga_choice, firmware_choice = 0;
   char *mcs_filename;
   char inputchar[16];
-  int ifa = 0;
-  uint32_t cfw = 0;
+  uint32_t fadc_address = 0;
 
   printf("\nJLAB fadc firmware update\n");
   printf("----------------------------\n");
 
   progName = argv[0];
 
-  if(argc < 2)
+  if(argc < 3)
     {
-      printf(" ERROR: Must specify one argument\n");
+      printf(" ERROR: Must specify two arguments\n");
       Usage();
       exit(-1);
     }
   else
     {
       mcs_filename = argv[1];
+      fadc_address = (uint32_t) strtoll(argv[2], NULL, 16) & 0xffffffff;
     }
 
   if(fadcFirmwareReadMcsFile(mcs_filename) != OK)
     {
       exit(-1);
     }
-
 
   fpga_choice = fadcFirmwareChipFromFpgaID(0);
   if(fpga_choice == ERROR)
@@ -96,26 +91,25 @@ main(int argc, char *argv[])
 
   vmeCheckMutexHealth(10);
   vmeBusLock();
-  int iFlag = (1 << 18);	// Skip firmware check
 
-#ifdef SKIPSS
-  faInit((uint32_t) (FADC_ADDR), (1 << 19), NFADC + 2, iFlag);
-#else
-  faInit((uint32_t) (FADC_ADDR), (1 << 19), NFADC, iFlag);
-#endif
-
-  if(nfadc == 0)
+  if(status < 0)
     {
-      printf(" Unable to initialize any FADCs.\n");
+      printf(" Unable to initialize VME driver\n");
+      vmeBusUnlock();
+      exit(-1);
+    }
+
+  int iFlag = (1 << 18);	/* Do not perform firmware check */
+  stat = faInit(fadc_address, 0x0, 1, iFlag);
+  if(stat < 0)
+    {
+      printf(" Unable to initialize FADC.\n");
       goto CLOSE;
     }
 
-  for(ifa = 0; ifa < nfadc; ifa++)
-    {
-      cfw = faGetFirmwareVersions(faSlot(ifa), 0);
-      printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
-	     faSlot(ifa), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
-    }
+  uint32_t cfw = faGetFirmwareVersions(faSlot(0), 0);
+  printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
+	 faSlot(0), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
 
   printf(" Will update firmware for ");
   if(fpga_choice == 1)
@@ -138,6 +132,7 @@ main(int argc, char *argv[])
     {
       printf("\n");
     }
+  printf(" for FADC250 V2 with VME address = 0x%08x\n", fadc_address);
 
  REPEAT2:
   printf(" Press y and <ENTER> to continue... n or q and <ENTER> to quit without update\n");
@@ -156,13 +151,14 @@ main(int argc, char *argv[])
   else
     goto REPEAT2;
 
-  fadcFirmwareGLoad(firmware_choice, 0);
+  fadcFirmwareLoad(0, firmware_choice, 0);
 
   goto CLOSE;
 
  CLOSE:
 
   vmeBusUnlock();
+
   status = vmeCloseDefaultWindows();
   if(status != OK)
     {
@@ -178,7 +174,7 @@ void
 Usage()
 {
   printf("\n");
-  printf("%s <firmware MCS file>\n", progName);
+  printf("%s <firmware MCS file> <FADC VME ADDRESS>\n", progName);
   printf("\n");
 
 }

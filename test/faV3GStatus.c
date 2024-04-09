@@ -1,6 +1,6 @@
 /*
  * File:
- *    faGStatus.c
+ *    faV3GStatus.c
  *
  * Description:
  *    Show the status of all fadcs found in the crate
@@ -13,7 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "jvme.h"
-#include "fadcLib.h"
+#include "faV3Lib.h"
 
 int
 main(int argc, char *argv[])

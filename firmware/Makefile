@@ -2,7 +2,7 @@
 #    Makefile
 #
 # Description:
-#	Makefile for fADC250 firmware updating code (Linux ony)
+#	Makefile for fADC250 V3 firmware updating code (Linux ony)
 #
 #
 DEBUG	?= 1
