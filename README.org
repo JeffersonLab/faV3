@@ -1,36 +1,38 @@
 Library and Example code for use of the Jefferson Lab VME Based 250MHz Flash ADC 250 V3 Module
 
 *   Requires: FADC V3
-- vxWorks 5.5 or later
-  - universeDma or tempeDma Library
 - Linux >=2.6.18
   - GE kernel module with jvme library
 
-**  VXWORKS:
-    fadcLib.o              : Downloadable object for std FADC Lib
-    crl/fadc_list.crl      : Readout list for 1 ADC (CODA >=2.6)
-    boot/roc6_coda26.boot  : Boot script for ROC readout (CODA 2.6)
-    boot/roc6_coda261.boot : Boot script for ROC readout (CODA 2.6.1)
-**  LINUX:
-    fadcLib.so             : Shared Library object for std FADC Lib
-    rol/fadc_list.c        : CODA Readout list for 1 ADC
-**  COMMON:
-    fadcLib.c fadcLib.h    : Library
-    faItrig.c              : Library extensions for Internal trigger
-    faFirmwareTools.c      : Library extensions for firmware updates
+**  LINUX library and readout lists:
+| libfaV3.so          | Shared Library object for std FADC Lib             |
+| rol/fav3_list.c     | CODA Readout list for 1 FADC                       |
+| rol/fav3_vxs_list.c | CODA Readout list for multiple FADC in a VXS crate |
+
+** Source files and headers:
+  | faV3Lib.{c,h}       | Library                                    |
+  | faV3Itrig.c         | Library extensions for Internal trigger    |
+  | faV3FirmwareTools.c | Library extensions for firmware updates    |
+  | faV3Config.{c,h}    | Library extensions for configuration files |
+
+** Programs:
+| firmware/faV3FirmwareUpdate  | Program to update firmware for a single FADC           |
+| firmware/faV3GFirmwareUpdate | Program to update firmware for an entire crate of FADC |
+| test/faV3GStatus             | Show the status of all FADC in crate                   |
+| test/faV3GReloadFpga         | Reload FPGA for all FADC in crate                      |
+| test/faV3ReloadFpga          | Reload FPGA for FADC at specified address              |
 
 * Basics:
 
   #+begin_src C
-  faInit(addr,addr_inc,num,flag)
+  faV3Init(addr, addr_inc, num, iFlag)
   #+end_src
 
 - =addr=: A24 VME address set by micro switches on the FADC
 
-- =addr_inc=: With multiple boards this is the value that the A24 address is incremented between the base addresses of each board (typically 0x080000)
+- =addr_inc=: With multiple boards this is the value that the A24 address is incremented between the base addresses of each board (typically ~0x080000~)
 
 - =num=: Number of FADCs to initialize
-
 
 - =iFlag=: 16 bit integer
   - =Low 6 bits= - Specifies the default Signal distribution (clock,trigger) sources for the board (INTernal, FrontPanel, VXS, VME(Soft))
@@ -52,30 +54,30 @@ Library and Example code for use of the Jefferson Lab VME Based 250MHz Flash ADC
 
    - =High 10bits= - A16 Base address of FADC Signal Distribution Module
      This board can control up to 7 FADC Boards.
-     Clock Source must be set to Front Panel (bit4 = 1)
+     Clock Source must be set to Front Panel (=bit4 = 1=)
 
    - =bit 16=:  Exit before board initialization
      ~0~  Initialize FADC (default behavior)
      ~1~  Skip initialization (just setup register map pointers)
 
 ** Common Modes of Operation:
-| iFlag | CLK | TRIG | SYNC | description     |
-|-------+-----+------+------+-----------------|
-|   0x0 | Int | Soft | Soft | Debug/Test Mode |
-|   0x2 | Int | FP   | Soft | Single Board    |
-|   0x3 | Int | FP   | FP   |                 |
-|  0x10 | FP  | Soft | Soft |                 |
-|  0x13 | FP  | FP   | FP   | VME SDC Mode    |
-|  0x20 | VXS | Soft | Soft |                 |
-|  0x25 | VXS | VXS  | VXS  | VXS SD Mode     |
+
+| iFlag | CLK | TRIG | SYNC | description         |
+|-------+-----+------+------+---------------------|
+|   0x0 | Int | Soft | Soft | Debug/Test          |
+|   0x2 | Int | FP   | Soft | Single Board        |
+|   0x3 | Int | FP   | FP   | Single Board        |
+|  0x10 | FP  | Soft | Soft | VME SDC, Debug/Test |
+|  0x13 | FP  | FP   | FP   | VME SDC             |
+|  0x20 | VXS | Soft | Soft | VXS SD, Debug/Test  |
+|  0x25 | VXS | VXS  | VXS  | VXS SD              |
 
 
 ** Example:  
-Initialize a single FADC at address =0xed0000=. 
-(Internal Clock, Front Panel Trigger)
+Initialize a single FADC at address =0xed0000= in Debug/Test mode (Internal Clock, Front Panel Trigger).
 
 #+begin_src C
-faInit(0xed0000, 0, 0, 0);
+faV3Init(0xed0000, 0x0, 1, 0x0);
 #+end_src
 
 ** Example
@@ -92,10 +94,10 @@ FADC SDC Board at =0xed00=
 Front Panel Trigger, Sync, and Clock
 
 #+begin_src C
-faInit(0x180000, 0x080000, 5, 0xed13);
+faV3Init(0x180000, 0x080000, 5, 0xed13);
 #+end_src
 or
 #+begin_src C
-faInit(3 << 19, 1 << 19, 5, 0xed13);
+faV3Init(3 << 19, 1 << 19, 5, 0xed13);
 #+end_src
 ---------------------------------------------
