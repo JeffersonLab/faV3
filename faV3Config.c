@@ -748,34 +748,15 @@ faV3DownloadAll()
 
       faV3ChanDisable(slot, faV3[slot].chDisMask);
 
-      faV3ThresholdIgnore(slot, faV3[slot].thrIgnoreMask);
-
-      faV3Invert(slot, faV3[slot].invertMask);
-
-      faV3PlaybackDisable(slot, faV3[slot].playbackDisableMask);
-
-      faV3SetHitbitTrigWidth(slot, faV3[slot].trigWidth);
-
-      faV3SetHitbitTrigMask(slot, faV3[slot].trigMask);
-
-      faV3SetHitbitMinTOT(slot, faV3[slot].trigMinTOT);
-
-      faV3SetHitbitMinMultiplicity(slot, faV3[slot].trigMinMult);
 
       faV3SetCompression(slot,faV3[slot].compression);
 
       faV3SetVXSReadout(slot,faV3[slot].vxsReadout);
 
-      faV3SetSparsificationMode(slot, faV3[slot].sparsification);
-
-      faV3SetAccumulatorScalerMode(slot, faV3[slot].accumulatorMask);
 
       for(ii=0; ii<NCHAN; ii++)
 	{
-	  faV3SetChannelDelay(slot, ii, faV3[slot].delay[ii] / 4);
 	  faV3SetDAC(slot, faV3[slot].dac[ii], (1<<ii));
-	  faV3SetChannelGain(slot, ii, faV3[slot].gain[ii]);
-   	  faV3SetTriggerProcessingMode(slot, ii, faV3[slot].trigMode[ii]);
 
 	  ped = faV3[slot].ped[ii] * (float)(faV3[slot].nsa+faV3[slot].nsb);
 	  faV3SetChannelPedestal(slot, ii, (int)ped);
@@ -812,29 +793,13 @@ faV3UploadAll(char *string, int length)
 		    &faV3[slot].npeak);
 
       faV3[slot].chDisMask = faV3GetChanMask(slot);
-      faV3[slot].thrIgnoreMask = faV3GetThresholdIgnoreMask(slot);
-      faV3[slot].invertMask = faV3GetInvertMask(slot);
-      faV3[slot].playbackDisableMask = faV3GetPlaybackDisableMask(slot);
-
-      faV3[slot].trigWidth = faV3GetHitbitTrigWidth(slot);
-
-      faV3[slot].trigMask = faV3GetHitbitTrigMask(slot);
-
-      faV3[slot].trigMinTOT = faV3GetHitbitMinTOT(slot);
-
-      faV3[slot].trigMinMult = faV3GetHitbitMinMultiplicity(slot);
 
       faV3[slot].compression = faV3GetCompression(slot);
 
       faV3[slot].vxsReadout = faV3GetVXSReadout(slot);
 
-      faV3[slot].sparsification = faV3GetSparsificationMode(slot);
-
-      faV3[slot].accumulatorMask = faV3GetAccumulatorScalerMode(slot);
-
       for(i=0;i<FAV3_MAX_ADC_CHANNELS;i++)
 	{
-	  faV3[slot].delay[i] = 4*faV3GetChannelDelay(slot, i);
 	  faV3[slot].dac[i] = faV3GetChannelDAC(slot, i);
 
 	  faV3[slot].ped[i] = faV3GetChannelPedestal(slot, i);
@@ -845,8 +810,6 @@ faV3UploadAll(char *string, int length)
 	    {
 	      faV3[slot].thr[i] = faV3[slot].thr[i] - (int)faV3[slot].ped[i]; /* MUST SUBTRACT PEDESTAL TO BE CONSISTENT WITH DOWNLOADED THRESHOLD */
 	    }
-	  faV3[slot].gain[i] = faV3GetChannelGain(slot, i);
-          faV3[slot].trigMode[i] = faV3GetTriggerProcessingMode(slot, i);
 	}
     }
 

@@ -149,7 +149,6 @@ rocDownload()
       faV3EnableBusError(faV3Slot(ifa));
 
       /*trigger-related*/
-      faV3ResetMGT(faV3Slot(ifa),1);
       faV3SetTrigOut(faV3Slot(ifa), 7);
 
       /* Enable busy output when too many events are being processed */

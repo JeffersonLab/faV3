@@ -23,7 +23,7 @@ VMEROL			= faV3_list.so faV3_vxs_list.so
 ROLLIBS			= -lfaV3
 
 ifdef CODA_VME
-INC_CODA_VME	= -I${CODA_VME}/include
+INC_CODA_VME	= -isystem${CODA_VME}/include
 endif
 
 ifdef CODA_VME_LIB

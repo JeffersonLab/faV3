@@ -361,22 +361,22 @@ faV3SetPrbsMode(int id, int pflag)
     printf("\n%2d:   ---- Put ADC chips in  PN 23  sequence test mode ----\n", id);
 
   FALOCK;
-  vmeWrite32(&FAV3p[id]->adc_config[3], 0x0D05);
+  vmeWrite32(&FAV3p[id]->adc.config5, 0x0D05);
   taskDelay(1);
 
-  vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
+  vmeWrite32(&FAV3p[id]->adc.config4, 0x40);
   taskDelay(1);
 
-  vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
+  vmeWrite32(&FAV3p[id]->adc.config4, 0xC0);
   taskDelay(1);
 
-  vmeWrite32(&FAV3p[id]->adc_config[3], 0xFF01);	/* transfer register values */
+  vmeWrite32(&FAV3p[id]->adc.config5, 0xFF01);	/* transfer register values */
   taskDelay(1);
 
-  vmeWrite32(&FAV3p[id]->adc_config[2], 0x40);
+  vmeWrite32(&FAV3p[id]->adc.config4, 0x40);
   taskDelay(1);
 
-  vmeWrite32(&FAV3p[id]->adc_config[2], 0xC0);
+  vmeWrite32(&FAV3p[id]->adc.config4, 0xC0);
   taskDelay(1);
   FAUNLOCK;
 
@@ -413,13 +413,13 @@ faV3SetIdelay(int id, int ch, int delay_p, int delay_n)
   val = (ch << 12) & FAV3_ADC_CONFIG4_IDELAY_CHAN_MASK;
 
   FALOCK;
-  vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for Idelay settings */
+  vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Select channel for Idelay settings */
 
   val |= FAV3_ADC_CONFIG4_IDELAY_RESET;
-  vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Reset Idelay to default setting */
+  vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Reset Idelay to default setting */
 
   val &= ~FAV3_ADC_CONFIG4_IDELAY_RESET;
-  vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release reset */
+  vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Release reset */
 
   delay_p_current = idelay_default_settings[ch];
   delay_n_current = idelay_default_settings[ch];
@@ -427,10 +427,10 @@ faV3SetIdelay(int id, int ch, int delay_p, int delay_n)
   while (delay_p_current != delay_p)	/* Increment P delay until input value is reached */
     {
       val |= FAV3_ADC_CONFIG4_IDELAY_INC_P;
-      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Increment P delay */
+      vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Increment P delay */
 
       val &= ~FAV3_ADC_CONFIG4_IDELAY_INC_P;
-      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release increment P of delay */
+      vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Release increment P of delay */
 
       delay_p_current = (delay_p_current + 1) & 0x3f;
     }
@@ -438,10 +438,10 @@ faV3SetIdelay(int id, int ch, int delay_p, int delay_n)
   while (delay_n_current != delay_n)	/* Increment N delay until input value is reached */
     {
       val |= FAV3_ADC_CONFIG4_IDELAY_INC_N;
-      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Increment N delay */
+      vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Increment N delay */
 
       val &= ~FAV3_ADC_CONFIG4_IDELAY_INC_N;
-      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release increment of N delay */
+      vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Release increment of N delay */
 
       delay_n_current = (delay_n_current + 1) & 0x3f;
     }
@@ -470,13 +470,13 @@ faV3MeasureIdelayErrors(int id)
   for (ch = 0; ch < 16; ch++)
     {
       val = (ch << 12) & FAV3_ADC_CONFIG4_IDELAY_CHAN_MASK;
-      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for Idelay settings */
+      vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Select channel for Idelay settings */
 
       val |= FAV3_ADC_CONFIG4_CMP_RESET;
-      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Reset comparator */
+      vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Reset comparator */
 
       val &= ~FAV3_ADC_CONFIG4_CMP_RESET;
-      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Release comparator reset */
+      vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Release comparator reset */
     }
 
   FAUNLOCK;
@@ -503,10 +503,11 @@ faV3GetIdelayErrors(int id)
   for (ch = 0; ch < 16; ch++)
     {
       val = (ch << 12) & FAV3_ADC_CONFIG4_IDELAY_CHAN_MASK;
-      vmeWrite32(&FAV3p[id]->adc_config[2], val);	/* Select channel for error status */
+      vmeWrite32(&FAV3p[id]->adc.config4, val);	/* Select channel for error status */
 
-      if (vmeRead32(&FAV3p[id]->status4) & FAV3_ADC_STATUS4_CMP_ERR)
-	errors |= (1 << ch);
+      // FIXME: status4 DNE
+      /* if (vmeRead32(&FAV3p[id]->adc.status4) & FAV3_ADC_STATUS4_CMP_ERR) */
+      /* 	errors |= (1 << ch); */
     }
 
   FAUNLOCK;

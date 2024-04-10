@@ -22,8 +22,6 @@
 
 #include <stdint.h>
 
-#define CLAS12
-
 #define FAV3_BOARD_ID       0xfadc0000
 #define FAV3_MAX_BOARDS             20
 #define FAV3_MAX_ADC_CHANNELS       16
@@ -38,41 +36,118 @@
 #define FAV3_SUPPORTED_PROC_FIRMWARE 0x1B07
 #define FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER 1
 
+/* Macros to help with register spacers */
+#define MERGE_(a,b)  a##b
+#define LABEL_(a) MERGE_(uint32_t faV3blank, a)
+#define BLANK LABEL_(__LINE__)
 
-typedef struct faV3_struct
+typedef struct
+{
+  /* 0x0100 */ volatile uint32_t status0;
+  /* 0x0104 */ volatile uint32_t status1;
+  /* 0x0108 */ volatile uint32_t status2;
+  /* 0x010C */ volatile uint32_t config1;
+  /* 0x0110 */ volatile uint32_t config2;
+  /* 0x0114 */ volatile uint32_t config4;
+  /* 0x0118 */ volatile uint32_t config5;
+  /* 0x011C */ volatile uint32_t ptw;
+  /* 0x0120 */ volatile uint32_t pl;
+  /* 0x0124 */ volatile uint32_t nsb;
+  /* 0x0128 */ volatile uint32_t nsa;
+  /* 0x012C */ volatile uint32_t thres[8];
+  /* 0x014C */ volatile uint32_t ptw_last_adr;
+  /* 0x0150 */ volatile uint32_t ptw_max_buf;
+  /* 0x0154 */ volatile uint32_t test_wave;
+  /* 0x0158 */ volatile uint32_t pedestal[16];
+  /* 0x0198 */ volatile uint32_t config3;
+  /* 0x019C */ volatile uint32_t status3;
+} faV3_adc_t;
+
+typedef struct
+{
+  /* 0x0200 */ volatile uint32_t status;
+  /* 0x0204 */ volatile uint32_t cfg;
+  /* 0x0208 */ volatile uint32_t hit_width;
+  /* 0x020C */ volatile uint32_t trig_delay;
+  /* 0x0210 */ volatile uint32_t trig_width;
+  /* 0x0214 */ volatile uint32_t window_bits;
+  /* 0x0218 */ volatile uint32_t window_width;
+  /* 0x021C */ volatile uint32_t coin_bits;
+  /* 0x0220 */ volatile uint32_t pattern;
+  /* 0x0224 */ volatile uint32_t fifo;
+  /* 0x0228 */ volatile uint32_t sum_thresh;
+} faV3_hitsum_t;
+
+typedef struct
+{
+  /* 0x0300 */ volatile uint32_t scaler[16];
+  /* 0x0340 */ volatile uint32_t time_count;
+} faV3_scalers_t;
+
+typedef struct
+{
+  /* 0x0400 */ volatile uint32_t testbit;
+  /* 0x0404 */ volatile uint32_t count_250;
+  /* 0x0408 */ volatile uint32_t count_sync;
+  /* 0x040C */ volatile uint32_t count_trig1;
+  /* 0x0410 */ volatile uint32_t count_trig2;
+} faV3_system_test_t;
+
+typedef struct
+{
+  /* 0x0500 */ volatile uint32_t state_level;
+  /* 0x0504 */ volatile uint32_t state_csr;
+  /* 0x0508 */ volatile uint32_t state_value;
+  /* 0x050C */ BLANK[1];
+  /* 0x0510 */ volatile uint32_t berr_driven_count;
+  /* 0x0514 */ volatile uint32_t retry_driven_count;
+  /* 0x0518 */ BLANK[1];
+  /* 0x051C */ volatile uint32_t vxs_output_status;
+  /* 0x0520 */ volatile uint32_t sparsify_control;
+  /* 0x0524 */ volatile uint32_t sparsify_status;
+  /* 0x0528 */ volatile uint32_t first_trigger_mismatch;
+  /* 0x052C */ volatile uint32_t trigger_mismatch_counter;
+  /* 0x0530 */ volatile uint32_t triggers_processed;
+} faV3_aux_t;
+
+typedef struct
 {
   /* 0x0000 */ volatile uint32_t version;
   /* 0x0004 */ volatile uint32_t csr;
   /* 0x0008 */ volatile uint32_t ctrl1;
   /* 0x000C */ volatile uint32_t ctrl2;
-  /* 0x0010 */ volatile uint32_t blk_level;
+  /* 0x0010 */ volatile uint32_t blocklevel;
   /* 0x0014 */ volatile uint32_t intr;
   /* 0x0018 */ volatile uint32_t adr32;
   /* 0x001C */ volatile uint32_t adr_mb;
-  /* 0x0020 */ volatile uint32_t s_adr;
+  /* 0x0020 */ volatile uint32_t sec_adr;
   /* 0x0024 */ volatile uint32_t delay;
-  /* 0x0028 */ volatile uint32_t itrig_cfg;
+  /* 0x0028 */ volatile uint32_t trig_cfg;
   /* 0x002C */ volatile uint32_t reset;
-  /* 0x0030 */ volatile uint32_t trig_scal;
+  /* 0x0030 */ volatile uint32_t trig_count;
   /* 0x0034 */ volatile uint32_t ev_count;
   /* 0x0038 */ volatile uint32_t blk_count;
   /* 0x003C */ volatile uint32_t blk_fifo_count;
-  /* 0x0040 */ volatile uint32_t blk_wrdcnt_fifo;
-  /* 0x0044 */ volatile uint32_t internal_trig_scal;
+  /* 0x0040 */ volatile uint32_t blk_wrd_count;
+  /* 0x0044 */ volatile uint32_t trig_live_count;
   /* 0x0048 */ volatile uint32_t ram_word_count;
-  /* 0x004C */ volatile uint32_t dataflow_status;
-  /* 0x0050 */ volatile uint16_t dac[16];
-  /* 0x0070 */ volatile uint32_t status[4];
-  /* 0x0080 */ volatile uint32_t aux;
+  /* 0x004C */ volatile uint32_t flow_status;
+  /* 0x0050 */ volatile uint32_t dac_csr;
+  /* 0x0054 */ volatile uint32_t dac_data;
+  /* 0x0058 */ BLANK[(0x70 - 0x58) >> 2];
+  /* 0x0070 */ volatile uint32_t status1;
+  /* 0x0074 */ volatile uint32_t status2;
+  /* 0x0078 */ volatile uint32_t status3;
+  /* 0x007C */ BLANK[(0x84 - 0x7C) >> 2];
   /* 0x0084 */ volatile uint32_t trigger_control;
-  /* 0x0088 */ volatile uint32_t trig21_delay;
+  /* 0x0088 */ volatile uint32_t trig21_del;
   /* 0x008C */ volatile uint32_t mem_adr;
   /* 0x0090 */ volatile uint32_t mem1_data;
   /* 0x0094 */ volatile uint32_t mem2_data;
   /* 0x0098 */ volatile uint32_t prom_reg1;
   /* 0x009C */ volatile uint32_t prom_reg2;
-  /* 0x00A0 */ volatile uint32_t berr_module_scal;
-  /* 0x00A4 */ volatile uint32_t berr_crate_scal;
+  /* 0x00A0 */ volatile uint32_t berr_count;
+  /* 0x00A4 */ volatile uint32_t berr_in_count;
   /* 0x00A8 */ volatile uint32_t proc_words_scal;
   /* 0x00AC */ volatile uint32_t aux_scal2;
   /* 0x00B0 */ volatile uint32_t header_scal;
@@ -82,101 +157,31 @@ typedef struct faV3_struct
   /* 0x00C0 */ volatile uint32_t busy_level;
   /* 0x00C4 */ volatile uint32_t gen_evt_header;
   /* 0x00C8 */ volatile uint32_t gen_evt_data;
-  /* 0x00CC */ volatile uint32_t gen_evt_trailer;
-  /* 0x00D0 */ volatile uint32_t mgt_status;
-  /* 0x00D4 */ volatile uint32_t mgt_ctrl;
-  /* 0x00D8 */ volatile uint32_t reserved_ctrl[2];
+  /* 0x00CC */ volatile uint32_t gen_evt_trail;
+  /* 0x00D0 */ volatile uint32_t status_mgt;
+  /* 0x00D4 */ volatile uint32_t ctrl_mgt;
+  /* 0x00D8 */ volatile uint32_t mem_adr_w;
+  /* 0x00DC */ volatile uint32_t mem_adr_r;
   /* 0x00E0 */ volatile uint32_t scaler_ctrl;
-  /* 0x00E4 */ volatile uint32_t serial_number[3];
-  /* 0x00F0 */ volatile uint32_t scaler_interval;
-  /* 0x00F4 */ volatile uint32_t spare_ctrl[(0xFC - 0xF4) >> 2];
-  /* 0x00FC */ volatile uint32_t system_monitor;
+  /* 0x00E4 */ volatile uint32_t serial_reg[3];
+  /* 0x00F0 */ volatile uint32_t scaler_insert;
+  /* 0x00F4 */ volatile uint32_t sum_threshold;
+  /* 0x00F8 */ volatile uint32_t sum_data;
+  /* 0x00FC */ volatile uint32_t sys_mon;
 
-  /* 0x0100 */ volatile uint32_t adc_status[3];
-  /* 0x010C */ volatile uint32_t adc_config[4];
-  /* 0x011C */ volatile uint32_t adc_ptw;
-  /* 0x0120 */ volatile uint32_t adc_pl;
-  /* 0x0124 */ volatile uint32_t adc_nsb;
-  /* 0x0128 */ volatile uint32_t adc_nsa;
-  /* 0x012C */ volatile uint16_t adc_thres[16];
-  /* 0x014C */ volatile uint32_t ptw_last_adr;
-  /* 0x0150 */ volatile uint32_t ptw_max_buf;
-  /* 0x0154 */ volatile uint32_t adc_test_data;
+  /* 0x0100 */ volatile faV3_adc_t adc;
+  /* 0x01A0 */ BLANK[(0x200 - 0x1A0) >> 2];
 
-#ifdef CLAS12
-  /* 0x0158 */ volatile uint16_t adc_pedestal[16];
-  /* 0x0178 */ volatile uint16_t adc_delay[16];
-  /* 0x0198 */ volatile uint32_t adc_gain[16];
-  /* 0x01d8 */ volatile uint32_t hitbit_trig_mask;
-  /* 0x01dc */ volatile uint32_t hitbit_trig_width;
-  /* 0x01e0 */ volatile uint32_t hitbit_cfg;
-  /* 0x01e4 */ volatile uint32_t spare_adc[(0x200 - 0x1e4) >> 2];
+  /* 0x0200 */ volatile faV3_hitsum_t hitsum;
+  /* 0x022C */ BLANK[(0x300 - 0x22C) >> 2];
 
-  /* 0x0200 */ volatile uint16_t la_ctrl;
-  /* 0x0202 */ volatile uint16_t la_status;
-  /* 0x0204 */ volatile uint16_t adc_scaler_ctrl;
-  /* 0x0206 */ volatile uint16_t spare_adc0[(0x220 - 0x206) >> 1];
-  /* 0x0220 */ volatile uint16_t la_cmp_mode0[16];
-  /* 0x0240 */ volatile uint16_t la_cmp_thr0[16];
-  /* 0x0260 */ volatile uint16_t adc_accumulator0[16];
-  /* 0x0280 */ volatile uint16_t adc_accumulator1[16];
-  /* 0x02A0 */ volatile uint16_t adc_accumulator2[16];
-  /* 0x02C0 */ volatile uint16_t la_data[13];
-  /* 0x02DA */ volatile uint16_t spare_adc1[(0x300 - 0x2DA) >> 1];
-#else
-  /* 0x0158 */ volatile uint32_t adc_pedestal[16];
-  /* 0x0198 */ volatile uint32_t spare_adc[(0x200 - 0x198) >> 2];
+  /* 0x0300 */ volatile faV3_scalers_t scalers;
+  /* 0x0344 */ BLANK[(0x400 - 0x344) >> 2];
 
-  /* 0x0200 */ volatile uint32_t hitsum_status;
-  /* 0x0204 */ volatile uint32_t hitsum_cfg;
-  /* 0x0208 */ volatile uint32_t hitsum_hit_width;
-  /* 0x020C */ volatile uint32_t hitsum_trig_delay;
-  /* 0x0210 */ volatile uint32_t hitsum_trig_width;
-  /* 0x0214 */ volatile uint32_t hitsum_window_bits;
-  /* 0x0218 */ volatile uint32_t hitsum_window_width;
-  /* 0x021C */ volatile uint32_t hitsum_coin_bits;
-  /* 0x0220 */ volatile uint32_t hitsum_pattern;
-  /* 0x0224 */ volatile uint32_t hitsum_fifo;
-  /* 0x0228 */ volatile uint32_t hitsum_sum_thresh;
-  /* 0x022C */ volatile uint32_t spare_hitsum[(0x300 - 0x22C) >> 2];
-#endif
+  /* 0x0400 */ volatile faV3_system_test_t system_test;
+  /* 0x0414 */ BLANK[(0x500 - 0x414) >> 2];
 
-
-  /* 0x0300 */ volatile uint32_t scaler[16];
-  /* 0x0340 */ volatile uint32_t time_count;
-  /* 0x0344 */ volatile uint32_t spare_scaler[(0x400 - 0x344) >> 2];
-
-  /* 0x0400 */ volatile uint32_t testBit;
-  /* 0x0404 */ volatile uint32_t clock250count;
-  /* 0x0408 */ volatile uint32_t syncp0count;
-  /* 0x040C */ volatile uint32_t trig1p0count;
-  /* 0x0410 */ volatile uint32_t trig2p0count;
-
-#ifdef CLAS12
-  /* 0x0414 */ volatile uint32_t spare_adc_1[(0x500 - 0x414) >> 2];
-  /* 0x0500 */ volatile uint32_t gtx_ctrl;
-  /* 0x0504 */ volatile uint32_t /*spare_gtx1 */ state_csr;	/* for Ed */
-  /* 0x0508 */ volatile uint32_t /*trx_ctrl */ state_value;	/* for Ed */
-  /* 0x050C */ volatile uint32_t spare_gtx3;
-  /* 0x0510 */ volatile uint32_t gtx_status;
-  /* 0x0514 */ volatile uint32_t spare_gtx4;
-  /* 0x0518 */ volatile uint32_t gtx_la_ctrl;
-  /* 0x051C */ volatile uint32_t gtx_la_status;
-
-  /* 0x0520 */ volatile uint32_t sparse_control;
-  /* 0x0524 */ volatile uint32_t sparse_status;
-  /* 0x0528 */ volatile uint32_t first_trigger_mismatch;
-  /* 0x052C */ volatile uint32_t trigger_mismatch_counter;
-  /* 0x0530 */ volatile uint32_t triggers_processed;
-  /* 0x0534 */ volatile uint32_t spare;
-
-  /* 0x0538 */ volatile uint32_t gtx_la_val[2];
-  /* 0x0540 */ volatile uint32_t spare_gtx[(0x580 - 0x540) >> 2];
-  /* 0x0580 */ volatile uint32_t hist_ctrl;
-  /* 0x0584 */ volatile uint32_t hist_time;
-  /* 0x0588 */ volatile uint32_t hist_data[16];
-#endif
-
+  /* 0x0500 */ volatile faV3_aux_t aux;
 } faV3_t;
 
 typedef struct faV3_data_struct
@@ -189,12 +194,10 @@ typedef struct faV3_data_struct
   uint32_t blk_num;
   uint32_t n_words;
   uint32_t evt_num_1;
-  uint32_t evt_num_2;
+  uint32_t trig_time;
   uint32_t time_now;
   uint32_t time_1;
   uint32_t time_2;
-  uint32_t time_3;
-  uint32_t time_4;
   uint32_t chan;
   uint32_t width;
   uint32_t valid_1;
@@ -206,8 +209,14 @@ typedef struct faV3_data_struct
   uint32_t pulse_num;
   uint32_t thres_bin;
   uint32_t quality;
+  uint32_t evt_in_blk;
+  uint32_t ped_q;
+  uint32_t ped_sum;
   uint32_t integral;
+  uint32_t integral_q;
+  uint32_t above_thres;
   uint32_t time;
+  uint32_t time_q;
   uint32_t chan_a;
   uint32_t source_a;
   uint32_t chan_b;
@@ -217,10 +226,10 @@ typedef struct faV3_data_struct
   uint32_t time_fine;
   uint32_t vmin;
   uint32_t vpeak;
-  uint32_t trig_type_int;	/* next 4 for internal trigger data */
-  uint32_t trig_state_int;	/* e.g. helicity */
-  uint32_t evt_num_int;
-  uint32_t err_status_int;
+  uint32_t adc_latency;
+  uint32_t adc_nsb;
+  uint32_t adc_nsa;
+  uint32_t scaler[18];
 } faV3data_t;
 
 
@@ -340,7 +349,7 @@ typedef struct faV3_sdc_struct
 #define FAV3_RESET_ALL                 0xFFFF
 
 /* Define trig_scal bits */
-#define FAV3_TRIG_SCAL_RESET          (1<<31)
+#define FAV3_TRIG_COUNT_RESET          (1<<31)
 
 /* Define trigger_control bits */
 #define FAV3_TRIGCTL_TRIGSTOP_EN      (1<<31)
@@ -594,8 +603,8 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_SCALER_CTRL_RESET      (1<<2)
 #define FAV3_SCALER_CTRL_MASK        (0x7)
 
-/* Define Scaler Interval Mask */
-#define FAV3_SCALER_INTERVAL_MASK   0x0000FFFF
+/* Define Scaler Insert Mask */
+#define FAV3_SCALER_INSERT_MASK   0x0000FFFF
 
 /* Define Serial Number bits and masks */
 #define FAV3_SERIAL_NUMBER_ACDI               0x41434449
@@ -881,37 +890,6 @@ int faV3Id(uint32_t slot);
 int faV3SetThresholdAll(int id, uint16_t tvalue[16]);
 int faV3SetPedestal(int id, uint32_t wvalue);
 int faV3PrintPedestal(int id);
-#ifdef CLAS12
-int faV3SetTriggerProcessingMode(int id, uint32_t chan, uint32_t mask);
-int faV3GetTriggerProcessingMode(int id, uint32_t chan);
-int faV3SetChannelDelay(int id, uint32_t chan, uint32_t delay);
-int faV3GetChannelDelay(int id, uint32_t chan);
-int faV3Invert(int id, uint16_t chmask);
-uint32_t faV3GetInvertMask(int id);
-int faV3ResetMGT(int id, int reset);
-int faV3GetMGTChannelStatus(int id);
-int faV3SetChannelGain(int id, uint32_t chan, float gain);
-float faV3GetChannelGain(int id, uint32_t chan);
-int faV3GLoadChannelPedestals(char *fname, int updateThresholds);
-int faV3ThresholdIgnore(int id, uint16_t chmask);
-uint32_t faV3GetThresholdIgnoreMask(int id);
-int faV3PlaybackDisable(int id, uint16_t chmask);
-uint32_t faV3GetPlaybackDisableMask(int id);
-int faV3SetHitbitTrigMask(int id, uint16_t chmask);
-uint32_t faV3GetHitbitTrigMask(int id);
-int faV3SetHitbitTrigWidth(int id, uint16_t width);
-uint32_t faV3GetHitbitTrigWidth(int id);
-
-int faV3GSetHitbitMinTOT(uint16_t width);
-int faV3GSetHitbitMinMultiplicity(uint16_t mult);
-int faV3SetHitbitMinTOT(int id, uint16_t width);
-int faV3SetHitbitMinMultiplicity(int id, uint16_t mult);
-int faV3GetHitbitMinTOT(int id);
-int faV3GetHitbitMinMultiplicity(int id);
-
-/*Andrea*/
-int faV3SetDelayAll(int id, uint32_t delay);
-int faV3SetGlobalDelay(uint32_t delay);
 
 void faV3SetCompression(int id, int opt);
 int faV3GetCompression(int id);
@@ -936,7 +914,6 @@ int faV3SetChThreshold(int id, int ch, int threshold);
 void faV3SetA32BaseAddress(uint32_t addr);
 
 
-#endif
 
 int faV3CalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np);
 int faV3SetTriggerStopCondition(int id, int trigger_max);
@@ -961,7 +938,3 @@ void faV3GClearSparsificationStatus();
 uint32_t faV3GetFirstTriggerMismatch(int id);
 uint32_t faV3GetMismatchTriggerCount(int id);
 uint32_t faV3GetTriggersProcessedCount(int id);
-
-int faV3SetAccumulatorScalerMode(int id, uint16_t chmask);
-int faV3GSetAccumulatorScalerMode(uint16_t chmask);
-uint32_t faV3GetAccumulatorScalerMode(int id);
