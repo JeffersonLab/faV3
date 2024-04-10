@@ -22,7 +22,7 @@
 
 #include <stdint.h>
 
-#define FAV3_BOARD_ID       0xfadc0000
+#define FAV3_BOARD_ID       0xadc30000
 #define FAV3_MAX_BOARDS             20
 #define FAV3_MAX_ADC_CHANNELS       16
 #define FAV3_MAX_DATA_PER_CHANNEL  251
@@ -31,9 +31,9 @@
 #define FAV3_VME_INT_LEVEL           3
 #define FAV3_VME_INT_VEC          0xFA
 
-#define FAV3_SUPPORTED_CTRL_FIRMWARE 0xBB
+#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x0E
 #define FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER 1
-#define FAV3_SUPPORTED_PROC_FIRMWARE 0x1B07
+#define FAV3_SUPPORTED_PROC_FIRMWARE 0xE00
 #define FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER 1
 
 /* Macros to help with register spacers */
@@ -245,51 +245,32 @@ typedef struct faV3_sdc_struct
 /* FADC Special Board IDs */
 
 /* Define CSR Bits */
-#define FAV3_CSR_EVENT_AVAILABLE                    0x1
-#define FAV3_CSR_BLOCK_LEVEL_FLAG                   0x2
-#define FAV3_CSR_BLOCK_READY                        0x4
-#define FAV3_CSR_BERR_STATUS                        0x8
-#define FAV3_CSR_TOKEN_STATUS                      0x10
-#define FAV3_CSR_FIFO1_EMPTY                      0x800
-#define FAV3_CSR_FIFO1_ALMOST_EMPTY              0x1000
-#define FAV3_CSR_FIFO1_HALF_FULL                 0x2000
-#define FAV3_CSR_FIFO1_ALMOST_FULL               0x4000
-#define FAV3_CSR_FIFO1_FULL                      0x8000
-#define FAV3_CSR_SOFT_PULSE_TRIG2              0x100000
-#define FAV3_CSR_SOFT_CLEAR                    0x200000
-#define FAV3_CSR_DATA_STREAM_SCALERS           0x400000
-#define FAV3_CSR_FORCE_EOB_INSERT              0x800000
-#define FAV3_CSR_FORCE_EOB_SUCCESS            0x1000000
-#define FAV3_CSR_FORCE_EOB_FAILED             0x2000000
-#define FAV3_CSR_ERROR_MASK                  0x0c000000
-#define FAV3_CSR_ERROR_CLEAR                 0x08000000
-#define FAV3_CSR_SYNC                        0x10000000
-#define FAV3_CSR_TRIGGER                     0x20000000
-#define FAV3_CSR_SOFT_RESET                  0x40000000
-#define FAV3_CSR_HARD_RESET                  0x80000000
+#define FAV3_CSR_EVENT_AVAILABLE                (1 << 0)
+#define FAV3_CSR_BLOCK_LEVEL_FLAG               (1 << 1)
+#define FAV3_CSR_BLOCK_READY                    (1 << 2)
+#define FAV3_CSR_BERR_STATUS                    (1 << 3)
+#define FAV3_CSR_TOKEN_STATUS                   (1 << 4)
+#define FAV3_CSR_COMPRESSION_ERROR              (1 << 5)
+#define FAV3_DAC_SERIALIZATION_ACTIVE          (1 << 10)
+#define FAV3_CSR_FIFO_EMPTY                    (1 << 11)
+#define FAV3_CSR_FIFO_ALMOST_EMPTY             (1 << 12)
+#define FAV3_CSR_FIFO_HALF_FULL                (1 << 13)
+#define FAV3_CSR_FIFO_ALMOST_FULL              (1 << 14)
+#define FAV3_CSR_FIFO_FULL                     (1 << 15)
+#define FAV3_CSR_SOFT_PULSE_TRIG2              (1 << 20)
+#define FAV3_CSR_SOFT_CLEAR                    (1 << 21)
+#define FAV3_CSR_DATA_STREAM_SCALERS           (1 << 22)
+#define FAV3_CSR_FORCE_EOB_INSERT              (1 << 23)
+#define FAV3_CSR_FORCE_EOB_SUCCESS             (1 << 24)
+#define FAV3_CSR_FORCE_EOB_FAILED              (1 << 25)
+#define FAV3_CSR_ERROR_MASK                   0x0c000000
+#define FAV3_CSR_ERROR_CLEAR                   (1 << 27)
+#define FAV3_CSR_SYNC                          (1 << 28)
+#define FAV3_CSR_TRIGGER                       (1 << 29)
+#define FAV3_CSR_SOFT_RESET                    (1 << 30)
+#define FAV3_CSR_HARD_RESET                    (1 << 31)
 
-/* Define Init Flag bits for Clock Source */
-#define FAV3_SOURCE_INT         0x00
-#define FAV3_SOURCE_SDC         0x10
-#define FAV3_SOURCE_VXS         0x20
-#define FAV3_SOURCE_MASK        0x30
-
-/* Define Control2 Bits */
-#define FAV3_CTRL_GO               0x01
-#define FAV3_CTRL_ENABLE_TRIG      0x02
-#define FAV3_CTRL_ENABLE_SRESET    0x04
-#define FAV3_CTRL_ENABLE_INT_TRIG  0x08
-#define FAV3_CTRL_ENABLE_MASK      0x07
-#define FAV3_CTRL_ENABLED          0x07
-
-#define FAV3_CTRL_COMPRESS_DISABLE 0x000
-#define FAV3_CTRL_COMPRESS_VERIFY  0x240
-#define FAV3_CTRL_COMPRESS_ENABLE  0x280
-#define FAV3_CTRL_COMPRESS_MASK    0x2C0
-
-#define FAV3_CTRL_VXS_RO_ENABLE    0x400
-
-/* Define CTRL1 Bits */
+/* Define ctrl1 Bits */
 #define FAV3_REF_CLK_INTERNAL        0x0
 #define FAV3_REF_CLK_FP              0x1
 #define FAV3_REF_CLK_P0              0x2
@@ -329,15 +310,19 @@ typedef struct faV3_sdc_struct
 #define FAV3_MB_TOKEN_VIA_P0     0x10000000
 #define FAV3_MB_TOKEN_VIA_P2     0x20000000
 
-/* Define Control 2 Bits */
-#define FAV3_GO                         0x1
-#define FAV3_ENABLE_EXT_TRIGGER         0x2
-#define FAV3_ENABLE_EXT_SRESET          0x4
-#define FAV3_ENABLE_INT_TRIGGER         0x8
-#define FAV3_ENABLE_STREAM_MODE        0x10
-
-#define FAV3_DEBUG_XFER_INFIFO_BFIFO       0x1000
-#define FAV3_DEBUG_XFER_BFIFO_OFIFO        0x2000
+/* Define ctrl2 Bits */
+#define FAV3_CTRL_GO               (1 << 0)
+#define FAV3_CTRL_ENABLE_TRIG      (1 << 1)
+#define FAV3_CTRL_ENABLE_SRESET    (1 << 2)
+#define FAV3_CTRL_ENABLE_INT_TRIG  (1 << 3)
+#define FAV3_CTRL_ENABLE_MASK      0x7
+#define FAV3_CTRL_ENABLED          0x7
+#define FAV3_CTRL_STREAM_ENABLE    (1 << 4)
+#define FAV3_CTRL_COMPRESS_DISABLE 0x000
+#define FAV3_CTRL_COMPRESS_VERIFY  0x240
+#define FAV3_CTRL_COMPRESS_ENABLE  0x280
+#define FAV3_CTRL_COMPRESS_MASK    0x2C0
+#define FAV3_CTRL_VXS_RO_ENABLE    (1 << 10)
 
 /* Define Reset Bits */
 #define FAV3_RESET_CNTL_FPGA              0x1
@@ -349,12 +334,12 @@ typedef struct faV3_sdc_struct
 #define FAV3_RESET_ALL                 0xFFFF
 
 /* Define trig_scal bits */
-#define FAV3_TRIG_COUNT_RESET          (1<<31)
+#define FAV3_TRIG_COUNT_RESET          (1 << 31)
 
 /* Define trigger_control bits */
-#define FAV3_TRIGCTL_TRIGSTOP_EN      (1<<31)
+#define FAV3_TRIGCTL_TRIGSTOP_EN      (1 << 31)
 #define FAV3_TRIGCTL_MAX2_MASK     0x00FF0000
-#define FAV3_TRIGCTL_BUSY_EN          (1<<15)
+#define FAV3_TRIGCTL_BUSY_EN          (1 << 15)
 #define FAV3_TRIGCTL_MAX1_MASK     0x000000FF
 
 /* Define trig21 delay bits */
@@ -441,7 +426,7 @@ typedef struct faV3_sdc_struct
 
 #define FAV3_ADC_NS_PER_CLK      4
 
-#define FAV3_MAX_PROC_MODE                       10
+#define FAV3_MAX_PROC_MODE         10
 #define FAV3_ADC_PROC_MASK        0x7
 #define FAV3_ADC_PROC_ENABLE      0x8
 #define FAV3_ADC_PROC_MODE_WINDOW   1
@@ -449,7 +434,6 @@ typedef struct faV3_sdc_struct
 #define FAV3_ADC_PROC_MODE_SUM      3
 #define FAV3_ADC_PROC_MODE_TIME     7
 
-/* begin from Bryan for trigger_control */
 #define FAV3_SUPPORTED_MODES                   9,10
 #define FAV3_SUPPORTED_NMODES                     2
 
@@ -493,6 +477,7 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_DEFAULT_NSAT    1
 #define FAV3_ADC_DEFAULT_MNPED   4
 #define FAV3_ADC_DEFAULT_TNSA   10
+#define FAV3_ADC_DEFAULT_TNSB   10
 #define FAV3_ADC_DEFAULT_TNSAT   1
 #define FAV3_ADC_DEFAULT_TPT     0
 
@@ -507,6 +492,7 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_MAX_NSAT        4
 #define FAV3_ADC_MAX_MNPED      15
 #define FAV3_ADC_MAX_TNSA       63
+#define FAV3_ADC_MAX_TNSB       15
 #define FAV3_ADC_MAX_TNSAT       4
 #define FAV3_ADC_MAX_TPT      4095
 
@@ -521,11 +507,13 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_MIN_NSAT        1
 #define FAV3_ADC_MIN_MNPED       4
 #define FAV3_ADC_MIN_TNSA        2
+#define FAV3_ADC_MIN_TNSB        2
 #define FAV3_ADC_MIN_TNSAT       2
 #define FAV3_ADC_MIN_TPT         0
 
 #define FAV3_ADC_NSB_READBACK_MASK    0x0000000F
 #define FAV3_ADC_NSB_NEGATIVE         (1<<3)
+#define FAV3_ADC_TNSB_MASK            0x00001E00
 
 #define FAV3_ADC_NSA_READBACK_MASK    0x000001FF
 #define FAV3_ADC_TNSA_MASK            0x00007E00
@@ -670,6 +658,7 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_SPARSE_STATUS_CLEAR (1 << 31)
 
 
+
 /* faInit initialization flag bits */
 #define FAV3_INIT_SOFT_SYNCRESET      (0<<0)
 #define FAV3_INIT_EXT_SYNCRESET       (1<<0)
@@ -683,6 +672,13 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_INIT_SKIP                (1<<16)
 #define FAV3_INIT_USE_ADDRLIST        (1<<17)
 #define FAV3_INIT_SKIP_FIRMWARE_CHECK (1<<18)
+
+/* Define Init Flag bits for Clock Source */
+#define FAV3_SOURCE_INT         FAV3_INIT_INT_CLKSRC
+#define FAV3_SOURCE_SDC         FAV3_INIT_FP_CLKSRC
+#define FAV3_SOURCE_VXS         FAV3_INIT_VXS_CLKSRC
+#define FAV3_SOURCE_MASK        0x30
+
 
 /* fadcBlockError values */
 #define FAV3_BLOCKERROR_NO_ERROR          0
@@ -927,14 +923,3 @@ void faV3GSetTriggerPathThreshold(uint32_t TPT);
 int faV3ArmStatesStorage(int id);
 int faV3DisarmStatesStorage(int id);
 int faV3ReadStatesStorage(int id);
-
-/* Sparsification Routines for NPS */
-int faV3SetSparsificationMode(int id, int mode);
-void faV3GSetSparsificationMode(int mode);
-int faV3GetSparsificationMode(int id);
-int faV3GetSparsificationStatus(int id);
-int faV3ClearSparsificationStatus(int id);
-void faV3GClearSparsificationStatus();
-uint32_t faV3GetFirstTriggerMismatch(int id);
-uint32_t faV3GetMismatchTriggerCount(int id);
-uint32_t faV3GetTriggersProcessedCount(int id);
