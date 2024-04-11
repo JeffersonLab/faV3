@@ -691,6 +691,27 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 /* Number of regs to read in faDebugOutput */
 #define FAV3_DEBUG_OUTPUT_NREGS 57
 
+enum faV3_firmware_functions
+  {
+    FAV3_FW_CTRL = 0,
+    FAV3_FW_PROC = 1,
+    FAV3_FW_FUNCTION_MAX
+  };
+
+enum faV3_ctrl_firmware_types
+  {
+    FAV3_FW_CTRL_COMMON = 0,
+    FAV3_FW_CTRL_MAX
+  };
+
+enum faV3_proc_firmware_types
+  {
+    FAV3_FW_PROC_COMMON = 0,
+    FAV3_FW_PROC_HALLD_PRODUCTION = 1,
+    FAV3_FW_PROC_MAX
+  };
+
+
 /* Function Prototypes */
 int faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag);
 int faV3Slot(uint32_t i);

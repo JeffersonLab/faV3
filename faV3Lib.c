@@ -89,8 +89,9 @@ volatile uint32_t *FAV3pd[(FAV3_MAX_BOARDS + 1)];	/* pointers to FAV3 FIFO memor
 volatile uint32_t *FAV3pmb;	/* pointer to Multblock window */
 int faV3ID[FAV3_MAX_BOARDS];	/* array of slot numbers for FAV3s */
 uint32_t faV3AddrList[FAV3_MAX_BOARDS];	/* array of a24 addresses for FAV3s */
-int faV3Rev[(FAV3_MAX_BOARDS + 1)];	/* Board Revision Info for each module */
-int faV3ProcRev[(FAV3_MAX_BOARDS + 1)];	/* Processing FPGA Revision Info for each module */
+int faV3FwRev[(FAV3_MAX_BOARDS + 1)][FAV3_FW_FUNCTION_MAX];  /* control+proc version numbers */
+int faV3FwType[(FAV3_MAX_BOARDS + 1)][FAV3_FW_FUNCTION_MAX]; /* control+proc version types */
+
 uint16_t faV3ChanDisableMask[(FAV3_MAX_BOARDS + 1)];	/* Disabled Channel Mask for each Module */
 int faV3Inited = 0;		/* >0 if Library has been Initialized before */
 int faV3MaxSlot = 0;		/* Highest Slot hold an FAV3 */
@@ -365,8 +366,10 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 		    }
 
 		  FAV3p[boardID] = (faV3_t *) (laddr_inc);
-		  faV3Rev[boardID] = rdata & FAV3_VERSION_MASK;
-		  faV3ProcRev[boardID] = proc_version;
+
+		  faV3FwRev[boardID][FAV3_FW_CTRL] = rdata & FAV3_VERSION_MASK;
+		  faV3FwRev[boardID][FAV3_FW_PROC] = proc_version;
+
 		  faV3ID[nfaV3] = boardID;
 		  if(boardID >= maxSlot)
 		    maxSlot = boardID;
@@ -812,6 +815,90 @@ faV3Slot(uint32_t i)
 
   return faV3ID[i];
 }
+
+/**
+ * @brief Check the faV3 firmware type vs specified type
+ * @param[in] where Where this routine is being called
+ * @param[in] id faV3 slot number
+ * @param[in] function The function of the firmware
+ *            0 : control
+ *            1 : processing
+ * @param[in] type Firmware type to check against
+ * @return OK if faV3 module's firmware type matches specified type
+ */
+
+int
+faV3CheckFWType(char *where, int id, int function, int type)
+{
+  if (function >= FAV3_FW_FUNCTION_MAX)
+    {
+      printf("%s: ERROR: Invalid function (%d)\n",
+	     where, type);
+      return ERROR;
+    }
+
+  if(type != faV3FwType[id][function])
+    {
+      printf("%s: ERROR: Invalid V3 firmware type (%d)\n",
+	     where, type);
+      return ERROR;
+    }
+
+  return OK;
+}
+
+/**
+ * @brief Return faV3 firmware type, provided it's firmware version number
+ * @param[in] id faV3 slot number
+ * @param[in] function The function of the firmware
+ *            0 : control
+ *            1 : processing
+ * @param[in] version faV3 version number
+ * @param[out] type Firmware type determined from firmware version
+ * @return OK if faV3 firmware type version matches a supported type, otherwise ERROR
+ *
+ */
+
+int
+faV3GetFWType(int id, int function, int version, int *type)
+{
+  *type = -1;
+
+  /* map the version numbers to types
+     - type extensions can have extern functions for checking version numbers */
+
+  switch(function)
+    {
+    case FAV3_FW_CTRL:
+      *type = FAV3_FW_CTRL_COMMON;
+
+      break;
+
+    case FAV3_FW_PROC:
+      *type = FAV3_FW_PROC_COMMON;
+
+      if(version == 0x4100)
+	*type = FAV3_FW_PROC_HALLD_PRODUCTION;
+
+      break;
+
+    default:
+      printf("%s: ERROR: Invalid function (%d)\n",
+	     __func__, function);
+    }
+
+  if(*type == -1)
+    {
+      printf("%s: ERROR: Version (0x%x) not supported for fw function %d\n",
+	     __func__, version, function);
+      return ERROR;
+    }
+
+  return OK;
+}
+
+
+
 
 /*******************************************************************************
  *
@@ -2072,14 +2159,6 @@ faV3SetTriggerPathThreshold(int id, uint32_t TPT)
     {
       printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__,
 	     id);
-      return ERROR;
-    }
-
-  if(faV3ProcRev[id] < 0x90B)
-    {
-      printf("%s: ERROR: Processing Firmware does not support this function\n",
-	     __func__);
-      printf("      Requires 0x90B and above\n");
       return ERROR;
     }
 
@@ -6461,7 +6540,7 @@ faV3SDC_Status(int sFlag)
 
   if(FAV3SDCp == NULL)
     {
-      printf("faSDC_Status: ERROR : No FADC SDC available \n");
+      printf("faV3SDC_Status: ERROR : No FADC SDC available \n");
       return;
     }
 
