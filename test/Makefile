@@ -37,25 +37,27 @@ ifeq ($(DEBUG),1)
 endif
 
 SRC			= $(wildcard *.c)
-DEPS			= $(SRC:.c=.d)
 PROGS			= $(SRC:.c=)
+
+DEPDIR := .deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+DEPFILES := $(SRC:%.c=$(DEPDIR)/%.d)
+
+COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) $(CPPFLAGS) $(TARGET_ARCH)
 
 all: $(PROGS)
 
-clean distclean:
-	@rm -f $(PROGS) *~ $(OBJS) $(DEPS)
+clean:
+	@rm -vf $(PROGS) *~ $(DEPFILES)
 
 %: %.c
+%: %.c  $(DEPDIR)/%.d | $(DEPDIR)
 	@echo " CC     $@"
-	${Q}$(CC) $(CFLAGS) $(INCS) -o $@ $<
+	${Q}$(COMPILE.c) $(CFLAGS) $(INCS) -o $@ $<
 
-%.d: %.c
-	@echo " DEP    $@"
-	@set -e; rm -f $@; \
-	$(CC) -MM -shared $(INCS) $< > $@.$$$$; \
-	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-	rm -f $@.$$$$
+$(DEPDIR): ; @mkdir -p $@
 
--include $(DEPS)
+$(DEPFILES):
+include $(wildcard $(DEPFILES))
 
-.PHONY: all clean distclean
+.PHONY: all clean

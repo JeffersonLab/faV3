@@ -32,7 +32,7 @@ LINUXVME_LIB		?= ../../lib
 LINUXVME_INC		?= ../../include
 LINUXVME_BIN		?= ../../bin
 
-CFLAGS			= -L. -L.. -L${LINUXVME_LIB} ${LIB_CODA} -DLinux_vme -DLinux -ljvme -lfaV3
+CFLAGS			= -L. -L.. -L${LINUXVME_LIB} ${LIB_CODA} -ljvme -lfaV3
 INCS			= -I. -I.. -I${LINUXVME_INC} ${INC_CODA}
 
 ifdef DEBUG
@@ -42,18 +42,20 @@ CFLAGS	+= -O2
 endif
 
 SRC			= $(wildcard *.c)
-DEPS			= $(SRC:.c=.d)
 PROGS			= $(SRC:.c=)
+
+DEPDIR := .deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+DEPFILES := $(SRC:%.c=$(DEPDIR)/%.d)
+
+COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) $(CPPFLAGS) $(TARGET_ARCH)
 
 all: $(PROGS)
 
 %: %.c
+%: %.c  $(DEPDIR)/%.d | $(DEPDIR)
 	@echo " CC     $@"
-	${Q}$(CC) $(CFLAGS) $(INCS) -o $@ $<
-
-%.o: %.c
-	@echo " CC     $@"
-	${Q}$(CC) $(CFLAGS) $(INCS) -c -o $@ $<
+	${Q}$(COMPILE.c) $(CFLAGS) $(INCS) -o $@ $<
 
 install: $(PROGS)
 	@echo " CP     ${PROGS}"
@@ -63,14 +65,10 @@ coda_install: $(PROGS)
 	@echo " CODACP ${PROGS}"
 	${Q}cp $(PROGS) $(CODA_VME_BIN)/
 
-%.d: %.c
-	@echo " DEP    $@"
-	${Q}set -e; rm -f $@; \
-	$(CC) -MM -shared  -DLinux_vme -DLinux $(INCS) $< > $@.$$$$; \
-	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-	rm -f $@.$$$$
+$(DEPDIR): ; @mkdir -p $@
 
--include $(DEPS)
+$(DEPFILES):
+include $(wildcard $(DEPFILES))
 
 clean:
-	rm -f *~ $(PROGS)
+	@rm -vf *~ $(PROGS) $(DEPFILES)

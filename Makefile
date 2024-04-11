@@ -63,7 +63,7 @@ CC			+= -m32
 endif
 AR                      = ar
 RANLIB                  = ranlib
-CFLAGS			= -L. -L${LINUXVME_LIB} ${LIB_CODA} -DLinux_vme -DLinux
+CFLAGS			= -L. -L${LINUXVME_LIB} ${LIB_CODA}
 INCS			= -I. -I${LINUXVME_INC} ${INC_CODA}
 
 LIBS			= lib${BASENAME}.a lib${BASENAME}.so
@@ -74,10 +74,15 @@ CFLAGS			+= -Wall -g -Wno-unused
 else
 CFLAGS			+= -O2
 endif
+
 SRC			= ${BASENAME}Lib.c faV3Config.c
-HDRS			= $(SRC:.c=.h)
 OBJ			= ${BASENAME}Lib.o faV3Config.o
-DEPS			= $(SRC:.c=.d)
+
+DEPDIR := .deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+DEPFILES := $(SRC:%.c=$(DEPDIR)/%.d)
+
+COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) $(CPPFLAGS) $(TARGET_ARCH)
 
 ifeq ($(OS),LINUX)
 all: echoarch ${LIBS}
@@ -86,12 +91,13 @@ all: echoarch $(OBJ)
 endif
 
 %.o: %.c
+%.o: %.c $(DEPDIR)/%.d | $(DEPDIR)
 	@echo " CC     $@"
-	${Q}$(CC) $(CFLAGS) $(INCS) -c -o $@ $<
+	${Q}$(COMPILE.c) -fPIC -c -o $@ $<
 
-libfaV3.so: ${SRC}
+libfaV3.so: ${OBJ}
 	@echo " CC     $@"
-	${Q}$(CC) -fpic -shared $(CFLAGS) -lm $(INCS) -o $@ ${SRC}
+	${Q}$(COMPILE.c)  -shared -lm -o $@ ${OBJ}
 
 %.a: $(OBJ)
 	@echo " AR     $@"
@@ -116,21 +122,20 @@ coda_install: $(LIBS)
 	@echo " CODACP ${HDRS}"
 	${Q}cp ${PWD}/${HDRS} $(CODA_VME)/include
 
-%.d: %.c
-	@echo " DEP    $@"
-	${Q}set -e; rm -f $@; \
-	$(CC) -MM -shared  -DLinux_vme -DLinux $(INCS) $< > $@.$$$$; \
-	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-	rm -f $@.$$$$
-
--include $(DEPS)
-
 endif
 
 clean:
-	@rm -vf ${BASENAME}Lib.{o,d} faV3Config.{o,d} lib${BASENAME}.{a,so}
+	@rm -vf ${OBJ} ${LIBS} $(DEPFILES)
+
+realclean: clean
+	@rm -vf *~
 
 echoarch:
 	@echo "Make for $(OS)-$(ARCH)"
+
+$(DEPDIR): ; @mkdir -p $@
+
+$(DEPFILES):
+include $(wildcard $(DEPFILES))
 
 .PHONY: clean echoarch

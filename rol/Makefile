@@ -69,6 +69,13 @@ SOBJS			= $(CRLFILES:.crl=.so)
 DEPS			= $(VMEROL:%.so=%.d)
 DEPS			+= $(CFILES:%.c=%.d)
 
+DEPDIR := .deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+DEPFILES := $(VMEROL:%.so=$(DEPDIR)/%.d)
+DEPFILES += $(CFILES:%.c=$(DEPDIR)/%.d)
+
+COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) $(CPPFLAGS) $(TARGET_ARCH)
+
 
 all:  $(VMEROL) $(SOBJS)
 
@@ -81,8 +88,9 @@ event_list.so: event_list.c
 	${Q}${CC} ${CODA_CFLAGS} -o $@ $<
 
 %.so: %.c
+%.so: %.c $(DEPDIR)/%.d | $(DEPDIR)
 	@echo " CC     $@"
-	${Q}$(CC) -fpic -shared  $(CFLAGS) $(INCS) $(LIBS) \
+	${Q}$(COMPILE.c) -fpic -shared  $(CFLAGS) $(INCS) $(LIBS) \
 		-DINIT_NAME=$(@:.so=__init) -DINIT_NAME_POLL=$(@:.so=__poll) -o $@ $<
 
 fadc_vxs_list.so: fadc_vxs_list.c
@@ -91,15 +99,12 @@ fadc_vxs_list.so: fadc_vxs_list.c
 		-DINIT_NAME=$(@:.so=__init) -DINIT_NAME_POLL=$(@:.so=__poll) -o $@ $<
 
 clean distclean:
-	${Q}rm -f  $(VMEROL) $(SOBJS) $(CFILES) *~ $(DEPS)
+	${Q}rm -vf  $(VMEROL) $(SOBJS) $(CFILES) *~ $(DEPFILES)
 
-%.d: %.c
-	@echo " DEP    $@"
-	${Q}set -e; rm -f $@; \
-	$(CC) -MM -shared $(INCS) $(CPPFLAGS) -DINIT_NAME=$(@:.so=__init) -DINIT_NAME_POLL=$(@:.so=__poll) $< > $@.$$$$; \
-	sed 's,\($*\)\.o[ :]*,\1.so $@ : ,g' < $@.$$$$ > $@; \
-	rm -f $@.$$$$
+$(DEPDIR): ; @mkdir -p $@
 
--include $(DEPS)
+$(DEPFILES):
+include $(wildcard $(DEPFILES))
+
 
 .PHONY: all
