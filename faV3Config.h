@@ -28,6 +28,7 @@
 #define ROCLEN     80       /* length of ROC_name */
 #define NCHAN      16
 
+#include <stdint.h>
 
 /** FADC250 configuration parameters **/
 typedef struct {
@@ -38,28 +39,16 @@ typedef struct {
   int          mode;
   int          compression;
   int          vxsReadout;
-  unsigned int winOffset;
-  unsigned int winWidth;
-  unsigned int nsb;
-  unsigned int nsa;
-  unsigned int npeak;
+  uint32_t winOffset;
+  uint32_t winWidth;
+  uint32_t nsb;
+  uint32_t nsa;
+  uint32_t npeak;
 
-  unsigned int chDisMask;
-  unsigned int trigMask;
-  unsigned int trigWidth;
-  unsigned int trigMinTOT;
-  unsigned int trigMinMult;
-  unsigned int thr[NCHAN];
-  unsigned int dac[NCHAN];
-  unsigned int delay[NCHAN];
+  uint32_t chDisMask;
+  uint32_t thr[NCHAN];
+  uint32_t dac[NCHAN];
   float        ped[NCHAN];
-  unsigned int thrIgnoreMask;
-  unsigned int invertMask;
-  unsigned int playbackDisableMask;
-  float gain[NCHAN];
-  unsigned int trigMode[NCHAN];
-  unsigned int sparsification;
-  unsigned int accumulatorMask;
 
 } FAV3_CONF;
 
@@ -71,13 +60,11 @@ extern "C" {
 #endif
 
 void faV3SetExpid(char *string);
-void faV3GetParamsForOffline(float ped[6][22][16], int tet[6][22][16], float gain[6][22][16], int nsa[6][22], int nsb[6][22]);
 void faV3Sethost(char *host);
 void faV3InitGlobals();
 int faV3ReadConfigFile(char *filename);
 int faV3DownloadAll();
 int faV3Config(char *fname);
-void faV3Mon(int slot);
 int faV3UploadAll(char *string, int length);
 
 #ifdef	__cplusplus

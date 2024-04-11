@@ -2,9 +2,6 @@
  *
  *  faV3Config.c  -  configuration library file for fADC250 V3 board
  *
- *  SP, 07-Nov-2013
- * Sergey Boyarinov Nov 2013 - simplify/adjust for Hall B
- *
  *  empty lines and line startes with # - will be ignored
  *  config file format:
 
@@ -35,9 +32,6 @@ FAV3_NPEAK     1   <- number of Pulses in Mode 2 and 3.  (0x10C Bits:6-5)
 FAV3_ADC_MASK  1  0  1  0  1  0  1  0  1  0  1  0  1  0  1  0   <- channel enable mask
 FAV3_TRG_MASK  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   <- trigger enable mask
 
-FAV3_TRG_WIDTH   1  <- stretches pulse width of channel over threshold in 4ns ticks
-FAV3_TRG_MINTOT  1  <- minimum number of 4ns clocks channel must be over threshold to count towards multiplicity for FADC
-FAV3_TRG_MINMULT 1  <- minimum number of channels triggered simultaneously for FADC to send trigger to SD
 
 FAV3_TET       110        <- board Trigger Energy Threshold (TET), same for all 16 channels
 FAV3_CH_TET    0    110   <- channel# and TET_value for this channel
@@ -51,28 +45,11 @@ FAV3_PED       210        <- board Pedestals, same for all channels
 FAV3_CH_PED    0    210   <- channel# and Pedestal_value for this channel
 FAV3_ALLCH_PED 210  220  210  215  215  220  220  210  210  215  215  220  220  210  215  220  <- 16 PEDs
 
-FAV3_GAIN       0.5        <- board Gains, same for all channels
-FAV3_CH_GAIN    0    0.5   <- channel# and Gain_value for this channel
-FAV3_ALLCH_GAIN 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5  <- 16 GAINs
-
-FAV3_CH_DELAY    0   0     <- channel# and delay in ns
-FAV3_ALLCH_DELAY 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-
-FAV3_TRG_MODE_MASK 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 <- 0=normal pulse trigger mode, 1=discriminator mode
-
-FAV3_INVERT_MASK 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 <- 0=ADC values not changed, 1=inverted ADC input polarity (i.e. ADC=4095-ADC)
-
-FAV3_SPARSIFICATION 0      <- 0=Bypassed, 1=Enabled
-FAV3_ACCUMATOR_SCALER_MODE_MASK 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 <- 0=Default, TET based pulse integration, 1=Sum all samples
 
 FAV3_CONF_FILE  <filename> <- another config filename to be processed on next iteration
 
 
- cc -rdynamic -shared -o fadc250Config.so fadc250Config.c -I/home/halld/test_setup/coda/linuxvme/include /home/halld/test_setup/coda/linuxvme/jvme/libjvme.a /home/halld/test_setup/coda/linuxvme/fadcV2/libfadc.a -ldl -lpthread -lrt
-
 */
-
-#if defined(VXWORKS) || defined(Linux)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,8 +60,6 @@ FAV3_CONF_FILE  <filename> <- another config filename to be processed on next it
 #include "faV3Config.h"
 #include "jvme.h"
 #include "faV3Lib.h"
-
-#undef DEBUG
 
 static int active;
 
@@ -128,6 +103,19 @@ static FAV3_CONF faV3[NBOARD+1];
       ui1 |= (msk[jj]<<jj);						\
     }
 
+/* Macros for error ouput */
+#define CFG_ERR(format, ...) {						\
+    fprintf(stdout, "\n%s: ERROR: ", "ReadConfigFile");			\
+    if(slot1==0)							\
+      fprintf(stdout, "ALL SLOTS: ");					\
+    else								\
+      fprintf(stdout, "SLOT %d: ", slot1);				\
+    fprintf(stdout, "%s\n\t", keyword);					\
+    fprintf(stdout, format, ## __VA_ARGS__);				\
+    fprintf(stdout, "\n");						\
+  }
+
+
 
 static char *expid = NULL;
 
@@ -136,10 +124,6 @@ fadc250SetExpid(char *string)
 {
   expid = strdup(string);
 }
-
-
-
-#ifndef OFFLINE
 
 int
 faV3Config(char *fname)
@@ -174,20 +158,11 @@ faV3Config(char *fname)
   return(0);
 }
 
-#endif /*OFFLINE*/
-
-
 void
 faV3InitGlobals()
 {
   int ii, jj;
 
-  printf("%s reached\n", __func__);
-
-  /*nfadc = 0;*/
-#ifndef OFFLINE
-  nfadc = faV3GetNfadc();
-#endif
   for(jj=0; jj<NBOARD; jj++)
     {
       faV3[jj].mode      = 1;
@@ -199,47 +174,15 @@ faV3InitGlobals()
       faV3[jj].nsb       = 3;
       faV3[jj].npeak     = 1;
       faV3[jj].chDisMask = 0x0;
-      faV3[jj].trigMask  = 0xffff;
-      faV3[jj].trigWidth = 0xff;
-      faV3[jj].trigMinTOT = 1;
-      faV3[jj].trigMinMult = 1;
-      faV3[jj].thrIgnoreMask = 0;
-      faV3[jj].invertMask = 0;
-      faV3[jj].playbackDisableMask = 0;
-      faV3[jj].sparsification = 0;
-      faV3[jj].accumulatorMask = 0;
 
       for(ii=0; ii<NCHAN; ii++)
 	{
 	  faV3[jj].thr[ii] = 110;
 	  faV3[jj].dac[ii] = 3300;
 	  faV3[jj].ped[ii] = 0.;
-	  faV3[jj].gain[ii] = 0.5;
-	  faV3[jj].delay[ii] = 0;
-          faV3[jj].trigMode[ii] = 0;
 	}
     }
 }
-
-void
-faV3GetParamsForOffline(float ped[6][22][16], int tet[6][22][16], float gain[6][22][16], int nsa[6][22], int nsb[6][22])
-{
-  int ii,jj;
-
-  for(jj=0; jj<NBOARD; jj++)
-    {
-      nsa[0][jj] = faV3[jj].nsa;
-      nsb[0][jj] = faV3[jj].nsb;
-
-      for(ii=0; ii<NCHAN; ii++)
-	{
-	  ped[0][jj][ii]  = faV3[jj].ped[ii];
-	  tet[0][jj][ii]  = faV3[jj].thr[ii];
-	  gain[0][jj][ii] = faV3[jj].gain[ii];
-	}
-    }
-}
-
 
 /* to set host externally */
 static char hosthost[1024];
@@ -261,7 +204,7 @@ faV3ReadConfigFile(char *filename_in)
   char   host[ROCLEN], ROC_name[ROCLEN];
   int    args, i1, msk[16];
   int    slot, slot1, slot2, chan;
-  unsigned int  ui1;
+  uint32_t  ui1;
   float f1, fmsk[16];
   /*char *getenv();*/
   char *envDir = NULL;
@@ -346,17 +289,6 @@ faV3ReadConfigFile(char *filename_in)
 	}
 
       printf("\nReadConfigFile: Using configuration file >%s<\n",fname);
-
-      /* Macros for error ouput */
-#define CFG_ERR(format, ...) {						\
-	fprintf(stdout, "\n%s: ERROR: ", "ReadConfigFile");		\
-	if(slot1==0) fprintf(stdout, "ALL SLOTS: ");			\
-	else fprintf(stdout, "SLOT %d: ", slot1);			\
-	fprintf(stdout, "%s\n\t", keyword);				\
-	fprintf(stdout, format, ## __VA_ARGS__);			\
-	fprintf(stdout, "\n");						\
-      }
-
 
       /* Parsing of config file */
       active = 0; /* by default disable crate */
@@ -493,63 +425,6 @@ faV3ReadConfigFile(char *filename_in)
 #endif
 		}
 
-	      else if(active && (strcmp(keyword,"FAV3_TRG_MASK") == 0))
-		{
-		  GET_READ_MSK;
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].trigMask = ui1;
-#ifdef DEBUG
-		  printf("\nReadConfigFile: %s = 0x%04x \n",keyword,ui1);
-#endif
-		}
-	      else if(active && (strcmp(keyword,"FAV3_TRG_WIDTH") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].trigWidth = i1/4;
-		}
-	      else if(active && (strcmp(keyword,"FAV3_TRG_MINTOT") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].trigMinTOT = i1;
-		}
-	      else if(active && (strcmp(keyword,"FAV3_TRG_MINMULT") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].trigMinMult = i1;
-		}
-	      else if(active && (strcmp(keyword,"FAV3_TET_IGNORE_MASK") == 0))
-		{
-		  GET_READ_MSK;
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].thrIgnoreMask = ui1;
-#ifdef DEBUG
-		  printf("\nReadConfigFile: %s = 0x%04x \n",keyword,ui1);
-#endif
-		}
-	      else if(active && (strcmp(keyword,"FAV3_PLAYBACK_DISABLE_MASK") == 0))
-		{
-		  GET_READ_MSK;
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].playbackDisableMask = ui1;
-#ifdef DEBUG
-		  printf("\nReadConfigFile: %s = 0x%04x \n",keyword,ui1);
-#endif
-		}
-	      else if(active && (strcmp(keyword,"FAV3_INVERT_MASK") == 0))
-		{
-		  GET_READ_MSK;
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].invertMask = ui1;
-#ifdef DEBUG
-		  printf("\nReadConfigFile: %s = 0x%04x \n",keyword,ui1);
-#endif
-		}
-	      else if(active && (strcmp(keyword,"FAV3_TRG_MODE_MASK") == 0))
-		{
-		  SCAN_MSK;
-		  if(args != 16)
-		    {
-		      CFG_ERR("Invalid number of arguments (%d), should be 16\n", args);
-		      return(-8);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].trigMode[ii] = msk[ii];
-		}
 	      else if(active && (strcmp(keyword,"FAV3_TET") == 0))
 		{
 		  sscanf (str_tmp, "%*s %d", &ui1);
@@ -565,28 +440,6 @@ faV3ReadConfigFile(char *filename_in)
 		      return(-7);
 		    }
 		  for(slot=slot1; slot<slot2; slot++) faV3[slot].thr[chan] = ui1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_CH_DELAY") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d %d", &chan, &ui1);
-		  if((chan<0) || (chan>NCHAN))
-		    {
-		      CFG_ERR("Invalid channel number %d, %s\n", chan, str_tmp);
-		      return(-7);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].delay[chan] = ui1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_ALLCH_DELAY") == 0))
-		{
-		  SCAN_MSK;
-		  if(args != 16)
-		    {
-		      CFG_ERR("Invalid number of arguments (%d), should be 16\n", args);
-		      return(-8);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].delay[ii] = msk[ii];
 		}
 
 	      else if(active && (strcmp(keyword,"FAV3_ALLCH_TET") == 0))
@@ -657,52 +510,6 @@ faV3ReadConfigFile(char *filename_in)
 
 		}
 
-	      else if(active && (strcmp(keyword,"FAV3_GAIN") == 0))
-		{
-		  sscanf (str_tmp, "%*s %f", &f1);
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].gain[ii] = f1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_CH_GAIN") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d %f", &chan, &f1);
-		  if((chan<0) || (chan>NCHAN))
-		    {
-		      CFG_ERR("Invalid channel number %d, %s\n", chan, str_tmp);
-		      return(-7);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].gain[chan] = f1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_ALLCH_GAIN") == 0))
-		{
-		  SCAN_FMSK;
-		  if(args != 16)
-		    {
-		      CFG_ERR("Invalid number of arguments (%d), should be 16\n", args);
-		      return(-8);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].gain[ii] = fmsk[ii];
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_SPARSIFICATION") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].sparsification = i1;
-#ifdef DEBUG
-		  printf("\nReadConfigFile: %s = 0x%04x \n",keyword,i1);
-#endif
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_ACCUMULATOR_SCALER_MODE_MASK") == 0))
-		{
-		  GET_READ_MSK;
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].accumulatorMask = ui1;
-#ifdef DEBUG
-		  printf("\nReadConfigFile: %s = 0x%04x \n",keyword,ui1);
-#endif
-		}
-
 	      else if(active)
 		{
 		  printf("Error: FADC250 unknown line: fgets returns %s so keyword=%s\n\n",str_tmp,keyword);
@@ -718,20 +525,12 @@ faV3ReadConfigFile(char *filename_in)
 }
 
 
-
-
-#ifndef OFFLINE
-
-
 /* download setting into all found FADCs */
 int
 faV3DownloadAll()
 {
   int slot, ii, jj;
   float ped;
-#if 0
-  int updateThresholds = 1;
-#endif
 
   printf("\n\nfadc250DownloadAll reached, nfadc=%d\n",nfadc);
   for(jj=0; jj<nfadc; jj++)
@@ -778,7 +577,7 @@ faV3UploadAll(char *string, int length)
 {
   int slot, i, jj, len1, len2;
   char *str, sss[1024];
-  unsigned int adcChanEnabled;
+  uint32_t adcChanEnabled;
 
   for(jj=0; jj<nfadc; jj++)
     {
@@ -850,64 +649,12 @@ faV3UploadAll(char *string, int length)
 	  sprintf(sss,"FAV3_NPEAK %d\n",     faV3[slot].npeak);
 	  ADD_TO_STRING;
 
-	  sprintf(sss,"FAV3_TRG_MASK %d\n",  faV3[slot].trigMask);
-	  ADD_TO_STRING;
-
-	  sprintf(sss, "FAV3_TRG_WIDTH %d\n", faV3[slot].trigWidth);
-	  ADD_TO_STRING;
-
-	  sprintf(sss, "FAV3_TRG_MINTOT %d\n", faV3[slot].trigMinTOT);
-	  ADD_TO_STRING;
-
-	  sprintf(sss, "FAV3_TRG_MINMULT %d\n", faV3[slot].trigMinMult);
-	  ADD_TO_STRING;
-
 	  adcChanEnabled = 0xFFFF^faV3[slot].chDisMask;
 	  sprintf(sss,"FAV3_ADC_MASK");
 	  ADD_TO_STRING;
 	  for(i=0; i<16; i++)
 	    {
 	      sprintf(sss," %d",(adcChanEnabled>>(15-i))&0x1);
-	      ADD_TO_STRING;
-	    }
-	  sprintf(sss,"\n");
-	  ADD_TO_STRING;
-
-	  sprintf(sss,"FAV3_TET_IGNORE_MASK");
-	  ADD_TO_STRING;
-	  for(i=0; i<16; i++)
-	    {
-	      sprintf(sss," %d",(faV3[slot].thrIgnoreMask>>(15-i))&0x1);
-	      ADD_TO_STRING;
-	    }
-	  sprintf(sss,"\n");
-	  ADD_TO_STRING;
-
-	  sprintf(sss,"FAV3_INVERT_MASK");
-	  ADD_TO_STRING;
-	  for(i=0; i<16; i++)
-	    {
-	      sprintf(sss," %d",(faV3[slot].invertMask>>(15-i))&0x1);
-	      ADD_TO_STRING;
-	    }
-	  sprintf(sss,"\n");
-	  ADD_TO_STRING;
-
-	  sprintf(sss,"FAV3_PLAYBACK_DISABLE_MASK");
-	  ADD_TO_STRING;
-	  for(i=0; i<16; i++)
-	    {
-	      sprintf(sss," %d",(faV3[slot].playbackDisableMask>>(15-i))&0x1);
-	      ADD_TO_STRING;
-	    }
-	  sprintf(sss,"\n");
-	  ADD_TO_STRING;
-
-	  sprintf(sss,"FAV3_TRG_MODE_MASK");
-	  ADD_TO_STRING;
-	  for(i=0; i<16; i++)
-	    {
-	      sprintf(sss," %d",faV3[slot].trigMode[i]);
 	      ADD_TO_STRING;
 	    }
 	  sprintf(sss,"\n");
@@ -942,41 +689,6 @@ faV3UploadAll(char *string, int length)
 	    }
 	  sprintf(sss,"\n");
 	  ADD_TO_STRING;
-
-	  sprintf(sss,"FAV3_ALLCH_DELAY");
-	  ADD_TO_STRING;
-	  for(i=0; i<16; i++)
-	    {
-	      sprintf(sss," %d",faV3[slot].delay[i]);
-	      ADD_TO_STRING;
-	    }
-	  sprintf(sss,"\n");
-	  ADD_TO_STRING;
-
-	  sprintf(sss,"FAV3_ALLCH_GAIN");
-	  ADD_TO_STRING;
-	  for(i=0; i<16; i++)
-	    {
-	      sprintf(sss," %7.3f",faV3[slot].gain[i]);
-	      ADD_TO_STRING;
-	    }
-	  sprintf(sss,"\n");
-	  ADD_TO_STRING;
-
-	  sprintf(sss,"FAV3_SPARSIFICATION %d\n", faV3[slot].sparsification);
-	  ADD_TO_STRING;
-
-	  sprintf(sss,"FAV3_ACCUMULATOR_SCALER_MODE_MASK");
-	  ADD_TO_STRING;
-	  for(i=0; i<16; i++)
-	    {
-	      sprintf(sss," %d",(faV3[slot].accumulatorMask>>(15-i))&0x1);
-	      ADD_TO_STRING;
-	    }
-	  sprintf(sss,"\n");
-	  ADD_TO_STRING;
-
-
 	}
 
       CLOSE_STRING;
@@ -994,52 +706,3 @@ faV3UploadAllPrint()
 
   return 0;
 }
-
-
-
-/* print board registers; if slot is zero, print all boards */
-void
-faV3Mon(int slot)
-{
-  int id, start, end, kk;
-
-
-  nfadc = faV3GetNfadc();
-  if(slot==0)
-    {
-      start = 0;
-      end = nfadc;
-    }
-  else if((id = faV3Id(slot)) >= 0)
-    {
-      start = id;
-      end = start + 1;
-    }
-  else
-    {
-      return;
-    }
-
-  printf("nfadc=%d\n",nfadc);
-  for(kk=start; kk<end; kk++)
-    {
-      faV3Status(faV3Slot(kk),0);
-    }
-
-  return;
-}
-
-#endif /*OFFLINE*/
-
-
-
-
-#else /* dummy version*/
-
-void
-faV3Config_dummy()
-{
-  return;
-}
-
-#endif
