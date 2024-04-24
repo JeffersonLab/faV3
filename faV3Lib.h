@@ -362,6 +362,22 @@ typedef struct faV3_sdc_struct
 #define FAV3_RAM_EMPTY           0x00200000
 #define FAV3_RAM_ADR_INCREMENT   0x00100000
 
+/* Define dac_csr and dac_data bits */
+#define FAV3_DAC_CHAN_MASK 0x0000000F
+#define FAV3_DAC_READY     (1 << 16)
+#define FAV3_DAC_SUCCESS   (1 << 17)
+#define FAV3_DAC_NOT_READY (1 << 18)
+#define FAV3_DAC_TIMEOUT   (1 << 19)
+#define FAV3_DAC_CLEAR     (1 << 29)
+#define FAV3_DAC_INIT_DONE (1 << 30)
+#define FAV3_DAC_INIT      (1 << 31)
+
+#define FAV3_DAC_DATA_MASK         0x00000FFF
+#define FAV3_DAC_DATA_REG_SELECT01 0x00003000
+#define FAV3_DAC_DATA_CHAN_MASK    0x0003C000
+#define FAV3_DAC_DATA_REG_SELECTAB (1 << 21)
+#define FAV3_DAC_MAX_VALUE         0xFFF
+
 /* Define Bit Masks */
 #define FAV3_VERSION_MASK        0x000000ff
 #define FAV3_BOARD_MASK          0xffff0000
@@ -790,9 +806,13 @@ uint32_t faV3GetTriggerCount(int id);
 int faV3ResetTriggerCount(int id);
 int faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask);
 int faV3PrintThreshold(int id);
-int faV3SetDAC(int id, uint16_t dvalue, uint16_t chmask);
-void faV3PrintDAC(int id);
-uint32_t faV3GetChannelDAC(int id, uint32_t chan);
+
+int32_t faV3DACInit(int id);
+int32_t faV3DACClear(int id);
+int32_t faV3DACStatus(int id);
+int32_t faV3DACSet(int id, int chan, uint32_t dac_value);
+int32_t faV3DACGet(int id, int chan, uint32_t *dac_value);
+
 int faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped);
 int faV3GetChannelPedestal(int id, uint32_t chan);
 int faV3Live(int id, int sflag);

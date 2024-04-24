@@ -2169,12 +2169,10 @@ faV3SetTriggerPathThreshold(int id, uint32_t TPT)
       TPT = FAV3_ADC_MAX_TPT;
     }
 
-#if 0
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->config3,
-	     (vmeRead32(&FAV3p[id]->config3) & ~FAV3_ADC_CONFIG3_TPT_MASK) | TPT);
+  vmeWrite32(&FAV3p[id]->adc.config3,
+	     (vmeRead32(&FAV3p[id]->adc.config3) & ~FAV3_ADC_CONFIG3_TPT_MASK) | TPT);
   FAV3UNLOCK;
-#endif
 
   return OK;
 }
@@ -2199,13 +2197,6 @@ faV3GSetTriggerPathThreshold(uint32_t TPT)
 	       faV3ID[ii]);
     }
 }
-
-/* sergey: end new functions from Bryan Moffit for trigger_control */
-/*******************************************************************/
-/*******************************************************************/
-
-
-
 
 
 /*
@@ -4667,132 +4658,216 @@ faV3PrintThreshold(int id)
   return (OK);
 }
 
-
-int
-faV3SetDAC(int id, uint16_t dvalue, uint16_t chmask)
+int32_t
+faV3DACInit(int id)
 {
-  int ii, doWrite = 0;
-  uint32_t lovalue = 0, hivalue = 0;
+  uint32_t csr_value = 0, init_done = 0;
+  int32_t rval = OK;
 
   if(id == 0)
     id = faV3ID[0];
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faV3SetDAC: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
       return (ERROR);
     }
 
-  if(chmask == 0)
-    chmask = 0xffff;		/* Set All channels the same */
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->dac_csr, FAV3_DAC_INIT);
+  taskDelay(1);		// wait
+  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
+  init_done = (csr_value & FAV3_DAC_INIT_DONE) >> 30;
+  FAV3UNLOCK;
 
-  if(dvalue > 0xfff)
+  if(!init_done)
     {
-      logMsg("faV3SetDAC: ERROR : DAC value (%d) out of range (0-255) \n",
-	     dvalue, 0, 0, 0, 0, 0);
+      printf("%s(id = %d): ERROR: Init Failed.  DAC_CSR: 0x%08x\n",
+	     __func__, id, csr_value);
+      rval = ERROR;
+    }
+
+  return rval;
+}
+
+int32_t
+faV3DACClear(int id)
+{
+  uint32_t csr_value;
+  uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
+  int32_t rval = OK;
+
+  if(id == 0)
+    id = faV3ID[0];
+
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
       return (ERROR);
     }
 
-  // FIXME:
-#ifdef OLDWAY
   FAV3LOCK;
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-
-      if(ii % 2 == 0)
-	{
-	  lovalue = (vmeRead16(&FAV3p[id]->dac[ii]));
-	  hivalue = (vmeRead16(&FAV3p[id]->dac[ii + 1]));
-
-	  if((1 << ii) & chmask)
-	    {
-	      lovalue = dvalue & FAV3_DAC_VALUE_MASK;
-	      doWrite = 1;
-	    }
-	  if((1 << (ii + 1)) & chmask)
-	    {
-	      hivalue = (dvalue & FAV3_DAC_VALUE_MASK);
-	      doWrite = 1;
-	    }
-
-	  if(doWrite)
-	    vmeWrite32((uint32_t *) & (FAV3p[id]->dac[ii]),
-		       lovalue << 16 | hivalue);
-
-	  lovalue = 0;
-	  hivalue = 0;
-	  doWrite = 0;
-	}
-
-    }
+  vmeWrite32(&FAV3p[id]->dac_csr, FAV3_DAC_CLEAR);
+  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
+  ready = (csr_value & FAV3_DAC_READY >> 16);
+  success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
+  not_ready_since_clear = (csr_value & FAV3_DAC_NOT_READY) >> 18;
+  timeout_since_clear = (csr_value & FAV3_DAC_TIMEOUT) >> 19;
   FAV3UNLOCK;
-#endif // OLDWAY
 
-  return (OK);
+  if(!ready || !success || not_ready_since_clear || timeout_since_clear)
+    {
+      printf("%s(id = %d): ERROR: Clear Failed.  DAC_CSR: 0x%08x\n",
+	     __func__, id, csr_value);
+      printf("    Ready: %d  Success: %d  NotReadySinceClear: %d  Timeout Since Clear %d\n",
+	     ready, success, not_ready_since_clear, timeout_since_clear);
+      rval = ERROR;
+    }
+
+  return rval;
 }
 
-
-void
-faV3PrintDAC(int id)
+int32_t
+faV3DACStatus(int id)
 {
-  int ii;
-  uint16_t dval[FAV3_MAX_ADC_CHANNELS];
+  uint32_t csr_value;
+  uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
+  int32_t rval = OK;
 
   if(id == 0)
     id = faV3ID[0];
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faV3PrintDAC: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return;
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
+      return (ERROR);
     }
 
-  // FIXME:
-#ifdef OLDWAY
   FAV3LOCK;
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    dval[ii] = vmeRead16(&(FAV3p[id]->dac[ii])) & FAV3_DAC_VALUE_MASK;
+  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
+  ready = (csr_value & FAV3_DAC_READY >> 16);
+  success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
+  not_ready_since_clear = (csr_value & FAV3_DAC_NOT_READY) >> 18;
+  timeout_since_clear = (csr_value & FAV3_DAC_TIMEOUT) >> 19;
   FAV3UNLOCK;
 
+  printf("%s(id = %d): DAC_CSR: 0x%08x\n",
+	 __func__, id, csr_value);
+  printf("    Ready: %d  Success: %d  NotReadySinceClear: %d  Timeout Since Clear %d\n",
+	 ready, success, not_ready_since_clear, timeout_since_clear);
 
-  printf(" DAC Settings for FADC in slot %d:", id);
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-      if((ii % 4) == 0)
-	printf("\n");
-      printf("Chan %2d: %5d   ", (ii + 1), dval[ii]);
-    }
-  printf("\n");
-#endif // OLDWAY
-
+  return rval;
 }
 
-uint32_t
-faV3GetChannelDAC(int id, uint32_t chan)
+
+int32_t
+faV3DACSet(int id, int chan, uint32_t dac_value)
 {
-  uint32_t val = 0;
+  uint32_t csr_value;
+  uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
+  int32_t rval = OK;
 
   if(id == 0)
     id = faV3ID[0];
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faV3GetChannelDAC: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (0);
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
+      return (ERROR);
     }
 
-  // FIXME:
-#ifdef OLDWAY
+  if(chan > FAV3_MAX_ADC_CHANNELS)
+    {
+      printf("%s: ERROR: Invalid chan (%d)\n",
+	     __func__, chan);
+      return ERROR;
+    }
+
+  if(dac_value > FAV3_DAC_MAX_VALUE)
+    {
+      printf("%s(id = %d, chan = %d): ERROR: Invalid dac_value 0x%x (%d)\n",
+	     __func__, id, chan, dac_value, dac_value);
+      return ERROR;
+    }
+
   FAV3LOCK;
-  val = vmeRead16(&(FAV3p[id]->dac[chan])) & FAV3_DAC_VALUE_MASK;
+  vmeWrite32(&FAV3p[id]->dac_csr, chan);
+
+  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
+  ready = (csr_value & FAV3_DAC_READY >> 16);
+  success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
+
+  if(ready && success)
+    {
+      vmeWrite32(&FAV3p[id]->dac_data, dac_value);
+      csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
+      ready = (csr_value & FAV3_DAC_READY >> 16);
+      success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
+    }
   FAV3UNLOCK;
-#endif // OLDWAY
 
+  if(!ready || !success)
+    {
+      printf("%s(id = %d, chan = %d): ERROR: Write 0x%x Failed.  DAC_CSR: 0x%08x\n",
+	     __func__, id, chan, dac_value, csr_value);
+      printf("    Ready: %d  Success: %d\n",
+	     ready, success);
+      rval = ERROR;
+    }
 
-  return (val);
+  return rval;
+}
+
+int32_t
+faV3DACGet(int id, int chan, uint32_t *dac_value)
+{
+  uint32_t csr_value, data_value, chan_value;
+  uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
+  int32_t rval = OK;
+
+  if(id == 0)
+    id = faV3ID[0];
+
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
+      return (ERROR);
+    }
+
+  if(chan > FAV3_MAX_ADC_CHANNELS)
+    {
+      printf("%s: ERROR: Invalid chan (%d)\n",
+	     __func__, chan);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->dac_csr, chan);
+
+  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
+  ready = (csr_value & FAV3_DAC_READY >> 16);
+  success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
+
+  if(ready && success)
+    {
+      data_value = vmeRead32(&FAV3p[id]->dac_data);
+      *dac_value = data_value & FAV3_DAC_DATA_MASK;
+      csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
+      ready = (csr_value & FAV3_DAC_READY >> 16);
+      success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
+    }
+  FAV3UNLOCK;
+
+  if(!ready || !success)
+    {
+      printf("%s(id = %d, chan = %d): ERROR: Read 0x%x Failed.  DAC_CSR: 0x%08x\n",
+	     __func__, id, chan, *dac_value, csr_value);
+      printf("    Ready: %d  Success: %d\n",
+	     ready, success);
+      rval = ERROR;
+    }
+
+  return rval;
 }
 
 int

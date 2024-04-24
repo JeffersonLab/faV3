@@ -555,7 +555,7 @@ faV3DownloadAll()
 
       for(ii=0; ii<NCHAN; ii++)
 	{
-	  faV3SetDAC(slot, faV3[slot].dac[ii], (1<<ii));
+	  faV3DACSet(slot, ii, faV3[slot].dac[ii]);
 
 	  ped = faV3[slot].ped[ii] * (float)(faV3[slot].nsa+faV3[slot].nsb);
 	  faV3SetChannelPedestal(slot, ii, (int)ped);
@@ -599,7 +599,7 @@ faV3UploadAll(char *string, int length)
 
       for(i=0;i<FAV3_MAX_ADC_CHANNELS;i++)
 	{
-	  faV3[slot].dac[i] = faV3GetChannelDAC(slot, i);
+	  faV3DACGet(slot, i, &faV3[slot].dac[i]);
 
 	  faV3[slot].ped[i] = faV3GetChannelPedestal(slot, i);
 	  faV3[slot].ped[i] = ((float)faV3[slot].ped[i])/(faV3[slot].nsa+faV3[slot].nsb); /* go back from integral to amplitude */
