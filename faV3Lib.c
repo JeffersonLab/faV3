@@ -1913,10 +1913,6 @@ faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 
 }
 
-/*********************************************************************/
-/*********************************************************************/
-/* sergey: begin new functions from Bryan Moffit for trigger_control */
-
 /**
  *  @ingroup Config
  *  @brief Return the maximum number of unacknowledged triggers a specific

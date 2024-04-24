@@ -75,8 +75,8 @@ else
 CFLAGS			+= -O2
 endif
 
-SRC			= ${BASENAME}Lib.c faV3Config.c
-OBJ			= ${BASENAME}Lib.o faV3Config.o
+SRC			= ${BASENAME}Lib.c faV3Config.c faV3-HallD.c
+OBJ			= ${BASENAME}Lib.o faV3Config.o faV3-HallD.o
 
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d

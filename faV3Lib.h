@@ -455,9 +455,6 @@ typedef struct faV3_sdc_struct
 
 extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
-#define FAV3_ADC_CONFIG0_CHAN_MASK         0x0F00
-#define FAV3_ADC_CONFIG0_CHAN_READ_ENABLE (1<<15)
-
 #define FAV3_ADC_STATUS1_TRIG_RCV_DONE (1<<15)
 #define FAV3_ADC_STATUS1_TRIGNUM_MASK  0x0FFF
 
@@ -467,13 +464,6 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_CONFIG1_TNSAT_MASK 0x3000
 
 #define FAV3_ADC_CONFIG3_TPT_MASK   0x0FFF
-
-#define FAV3_ADC_CONFIG6_MNPED_MASK   0x00003C00
-#define FAV3_ADC_CONFIG6_PMAXPED_MASK 0x000003FF
-
-#define FAV3_ADC_CONFIG7_NPED_MASK    0x00003C00
-#define FAV3_ADC_CONFIG7_MAXPED_MASK  0x000003FF
-/* end from Bryan for trigger_control */
 
 
 #define FAV3_ADC_VERSION_MASK  0x7fff
