@@ -739,7 +739,7 @@ int faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 		  uint32_t NSB, uint32_t NSA, uint32_t NP, int bank);
 void faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 		    uint32_t NSB, uint32_t NSA, uint32_t NP, int bank);
-void faV3SetNormalMode(int id, int opt);
+int32_t faV3SetupADC(int id, int32_t mode);
 int faV3SetPPG(int id, int pmode, uint16_t * sdata, int nsamples);
 void faV3PPGEnable(int id);
 void faV3PPGDisable(int id);
@@ -918,8 +918,6 @@ void faV3SDC_Sync();
 void faV3SDC_Trig();
 int faV3SDC_Busy();
 
-
-/*sergey*/
 int faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 		  uint32_t * NSB, uint32_t * NSA, uint32_t * NP);
 int faV3GetNfadc();

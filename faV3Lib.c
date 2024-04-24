@@ -1776,8 +1776,7 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faV3SetProcMode: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
+      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__, id);
       return (ERROR);
     }
 
@@ -1830,9 +1829,7 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   ptw_max_buf = (uint32_t) (2016 / (PTW + 8));
   ptw_last_adr = ptw_max_buf * (PTW + 8) - 1;
 
-  /* Current firmware (version<=0x0208) requires a call to faV3SetNormalMode
-     before enabling the window registers */
-  faV3SetNormalMode(id, 0);
+  faV3SetupADC(id, 0);
 
   FAV3LOCK;
   /* Disable ADC processing while writing window info */
@@ -1863,8 +1860,7 @@ faV3GetNSA(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faV3SetProcMode: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
+      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__, id);
       return (ERROR);
     }
 
@@ -1887,8 +1883,7 @@ faV3GetNSB(int id)
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faV3SetProcMode: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
+      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__, id);
       return (ERROR);
     }
 
@@ -2199,98 +2194,105 @@ faV3GSetTriggerPathThreshold(uint32_t TPT)
 }
 
 
-/*
- * faWaitForAdcReady()
- *   - Static routine, to wait for the ADC processing chip ready bit
- *     before proceeding with further programming
- *
- */
-static void
-faV3WaitForAdcReady(int id)
-{
-  int iwait = 0;
 
-  while((iwait < 100) && (vmeRead32(&FAV3p[id]->adc.status0) & 0x8000) == 0)
+static int32_t
+faV3ADCTestReady(int id)
+{
+  /* returns positive value (number of attempts) if ADC chips are ready to be written to */
+  /* otherwise returns 0; makes 100 attempts */
+  int32_t test, ii, adc_ready = 0;
+
+  for(ii=1; ii<=100; ii++)
     {
-      iwait++;
+      test = vmeRead32(&FAV3p[id]->adc.status0) & 0x8000;
+      if( test == 0x8000 )
+	{
+	  adc_ready = ii;
+	  break;
+	}
     }
 
-  if(iwait == 100)
-    printf("%s: ERROR: Wait timeout.\n", __func__);
-
+  return adc_ready;
 }
 
-/* faV3SetNormalMode
- *    - Configure the ADC Processing in "Normal Mode"
- *      This is temporary until the firmware is confirmed to be stable
- *
- */
-void
-faV3SetNormalMode(int id, int opt)
+static int32_t
+faV3ADCWriteAll(int id, uint32_t value)
 {
+  /* broadcasts 'value' to all ADC chips */
+  /* 'value' contains ADC register address (bits 15-8) and data (bits 7-0)  */
+  /* 'value' bits 31-16 are ignored */
+  int32_t rval = OK, adc_ready;
+
+  adc_ready = faV3ADCTestReady(id);
+  printf("+++++ adc_ready (start) = %d\n", adc_ready);
+
+  vmeWrite32(&FAV3p[id]->adc.config5, value);		/* set up address & data */
+
+  vmeWrite32(&FAV3p[id]->adc.config4, 0x40);		/* write all */
+  adc_ready = faV3ADCTestReady(id);
+  printf("+++++ adc_ready (1) = %d\n", adc_ready);
+
+  vmeWrite32(&FAV3p[id]->adc.config4, 0xC0);
+  adc_ready = faV3ADCTestReady(id);
+  printf("+++++ adc_ready (2) = %d\n", adc_ready);
+
+  vmeWrite32(&FAV3p[id]->adc.config4, 0x40);
+  adc_ready = faV3ADCTestReady(id);
+  printf("+++++ adc_ready (end) = %d\n", adc_ready);
+
+  return rval;
+}
+
+/* initialize adc chips and put them in normal running mode */
+int32_t
+faV3SetupADC(int id, int32_t mode)
+{
+  int32_t rval = OK;
+
   if(id == 0)
     id = faV3ID[0];
 
   if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
     {
-      logMsg("faV3SetProcMode: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
+      printf("%s: ERROR: FADC in slot %d is not initialized \n", __func__, id);
+      return ERROR;
     }
 
-  // FIXME:
-#ifdef OLDWAY
+  mode = 0;
+  taskDelay(1);
 
-  FAV3LOCK;
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[3], 0x0F02);
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0x40);
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0xC0);
+  printf("%s(%d): ---- Initializing ADC chips ----\n",
+	 __func__, id);
 
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[3], 0x179F);
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0x40);
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0xC0);
+  vmeWrite32(&FAV3p[id]->adc.config4, 0x0);			/* reset adc chip */
+  taskDelay(1);
 
-  /* 01dec2011 This portion commented out... would change the input gain */
-  /*   faV3WaitForAdcReady(id); */
-  /*   vmeWrite32(&FAV3p[id]->adc.config[3], 0x1811); */
-  /*   faV3WaitForAdcReady(id); */
-  /*   vmeWrite32(&FAV3p[id]->adc.config[2], 0x40); */
-  /*   faV3WaitForAdcReady(id); */
-  /*   vmeWrite32(&FAV3p[id]->adc.config[2], 0xC0);        */
+  vmeWrite32(&FAV3p[id]->adc.config4, 0x10);			/* reset adc chip */
+  taskDelay(1);
 
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[3], 0xFF01);	/* transfer register values */
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0x40);
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0xC0);
-  /*
-    printf("%s: ---- FADC %2d ADC chips initialized ----\n",
-    __func__,id);
-  */
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[3], 0x0D00);
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0x40);
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0xC0);
+  vmeWrite32(&FAV3p[id]->adc.config4, 0x0);			/* reset adc chip */
+  taskDelay(1);
 
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[3], 0xFF01);	/* transfer register values */
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0x40);
-  faV3WaitForAdcReady(id);
-  vmeWrite32(&FAV3p[id]->adc.config[2], 0xC0);
+  faV3ADCWriteAll(id, 0x0F02);			/* CML enable */
 
-  FAV3UNLOCK;
-#endif // OLDWAY
+  faV3ADCWriteAll(id, 0x179E);			/* output clk delay */
 
+  faV3ADCWriteAll(id, 0xFF01);			/* transfer register values */
+
+  printf("%s(%d):   ---- ADC chips initialized ----\n",
+	 __func__, id);
+
+  printf("%s(%d):   ---- Put ADC chips in normal running mode ----\n",
+	 __func__, id);
+
+  faV3ADCWriteAll(id, 0x0D00);
+
+  faV3ADCWriteAll(id, 0xFF01);			/* transfer register values */
+
+  printf("%s(%d):   ---- ADC chips in normal running mode ----\n",
+	 __func__, id);
+
+  return rval;
 }
 
 /***********************
