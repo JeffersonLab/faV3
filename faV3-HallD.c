@@ -50,12 +50,64 @@ const char *fa_halld_mode_names[FAV3_MAX_PROC_MODE+1] =
     "RAW + PULSE PARAMETER" // 10
   };
 
-int32_t
+int
 faV3HallDInit()
 {
   /* Check Firmware Versions and Map the Hall D pointer */
 
   return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Return the maximum number of unacknowledged triggers a specific
+ *         mode can handle.
+ *
+ *  @param pmode  Processing Mode
+ *  @param ptw  Window Width
+ *  @param nsb  Number of samples before pulse over threshold
+ *  @param nsa  Number of samples after pulse over threshold
+ *  @param np   Number of pulses processed per window
+ *
+ *  @return The minimum of 9 and the calculated maximum number of triggers
+ *    allowed given specified mode and window paramters.
+ */
+
+int
+faV3HallDCalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np)
+{
+  int max;
+  int imode = 0, supported_modes[FAV3_SUPPORTED_NMODES] =
+    { FAV3_SUPPORTED_MODES };
+  int mode_supported = 0;
+
+  for(imode = 0; imode < FAV3_SUPPORTED_NMODES; imode++)
+    {
+      if(mode == supported_modes[imode])
+	mode_supported = 1;
+    }
+  if(!mode_supported)
+    {
+      printf("%s: ERROR: Processing Mode (%d) not supported\n",
+	     __func__, mode);
+      return ERROR;
+    }
+
+  switch (mode)
+    {
+    case 9:			/* PULSE PARAMETER */
+      max = (int) (1024 / ((np * 2) + 8));
+      break;
+
+    case 10:			/* DEBUG */
+      max = (int) (1024 / (((np * 2) + 8) + ptw + 1));
+      break;
+
+    default:
+      printf("%s: ERROR: Mode %d is not supported\n", __func__, mode);
+    }
+
+  return ((max < 9) ? max : 9);
 }
 
 /**
@@ -231,8 +283,8 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   vmeWrite32(&HallDp[id]->config3, FAV3_ADC_DEFAULT_TPT);
   FAV3UNLOCK;
 
-  faV3SetTriggerStopCondition(id, faV3CalcMaxUnAckTriggers(pmode,PTW,NSA,NSB,NP));
-  faV3SetTriggerBusyCondition(id, faV3CalcMaxUnAckTriggers(pmode,PTW,NSA,NSB,NP));
+  faV3SetTriggerStopCondition(id, faV3HallDCalcMaxUnAckTriggers(pmode,PTW,NSA,NSB,NP));
+  faV3SetTriggerBusyCondition(id, faV3HallDCalcMaxUnAckTriggers(pmode,PTW,NSA,NSB,NP));
 
   return(OK);
 }
@@ -476,7 +528,7 @@ faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data)
  */
 
 int
-faV3HallDSetRoguePTWFallBack(int id, unsigned short enablemask)
+faV3HallDSetRoguePTWFallBack(int id, uint16_t enablemask)
 {
   if(id==0) id=faV3ID[0];
 
@@ -505,10 +557,10 @@ faV3HallDSetRoguePTWFallBack(int id, unsigned short enablemask)
  *  @return Enabled Channel Mask if successful, otherwise ERROR.
  */
 
-unsigned short
-faV3HallDGetRoguePTWFallBack(int id)
+int
+faV3HallDGetRoguePTWFallBack(int id, uint16_t *enablemask)
 {
-  unsigned short rval = 0;
+  int rval = OK;
   if(id==0) id=faV3ID[0];
 
   if((id<=0) || (id>21) || (HallDp[id] == NULL))
@@ -519,7 +571,7 @@ faV3HallDGetRoguePTWFallBack(int id)
     }
 
   FAV3LOCK;
-  rval = vmeRead32(&HallDp[id]->roque_ptw_fall_back);
+  *enablemask = vmeRead32(&HallDp[id]->roque_ptw_fall_back) & FAV3_ROQUE_PTW_FALL_BACK_MASK;
   FAV3UNLOCK;
 
   return(rval);

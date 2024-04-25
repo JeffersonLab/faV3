@@ -97,8 +97,6 @@ int faV3Inited = 0;		/* >0 if Library has been Initialized before */
 int faV3MaxSlot = 0;		/* Highest Slot hold an FAV3 */
 int faV3MinSlot = 0;		/* Lowest Slot holding an FAV3 */
 int faV3Source = 0;		/* Signal source for FAV3 system control */
-int faV3BlockLevel = 0;		/* Block Level for ADCs */
-int faV3IntCount = 0;		/* Count of interrupts from FAV3 */
 int faV3UseSDC = 0;		/* If > 0 then Use Signal Distribution board */
 int faV3SDCPassthrough = 0;	/* If > 0 SDC in level translate / passthrough mode */
 faV3data_t faV3_data;
@@ -107,12 +105,35 @@ int faV3BlockError = FAV3_BLOCKERROR_NO_ERROR;	/* Whether (>0) or not (0) Block 
 /* Include Firmware Tools */
 #include "faV3FirmwareTools.c"
 
-/*******************************************************************************
+// FIXME: Need itrig regs defined to uncomment
+/* #include "faV3Itrig.c" */
+
+
+/**
+ * @defgroup Config Initialization/Configuration
+ * @defgroup SDCConfig SDC Initialization/Configuration
+ *   @ingroup Config
+ * @defgroup Status Status
+ * @defgroup SDCStatus SDC Status
+ *   @ingroup Status
+ * @defgroup Readout Data Readout
+ * @defgroup IntPoll Interrupt/Polling
+ * @defgroup Deprec Deprecated - To be removed
+ */
+
+/**
+ *  @ingroup Config
+ *  @brief Initialize JLAB FADC250 V3 Library.
  *
- * faInit - Initialize JLAB FADC V3 Library.
+ * @param addr
+ *  - A24 VME Address of the fADC250 V3
+ * @param addr_inc
+ *  - Amount to increment addr to find the next fADC250 V3
+ * @param nadc
+ *  - Number of times to increment
  *
- *
- *   iFlag: 18 bit integer
+ *  @param iFlag 18 bit integer
+ * <pre>
  *       Low 6 bits - Specifies the default Signal distribution (clock,trigger)
  *                    sources for the board (Internal, FrontPanel, VXS, VME(Soft))
  *       bit    0:  defines Sync Reset source
@@ -123,13 +144,15 @@ int faV3BlockError = FAV3_BLOCKERROR_NO_ERROR;	/* Whether (>0) or not (0) Block 
  *               0 0 1  Front Panel Input
  *               0 1 0  VXS (P0)
  *               1 0 0  Internal Trigger Logic (HITSUM FPGA)
- *               (all others Undefined - default to Internal)
+ *               (all others Undefined - default to VME/Software)
  *       bits 5-4:  defines Clock Source
  *           0 0  Internal 250MHz Clock
  *           0 1  Front Panel
  *           1 0  VXS (P0)
  *           1 1  P2 Connector (Backplane)
+ * </pre>
  *
+ * <pre>
  *       Common Modes of Operation:
  *           Value = 0  CLK (Int)  TRIG (Soft)   SYNC (Soft)    (Debug/Test Mode)
  *                   2  CLK (Int)  TRIG (FP)     SYNC (Soft)    (Single Board
@@ -148,20 +171,21 @@ int faV3BlockError = FAV3_BLOCKERROR_NO_ERROR;	/* Whether (>0) or not (0) Block 
  *             0 Initialize FADC (default behavior)
  *             1 Skip initialization (just setup register map pointers)
  *
- *      bit 17:  Use faV3AddrList instead of addr and addr_inc
+ *      bit 17:  Use fadcAddrList instead of addr and addr_inc
  *               for VME addresses.
  *             0 Initialize with addr and addr_inc
- *             1 Use faV3AddrList
+ *             1 Use fadcAddrList
  *
  *      bit 18:  Skip firmware check.  Useful for firmware updating.
  *             0 Perform firmware check
  *             1 Skip firmware check
+ * </pre>
  *
  *
- * RETURNS: OK, or ERROR if the address is invalid or a board is not present.
+ * @return OK, or ERROR if the address is invalid or a board is not present.
  */
 
-STATUS
+int
 faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 {
   int ii, res, errFlag = 0;
@@ -712,7 +736,6 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	  /* Set Default Block Level to 1 */
 	  vmeWrite32(&(FAV3p[faV3ID[ii]]->blocklevel), 1);
 	}
-      faV3BlockLevel = 1;
 
       /* Setup Trigger and Sync Reset sources */
       if(!noBoardInit)
@@ -793,13 +816,14 @@ faV3SetA32BaseAddress(uint32_t addr)
   printf("fadc A32 base address set to 0x%08X\n", faV3A32Base);
 }
 
-/*******************************************************************************
- *
- * faV3Slot - Convert an index into a slot number, where the index is
+/**
+ *  @ingroup Config
+ *  @brief Convert an index into a slot number, where the index is
  *          the element of an array of FADCs in the order in which they were
  *          initialized.
  *
- * RETURNS: Slot number if Successfull, otherwise ERROR.
+ * @param i Initialization number
+ * @return Slot number if Successfull, otherwise ERROR.
  *
  */
 
@@ -898,11 +922,9 @@ faV3GetFWType(int id, int function, int version, int *type)
 }
 
 
-
-
-/*******************************************************************************
- *
- * faV3SetClockSource - Set the clock source
+/**
+ *  @ingroup Config
+ *  @brief Set the clock source
  *
  *   This routine should be used in the case that the source clock
  *   is NOT set in faInit (and defaults to Internal).  Such is the case
@@ -910,15 +932,18 @@ faV3GetFWType(int id, int function, int version, int *type)
  *   of the FADC should ONLY be set AFTER those clocks have been set and
  *   synchronized.
  *
- *   clkSrc: 2 bit integer
+ *  @param id Slot Number
+ *  @param clkSrc 2 bit integer
+ * <pre>
  *       bits 1-0:  defines Clock Source
  *           0 0  Internal 250MHz Clock
  *           0 1  Front Panel
  *           1 0  VXS (P0)
  *           1 1  VXS (P0)
+ * </pre>
  *
+ *  @return OK if successful, otherwise ERROR.
  */
-
 int
 faV3SetClockSource(int id, int clkSrc)
 {
@@ -970,6 +995,28 @@ faV3SetClockSource(int id, int clkSrc)
   return OK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set the clock source for all initialized modules
+ *
+ *   This routine should be used in the case that the source clock
+ *   is NOT set in faInit (and defaults to Internal).  Such is the case
+ *   when clocks are synchronized in a many crate system.  The clock source
+ *   of the FADC should ONLY be set AFTER those clocks have been set and
+ *   synchronized.
+ *
+ *  @param clkSrc 2 bit integer
+ * <pre>
+ *       bits 1-0:  defines Clock Source
+ *           0 0  Internal 250MHz Clock
+ *           0 1  Front Panel
+ *           1 0  VXS (P0)
+ *           1 1  VXS (P0)
+ * </pre>
+ *
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 int
 faV3GSetClockSource(int clkSrc)
 {
@@ -1015,6 +1062,13 @@ faV3GSetClockSource(int clkSrc)
   return OK;
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Print Status of fADC250 to standard out
+ *  @param id Slot Number
+ *  @param sflag Reserved for future use
+ *
+ */
 void
 faV3Status(int id, int sflag)
 {
@@ -1368,6 +1422,12 @@ faV3Status(int id, int sflag)
 
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Print a summary of all initialized fADC250s
+ *  @param sflag reserved for future use
+ */
+
 void
 faV3GStatus(int sflag)
 {
@@ -1712,17 +1772,19 @@ faV3GStatus(int sflag)
 
 }
 
-/***********************
+/**
+ *  @ingroup Status
+ *  @brief Get the firmware versions of each FPGA
  *
- *  faV3GetFirmwareVersions - Get the firmware versions of each FPGA
+ *  @param id Slot number
+ *  @param  pval
+ *    -  0: Print nothing to stdout
+ *    - !0: Print firmware versions to stdout
  *
- *    ARG:   pval
- *             0: Print nothing to stdout
- *            !0: Print firmware versions to stdout
- *
- *   RETURNS: (fpga_control.version) | (fpga_processing.version<<16)
+ *  @return (fpga_control.version) | (fpga_processing.version<<16)
  *            or -1 if error
  */
+
 uint32_t
 faV3GetFirmwareVersions(int id, int pflag)
 {
@@ -1756,15 +1818,29 @@ faV3GetFirmwareVersions(int id, int pflag)
   return rval;
 }
 
-/***********************
+/**
+ *  @ingroup Config
+ *  @brief Configure the processing type/mode
  *
- *  faV3SetProcMode - Setup ADC processing modes.
+ *  @param id Slot number
+ *  @param pmode  Processing Mode
+ *  @param  PL  Window Latency
+ *  @param PTW  Window Width
+ *  @param NSB  If NSB > 0: Number of samples before pulse over threshold included in sum
+ *                 NSB < 0: Number of samples after threshold excluded from sum
+ *  @param NSA  Number of samples after pulse over threshold to be included in sum
+ *  @param NP   Number of pulses processed per window
  *
- *   VERSION2: bank is ignored
+ *    Note:
+ *     - PL must be greater than PTW
+ *     - NSA+NSB must be an odd number
+ *
+ *  @return OK if successful, otherwise ERROR.
  */
+
 int
 faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
-		uint32_t NSB, uint32_t NSA, uint32_t NP, int bank)
+		uint32_t NSB, uint32_t NSA, uint32_t NP)
 {
 
   int err = 0;
@@ -1850,119 +1926,38 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   return (OK);
 }
 
-int
-faV3GetNSA(int id)
-{
-  int ret;
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__, id);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-  ret = vmeRead32(&(FAV3p[id]->adc.nsa)) & 0xFFFF;
-  FAV3UNLOCK;
-
-  /*  printf("faV3GetNSA returns %d\n",ret); */
-
-  return (ret);
-}
-
-int
-faV3GetNSB(int id)
-{
-  int ret;
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__, id);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-  ret = vmeRead32(&(FAV3p[id]->adc.nsb)) & 0xFFFF;
-  FAV3UNLOCK;
-
-  /*  printf("faV3GetNSB returns %d\n",ret); */
-
-  return (ret);
-}
-
+/**
+ *  @ingroup Config
+ *  @brief Configure the processing type/mode for all initialized fADC250s
+ *
+ *  @param id Slot number
+ *  @param pmode  Processing Mode
+ *  @param  PL  Window Latency
+ *  @param PTW  Window Width
+ *  @param NSB  If NSB > 0: Number of samples before pulse over threshold included in sum
+ *                 NSB < 0: Number of samples after threshold excluded from sum
+ *  @param NSA  Number of samples after pulse over threshold to be included in sum
+ *  @param NP   Number of pulses processed per window
+ *
+ *    Note:
+ *     - PL must be greater than PTW
+ *     - NSA+NSB must be an odd number
+ *
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 void
 faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
-		 uint32_t NSB, uint32_t NSA, uint32_t NP, int bank)
+		 uint32_t NSB, uint32_t NSA, uint32_t NP)
 {
   int ii, res;
 
-  for(ii = 0; ii < nfaV3; ii++)
+  for (ii=0;ii<nfaV3;ii++)
     {
-      res = faV3SetProcMode(faV3ID[ii], pmode, PL, PTW, NSB, NSA, NP, bank);
-
-      if(res < 0)
+      res = faV3SetProcMode(faV3ID[ii], pmode, PL, PTW, NSB, NSA, NP);
+      if(res<0)
 	printf("ERROR: slot %d, in faV3SetProcMode()\n", faV3ID[ii]);
     }
-
-}
-
-/**
- *  @ingroup Config
- *  @brief Return the maximum number of unacknowledged triggers a specific
- *         mode can handle.
- *
- *  @param pmode  Processing Mode
- *  @param ptw  Window Width
- *  @param nsb  Number of samples before pulse over threshold
- *  @param nsa  Number of samples after pulse over threshold
- *  @param np   Number of pulses processed per window
- *
- *  @return The minimum of 9 and the calculated maximum number of triggers
- *    allowed given specified mode and window paramters.
- */
-
-int
-faV3CalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np)
-{
-  int max;
-  int imode = 0, supported_modes[FAV3_SUPPORTED_NMODES] =
-    { FAV3_SUPPORTED_MODES };
-  int mode_supported = 0;
-
-  for(imode = 0; imode < FAV3_SUPPORTED_NMODES; imode++)
-    {
-      if(mode == supported_modes[imode])
-	mode_supported = 1;
-    }
-  if(!mode_supported)
-    {
-      printf("%s: ERROR: Processing Mode (%d) not supported\n",
-	     __func__, mode);
-      return ERROR;
-    }
-
-  switch (mode)
-    {
-    case 9:			/* PULSE PARAMETER */
-      max = (int) (1024 / ((np * 2) + 8));
-      break;
-
-    case 10:			/* DEBUG */
-      max = (int) (1024 / (((np * 2) + 8) + ptw + 1));
-      break;
-
-    default:
-      printf("%s: ERROR: Mode %d is not supported\n", __func__, mode);
-    }
-
-  return ((max < 9) ? max : 9);
 }
 
 /**
@@ -2191,6 +2186,14 @@ faV3GSetTriggerPathThreshold(uint32_t TPT)
 
 
 
+/**
+ *  @ingroup Config
+ *  @brief Static routine, to wait for the ADC processing chip ready bit
+ *     before proceeding with further programming
+ *  @param id Slot number
+ *
+ */
+
 static int32_t
 faV3ADCTestReady(int id)
 {
@@ -2239,7 +2242,17 @@ faV3ADCWriteAll(int id, uint32_t value)
   return rval;
 }
 
-/* initialize adc chips and put them in normal running mode */
+/**
+ *  @ingroup Config
+ *  @brief Configure the ADC Processing in "Normal Mode"
+ *
+ *  @param id Slot number
+ *  @param mode Reserved for future use
+ *
+ */
+
+// FIXME: Call this from SetProcMode
+
 int32_t
 faV3SetupADC(int id, int32_t mode)
 {
@@ -2291,14 +2304,20 @@ faV3SetupADC(int id, int32_t mode)
   return rval;
 }
 
-/***********************
+/**
+ *  @ingroup Config
+ *  @brief Setup FADC Progammable Pulse Generator
  *
- *  faV3SetPPG - Setup FADC Progammable Pulse Generator
+ *  @param id Slot number
+ *  @param sdata  Array of sample data to be programmed
+ *  @param nsamples Number of samples contained in sdata
  *
- *
+ *  @sa faPPGEnable faPPGDisable
+ *  @return OK if successful, otherwise ERROR.
  */
+
 int
-faV3SetPPG(int id, int pmode, uint16_t * sdata, int nsamples)
+faV3SetPPG(int id, uint16_t *sdata, int nsamples)
 {
 
   int ii;
@@ -2357,6 +2376,13 @@ faV3SetPPG(int id, int pmode, uint16_t * sdata, int nsamples)
   return (OK);
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable the programmable pulse generator
+ *  @param id Slot number
+ *  @sa faV3SetPPG faV3PPGDisable
+ */
+
 void
 faV3PPGEnable(int id)
 {
@@ -2372,6 +2398,13 @@ faV3PPGEnable(int id)
   FAV3UNLOCK;
 
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Disable the programmable pulse generator
+ *  @param id Slot number
+ *  @sa faV3SetPPG faV3PPGEnable
+ */
 
 void
 faV3PPGDisable(int id)
@@ -2397,13 +2430,15 @@ faV3PPGDisable(int id)
 
 }
 
-
-/*
- * Set Internal trigger pulse width and deadtime between triggers
- *   Range for each :   4ns <-> 1020ns
- *
- *    Units are in clock ticks (4ns/tick)
+/**
+ * @ingroup Config
+ * @brief Summary
+ * @param id Slot number
+ * @param itrig_width Internal pulse width [1,255] 4ns -> 1020ns
+ * @param itrig_dt Deadtime between triggers [1,255] 4ns -> 1020ns
+ * @return Current value in trig_cfg register: (itrig_width << 16) | (itrig_dt)
  */
+
 uint32_t
 faV3ItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt)
 {
@@ -2442,22 +2477,26 @@ faV3ItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt)
 
 
 
-/**************************************************************************************
+/**
+ *  @ingroup Readout
+ *  @brief General Data readout routine
  *
- *  faReadBlock - General Data readout routine
- *
- *    id    - Slot number of module to read
- *    data  - local memory address to place data
- *    nwrds - Max number of words to transfer
- *    rflag - Readout Flag
+ *  @param  id     Slot number of module to read
+ *  @param  data   local memory address to place data
+ *  @param  nwrds  Max number of words to transfer
+ *  @param  rflag  Readout Flag
+ * <pre>
  *              0 - programmed I/O from the specified board
  *              1 - DMA transfer using Universe/Tempe DMA Engine
  *                    (DMA VME transfer Mode must be setup prior)
  *              2 - Multiblock DMA transfer (Multiblock must be enabled
  *                     and daisychain in place or SD being used)
+ * </pre>
+ *  @return Number of words inserted into data if successful.  Otherwise ERROR.
  */
+
 int
-faV3ReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
+faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
 {
   int ii;
   int stat, retVal, xferCount, rmode, async;
@@ -2488,7 +2527,6 @@ faV3ReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
   if(nwrds <= 0)
     nwrds = (FAV3_MAX_ADC_CHANNELS * FAV3_MAX_DATA_PER_CHANNEL) + 8;
   rmode = rflag & 0x0f;
-  async = rflag & 0x80;
 
   if(rmode >= 1)
     {				/* Block Transfers */
@@ -2552,24 +2590,16 @@ faV3ReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
 	  return (retVal);
 	}
 
-      if(async)
-	{			/* Asynchronous mode - return immediately - don't wait for done!! */
-	  FAV3UNLOCK;
-	  return (OK);
-	}
-      else
-	{
-	  /* Wait until Done or Error */
+      /* Wait until Done or Error */
 #ifdef HALLB
-	  retVal = usrVme2MemDmaDone();
+      retVal = usrVme2MemDmaDone();
 #else
 #ifdef VXWORKS
-	  retVal = sysVmeDmaDone(10000, 1);
+      retVal = sysVmeDmaDone(10000, 1);
 #else
-	  retVal = vmeDmaDone();
+      retVal = vmeDmaDone();
 #endif
 #endif
-	}
 
       if(retVal > 0)
 	{
@@ -2756,7 +2786,7 @@ faV3ReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag)
 /**
  *  @ingroup Status
  *  @brief Return the type of error that occurred while attempting a
- *    block read from faReadBlock.
+ *    block read from faV3ReadBlock.
  *  @param pflag
  *     - >0: Print error message to standard out
  *  @sa faReadBlock
@@ -2787,104 +2817,14 @@ faV3GetBlockError(int pflag)
   return rval;
 }
 
+/**
+ *  @ingroup Readout
+ *  @brief Print the current available block to standard out
+ *  @param id Slot number
+ *  @return Number of words read if successful, otherwise ERROR.
+ */
 int
-faV3ReadBlockStatus(int id, volatile uint32_t * data, int nwrds, int rflag)
-{
-
-  int stat, retVal, xferCount, rmode;
-  int dummy = 0;
-  uint32_t csr = 0;
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ReadBlockStatus: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  if(nwrds <= 0)
-    nwrds = (FAV3_MAX_ADC_CHANNELS * FAV3_MAX_DATA_PER_CHANNEL) + 8;
-  rmode = rflag & 0x0f;
-
-  /* Check for 8 byte boundary for address - insert dummy word (Slot 0 FADC Dummy DATA) */
-  if((u_long) (data) & 0x7)
-    {
-      dummy = 1;
-    }
-  else
-    {
-      dummy = 0;
-    }
-
-#ifdef HALLB
-  retVal = usrVme2MemDmaDone();
-#else
-#ifdef VXWORKS
-  retVal = sysVmeDmaDone(10000, 1);
-#else
-  retVal = vmeDmaDone();
-#endif
-#endif
-
-  FAV3LOCK;
-  if(retVal > 0)
-    {
-      /* Check to see that Bus error was generated by FADC */
-      if(rmode == 2)
-	{
-	  csr = vmeRead32(&(FAV3p[faV3MaxSlot]->csr));	/* from Last FADC */
-	  stat = (csr) & FAV3_CSR_BERR_STATUS;	/* from Last FADC */
-	}
-      else
-	{
-	  stat = vmeRead32(&(FAV3p[id]->csr)) & FAV3_CSR_BERR_STATUS;	/* from FADC id */
-	}
-
-      if((retVal > 0) && (stat))
-	{
-#ifdef HALLB
-	  xferCount = ((retVal >> 2) + dummy);	/* Number of Longwords transfered */
-#else
-	  xferCount = (nwrds - (retVal >> 2) + dummy);	/* Number of Longwords transfered */
-#endif
-	  FAV3UNLOCK;
-	  return (xferCount);	/* Return number of data words transfered */
-	}
-      else
-	{
-#ifdef HALLB
-	  xferCount = ((retVal >> 2) + dummy);	/* Number of Longwords transfered */
-#else
-	  xferCount = (nwrds - (retVal >> 2) + dummy);	/* Number of Longwords transfered */
-#endif
-	  logMsg("faV3ReadBlockStatus: DMA transfer terminated by unknown BUS Error (csr=0x%x nwrds=%d)\n",
-		 csr, xferCount, 0, 0, 0, 0);
-	  FAV3UNLOCK;
-	  return (ERROR);
-	}
-    }
-  else if(retVal == 0)
-    {				/* Block Error finished without Bus Error */
-      logMsg("faV3ReadBlockStatus: WARN: DMA transfer terminated by word count 0x%x\n",
-	     nwrds, 0, 0, 0, 0, 0);
-      FAV3UNLOCK;
-      return (nwrds);
-    }
-  else
-    {				/* Error in DMA */
-      logMsg("faV3ReadBlockStatus: ERROR: sysVmeDmaDone returned an Error\n", 0,
-	     0, 0, 0, 0, 0);
-      FAV3UNLOCK;
-      return (retVal);
-    }
-
-}
-
-int
-faV3PrintBlock(int id, int rflag)
+faV3PrintBlock(int id)
 {
 
   int ii;
@@ -2985,7 +2925,13 @@ faV3PrintBlock(int id, int rflag)
 
 }
 
-/*****************************************************************************/
+
+/**
+ *  @ingroup Status
+ *  @brief Get the value of the Control/Status Register
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 uint32_t
 faV3ReadCSR(int id)
@@ -3009,6 +2955,11 @@ faV3ReadCSR(int id)
   return (rval);
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Perform a soft reset.
+ *  @param id Slot number
+ */
 
 void
 faV3Clear(int id)
@@ -3028,6 +2979,10 @@ faV3Clear(int id)
   FAV3UNLOCK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Perform a soft reset of all initialized fADC250s
+ */
 
 void
 faV3GClear()
@@ -3053,6 +3008,12 @@ faV3GClear()
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Clear latched errors
+ *  @param id Slot number
+ */
+
 void
 faV3ClearError(int id)
 {
@@ -3073,6 +3034,10 @@ faV3ClearError(int id)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Clear latched errors of all initialized fADC250s
+ */
 
 void
 faV3GClearError()
@@ -3098,6 +3063,14 @@ faV3GClearError()
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Perform a hard reset
+ *  @param id Slot number
+ *  @param iFlag Decision to restore A32 readout after reset.
+ *     -  0: Restore A32 readout after reset.
+ *     - !0: Do not restore A32 readout after reset. (Useful for configuration changes)
+ */
 
 void
 faV3Reset(int id, int iFlag)
@@ -3179,6 +3152,15 @@ faV3GReset(int iFlag)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Perform either a soft clear or soft reset
+ *  @param id Slot number
+ *  @param cflag
+ *    -  0: Soft Clear
+ *    - >0: Soft Reset
+ */
+
 void
 faV3SoftReset(int id, int cflag)
 {
@@ -3201,6 +3183,17 @@ faV3SoftReset(int id, int cflag)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Reset the token
+ *
+ *     A call to this routine will cause the module to have the token if it
+ *     has been configured to the the FIRST module in the MultiBlock chain.
+ *     This routine has no effect on any other module in the chain.
+ *
+ *  @param id Slot number
+ */
+
 void
 faV3ResetToken(int id)
 {
@@ -3219,6 +3212,14 @@ faV3ResetToken(int id)
   vmeWrite32(&(FAV3p[id]->reset), FAV3_RESET_TOKEN);
   FAV3UNLOCK;
 }
+
+
+/**
+ *  @ingroup Status
+ *  @brief Return the status of the token
+ *  @param id Slot number
+ *  @return 1 if module has the token, 0 if not, otherwise ERROR.
+ */
 
 int
 faV3TokenStatus(int id)
@@ -3242,6 +3243,12 @@ faV3TokenStatus(int id)
   return rval;
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Return the slotmask of those modules that have the token.
+ *  @return Token Slotmask
+ */
+
 int
 faV3GTokenStatus()
 {
@@ -3255,6 +3262,13 @@ faV3GTokenStatus()
 
   return rval;
 }
+
+/**
+ * @ingroup Status
+ *  @brief Return slot mask of modules with token
+ *  @param pflag Option to print status to standard out.
+ *  @return Mask of slots with the token, if successful. Otherwise ERROR.
+ */
 
 uint32_t
 faV3GetTokenStatus(int pflag)
@@ -3282,27 +3296,16 @@ faV3GetTokenStatus(int pflag)
   return rval;
 }
 
-void
-faV3SetCalib(int id, uint16_t sdelay, uint16_t tdelay)
-{
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetCalib: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return;
-    }
-
-  FAV3LOCK;
-  vmeWrite32(&(FAV3p[id]->delay), (sdelay << 16) | tdelay);
-  FAV3UNLOCK;
-
-}
+/**
+ *  @ingroup Config
+ *  @brief Disable the specified channel
+ *  @param id Slot number
+ *  @param channel Channel Number to Disable
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 void
-faV3ChanDisable(int id, uint16_t cmask)
+faV3SetChanDisableMask(int id, uint16_t cmask)
 {
 
   if(id == 0)
@@ -3325,8 +3328,15 @@ faV3ChanDisable(int id, uint16_t cmask)
 }
 
 
+/**
+ *  @ingroup Status
+ *  @brief Get the Disabled Channel Mask
+ *  @param id Slot number
+ *  @return Specified mask if successful, otherwise ERROR.
+ */
+
 uint32_t
-faV3GetChanMask(int id)
+faV3GetChanDisableMask(int id)
 {
   uint32_t tmp, cmask = 0;
 
@@ -3525,9 +3535,14 @@ faV3GetVXSReadout(int id)
   return (opt);
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable the SyncReset source
+ *  @param id Slot number
+ */
 
 void
-faV3EnableSyncReset(int id)
+faV3EnableSyncSrc(int id)
 {
   uint32_t ctrl2;
 
@@ -3547,8 +3562,29 @@ faV3EnableSyncReset(int id)
   FAV3UNLOCK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable the SyncReset Source of all initialized fADC250s
+ */
+
 void
-faV3Enable(int id, int eflag, int bank)
+faV3GEnableSyncSrc()
+{
+  int id = 0;
+  for(id = 0; id < nfaV3; id++)
+    faV3EnableSyncSrc(faV3ID[id]);
+
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable data acquisition, trigger, and SyncReset on the module
+ *  @param id Slot number
+ *  @param eflag Enable Internal Trigger Logic, as well
+ */
+
+void
+faV3Enable(int id, int eflag)
 {
   uint32_t ctrl2;
   int compress_opt, vxsro_opt;
@@ -3595,19 +3631,34 @@ faV3Enable(int id, int eflag, int bank)
   FAV3UNLOCK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable data acquisition, trigger, and SyncReset on all initialized fADC250s
+ *
+ *    Also enables the SDC if it is initalized and used.
+ *
+ *  @param eflag Enable Internal Trigger Logic, as well
+ */
 void
-faV3GEnable(int eflag, int bank)
+faV3GEnable(int eflag)
 {
   int ii;
 
   for(ii = 0; ii < nfaV3; ii++)
-    faV3Enable(faV3ID[ii], eflag, bank);
+    faV3Enable(faV3ID[ii], eflag);
 
   if(faV3UseSDC && !faV3SDCPassthrough)
     faV3SDC_Enable(1);
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Disable data acquisition, triggers, and SyncReset on the module
+ *  @param id Slot number
+ *  @param eflag
+ *    - >0: Turn off FIFO transfer as well.
+ */
 void
 faV3Disable(int id, int eflag)
 {
@@ -3630,6 +3681,13 @@ faV3Disable(int id, int eflag)
   FAV3UNLOCK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Disable data acquisition, triggers, and SyncReset on all initialized fADC250s
+ *  @param eflag
+ *    - >0: Turn off FIFO transfer as well.
+ */
+
 void
 faV3GDisable(int eflag)
 {
@@ -3643,6 +3701,11 @@ faV3GDisable(int eflag)
 
 }
 
+/**
+ *  @ingroup Readout
+ *  @brief Pulse a software trigger to the module.
+ *  @param id Slot number
+ */
 
 void
 faV3Trig(int id)
@@ -3666,6 +3729,11 @@ faV3Trig(int id)
   FAV3UNLOCK;
 }
 
+/**
+ *  @ingroup Readout
+ *  @brief Pulse a software trigger to all initialized fADC250s
+ */
+
 void
 faV3GTrig()
 {
@@ -3674,6 +3742,12 @@ faV3GTrig()
   for(ii = 0; ii < nfaV3; ii++)
     faV3Trig(faV3ID[ii]);
 }
+
+/**
+ *  @ingroup Readout
+ *  @brief Pulse a software playback trigger to the module.
+ *  @param id Slot number
+ */
 
 void
 faV3Trig2(int id)
@@ -3695,6 +3769,11 @@ faV3Trig2(int id)
   FAV3UNLOCK;
 }
 
+/**
+ *  @ingroup Readout
+ *  @brief Pulse a software playback trigger to all initialized fADC250s
+ */
+
 void
 faV3GTrig2()
 {
@@ -3703,6 +3782,15 @@ faV3GTrig2()
   for(ii = 0; ii < nfaV3; ii++)
     faV3Trig2(faV3ID[ii]);
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Configure the delay between the software playback trigger and trigger
+ *  @param id Slot number
+ *  @param delay Delay between the playback trigger and trigger in units of 4 ns
+ *  @sa faV3EnableInternalPlaybackTrigger
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3SetTrig21Delay(int id, int delay)
@@ -3730,6 +3818,13 @@ faV3SetTrig21Delay(int id, int delay)
   return OK;
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Return the value of the delay between the software playback trigger and trigger
+ *  @param id Slot number
+ *  @return Trigger delay, otherwise ERROR.
+ */
+
 int
 faV3GetTrig21Delay(int id)
 {
@@ -3751,6 +3846,13 @@ faV3GetTrig21Delay(int id)
   return rval;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable the software playback trigger and trigger
+ *  @param id Slot number
+ *  @sa fV3aSetTrig21Delay
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3EnableInternalPlaybackTrigger(int id)
@@ -3773,6 +3875,12 @@ faV3EnableInternalPlaybackTrigger(int id)
 
   return OK;
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Pulse a software SyncReset
+ *  @param id Slot number
+ */
 
 void
 faV3Sync(int id)
@@ -3798,8 +3906,16 @@ faV3Sync(int id)
 }
 
 
+/**
+ *  @ingroup Readout
+ *  @brief  Return Event/Block count
+ *  @param id Slot number
+ *  @param dflag
+ *   -  0: Event Count
+ *   - >0: Block count
+ *  @return OK if successful, otherwise ERROR.
+ */
 
-/* Return Event/Block count for ADC in slot id */
 int
 faV3Dready(int id, int dflag)
 {
@@ -3826,7 +3942,13 @@ faV3Dready(int id, int dflag)
   return (dcnt);
 }
 
-/* Return a Block Ready status for ADC. If Block Level is =1 then return Event Ready status */
+/**
+ *  @ingroup Readout
+ *  @brief Return a Block Ready status
+ *  @param id Slot number
+ *  @return 1 if block is ready for readout, 0 if not, otherwise ERROR.
+ */
+
 int
 faV3Bready(int id)
 {
@@ -3852,6 +3974,12 @@ faV3Bready(int id)
     return (0);
 }
 
+/**
+ *  @ingroup Readout
+ *  @brief Return a Block Ready status mask for all initialized fADC250s
+ *  @return block ready mask, otherwise ERROR.
+ */
+
 uint32_t
 faV3GBready()
 {
@@ -3872,6 +4000,14 @@ faV3GBready()
 
   return (dmask);
 }
+
+/**
+ *  @ingroup Readout
+ *  @brief Return a Block Ready status mask for fADCs indicated in supplied slotmask
+ *  @param slotmask Slotmask Slotmask of fADCs to check for block ready
+ *  @param nloop Number of times to iterate through slotmask.
+ *  @return block ready mask, otherwise ERROR.
+*/
 
 uint32_t
 faV3GBlockReady(uint32_t slotmask, int nloop)
@@ -3912,7 +4048,12 @@ faV3GBlockReady(uint32_t slotmask, int nloop)
 
 }
 
-/* return Scan mask for all initialized FADCs */
+/**
+ *  @ingroup Status
+ *  @brief Return the vme slot mask of all initialized fADC250s
+ *  @return VME Slot mask, otherwise ERROR.
+ */
+
 uint32_t
 faV3ScanMask()
 {
@@ -3927,9 +4068,19 @@ faV3ScanMask()
   return (dmask);
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set/Readback Busy Level
+ *  @param id Slot number
+ *  @param val
+ *    - >0: set the busy level to val
+ *    -  0: read back busy level
+ *  @param bflag   i
+ *    - >0: force the module Busy
+ *
+ *  @return OK if successful, otherwise ERROR.
+ */
 
-/* if val>0 then set the busy level, if val=0 then read it back.
-   if bflag>0 then force the module Busy */
 int
 faV3BusyLevel(int id, uint32_t val, int bflag)
 {
@@ -3967,6 +4118,13 @@ faV3BusyLevel(int id, uint32_t val, int bflag)
   return ((blreg & FAV3_BUSY_LEVEL_MASK));
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Get the busy status
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 int
 faV3Busy(int id)
 {
@@ -3994,6 +4152,11 @@ faV3Busy(int id)
     return (0);
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable software triggers
+ *  @param id Slot number
+ */
 
 void
 faV3EnableSoftTrig(int id)
@@ -4019,6 +4182,10 @@ faV3EnableSoftTrig(int id)
   FAV3UNLOCK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable Software Triggers for all initialized fADC250s
+ */
 
 void
 faV3GEnableSoftTrig()
@@ -4033,6 +4200,11 @@ faV3GEnableSoftTrig()
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Disable Software Triggers
+ *  @param id Slot number
+ */
 
 void
 faV3DisableSoftTrig(int id)
@@ -4054,6 +4226,12 @@ faV3DisableSoftTrig(int id)
   FAV3UNLOCK;
 
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Enable Software SyncReset
+ *  @param id Slot number
+ */
 
 void
 faV3EnableSoftSync(int id)
@@ -4080,6 +4258,12 @@ faV3EnableSoftSync(int id)
   FAV3UNLOCK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Disable Software SyncReset
+ *  @param id Slot number
+ */
+
 void
 faV3DisableSoftSync(int id)
 {
@@ -4100,6 +4284,12 @@ faV3DisableSoftSync(int id)
   FAV3UNLOCK;
 
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Enable the internal clock
+ *  @param id Slot number
+ */
 
 void
 faV3EnableClk(int id)
@@ -4123,6 +4313,12 @@ faV3EnableClk(int id)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Disable the internal clock
+ *  @param id Slot number
+ */
+
 void
 faV3DisableClk(int id)
 {
@@ -4144,13 +4340,14 @@ faV3DisableClk(int id)
 
 }
 
-/*************************************************************************************
- *
- *  faEnableTriggerOut - Enable trigger out for front panel or p0
- *
- *   output = 0 for FP trigger out
- *            1 for P0 trigger out
- *            2 for FP and P0 trigger out
+/**
+ *  @ingroup Config
+ *  @brief Enable trigger out for front panel or p0
+ *  @param id Slot number
+ *  @param output
+ *    - 0: FP trigger out
+ *    - 1: P0 trigger out
+ *    - 2: FP and P0 trigger out
  */
 
 void
@@ -4194,6 +4391,12 @@ faV3EnableTriggerOut(int id, int output)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable bus errors to terminate a block transfer
+ *  @param id Slot number
+ */
+
 void
 faV3EnableBusError(int id)
 {
@@ -4215,6 +4418,10 @@ faV3EnableBusError(int id)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable bus errors to terminate a block transfer for all initialized fADC250s
+ */
 
 void
 faV3GEnableBusError()
@@ -4231,6 +4438,11 @@ faV3GEnableBusError()
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Disable bus errors
+ *  @param id Slot number
+ */
 
 void
 faV3DisableBusError(int id)
@@ -4253,6 +4465,13 @@ faV3DisableBusError(int id)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable and setup multiblock transfers for all initialized fADC250s
+ *  @param tflag Token Flag
+ *    - >0: Token via P0/VXS
+ *    -  0: Token via P2
+ */
 
 void
 faV3EnableMultiBlock(int tflag)
@@ -4299,6 +4518,11 @@ faV3EnableMultiBlock(int tflag)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Disable multiblock transfer for all initialized fADC250s
+ */
+
 void
 faV3DisableMultiBlock()
 {
@@ -4319,7 +4543,13 @@ faV3DisableMultiBlock()
 
 }
 
-
+/**
+ *  @ingroup Config
+ *  @brief Set the block level for the module
+ *  @param id Slot number
+ *  @param level block level
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3SetBlockLevel(int id, int level)
@@ -4344,13 +4574,18 @@ faV3SetBlockLevel(int id, int level)
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->blocklevel), level);
-  faV3BlockLevel = level;
   rval = vmeRead32(&(FAV3p[id]->blocklevel)) & FAV3_BLOCK_LEVEL_MASK;
   FAV3UNLOCK;
 
   return (rval);
 
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Set the block level for all initialized fADC250s
+ *  @param level block level
+ */
 
 void
 faV3GSetBlockLevel(int level)
@@ -4364,9 +4599,18 @@ faV3GSetBlockLevel(int level)
     vmeWrite32(&(FAV3p[faV3ID[ii]]->blocklevel), level);
   FAV3UNLOCK;
 
-  faV3BlockLevel = level;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set the Clock Source for the module
+ *  @param id Slot number
+ *  @param source Clock Source
+ *    - 0: internal
+ *    - 1: front panel
+ *    - 2: P0/VXS
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3SetClkSource(int id, int source)
@@ -4397,6 +4641,21 @@ faV3SetClkSource(int id, int source)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set the trigger source for the module
+ *  @param id Slot number
+ *  @param source Trigger Source
+ *   - 0: Front Panel
+ *   - 1: Front Panel (Synchronized)
+ *   - 2: P0/VXS
+ *   - 3: P0/VXS (Synchronized)
+ *   - 4: Not used
+ *   - 5: Software (with playback)
+ *   - 6: Software
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 int
 faV3SetTrigSource(int id, int source)
 {
@@ -4424,6 +4683,22 @@ faV3SetTrigSource(int id, int source)
   return (rval);
 
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Set the SyncReset source for the module
+ *  @param id Slot number
+ *  @param source
+ *   - 0: FP
+ *   - 1: FP (synchronized)
+ *   - 2: P0/VXS
+ *   - 3: P0/VXS (synchronized)
+ *   - 4: Not used
+ *   - 5: Not used
+ *   - 6: Software
+ *   - 7: No Source
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3SetSyncSource(int id, int source)
@@ -4453,8 +4728,14 @@ faV3SetSyncSource(int id, int source)
 
 }
 
-/* Enable Front Panel Inputs (and Disable software triggers/syncs
-   but leave the clock source alone */
+/**
+ *  @ingroup Config
+ *  @brief Enable Front Panel Inputs
+ *
+ *    Also disables software triggers/syncs but leaves the clock source alone
+ *
+ *  @param id Slot number
+ */
 void
 faV3EnableFP(int id)
 {
@@ -4481,13 +4762,17 @@ faV3EnableFP(int id)
 
 }
 
-/* Set trigger output options
- *   trigout bits:
- *      0  0  1  Live Internal Trigger to Output
+/**
+ *  @ingroup Config
+ *  @brief Set trigger output options
+ *  @param id Slot number
+ *  @param trigout bits:
+ * <pre>
  *      0  1  0  Enable Front Panel Trigger Output
  *      1  0  0  Enable VXS Trigger Output
+ * </pre>
  *
- * RETURNS: OK, or ERROR if unsuccessful
+ *  @return OK if successful, otherwise ERROR.
  */
 
 int
@@ -4518,7 +4803,13 @@ faV3SetTrigOut(int id, int trigout)
   return OK;
 }
 
-/* Routine to get the Trigger Counter value */
+/**
+ *  @ingroup Status
+ *  @brief Get the trigger count for the module
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 uint32_t
 faV3GetTriggerCount(int id)
 {
@@ -4541,6 +4832,13 @@ faV3GetTriggerCount(int id)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Reset the trigger count for the module
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 int
 faV3ResetTriggerCount(int id)
 {
@@ -4560,6 +4858,15 @@ faV3ResetTriggerCount(int id)
 
   return OK;
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Set the readout threshold value for specified channel mask
+ *  @param id Slot number
+ *  @param tvalue Threshold value
+ *  @param chmask Mask of channels to set
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask)
@@ -4581,15 +4888,13 @@ faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask)
   if(chmask == 0)
     chmask = 0xffff;		/* Set All channels the same */
 
-  /*printf("faV3SetThreshold: slot %d, value %d, mask 0x%04X\n", id, tvalue, chmask); */
-
   FAV3LOCK;
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
     {
       if(ii % 2 == 0)
 	{
 	  lovalue = (vmeRead32(&FAV3p[id]->adc.thres[ii])) & 0xFFFF;
-	  lovalue = ((vmeRead32(&FAV3p[id]->adc.thres[ii])) & 0xFFFF0000) >> 16;
+	  hivalue = (vmeRead32(&FAV3p[id]->adc.thres[ii]) & 0xFFFF0000) >> 16;
 
 	  if((1 << ii) & chmask)
 	    {
@@ -4603,8 +4908,7 @@ faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask)
 	    }
 
 	  if(doWrite)
-	    vmeWrite32((uint32_t *) & (FAV3p[id]->adc.thres[ii]),
-		       lovalue << 16 | hivalue);
+	    vmeWrite32(&FAV3p[id]->adc.thres[ii], lovalue | (hivalue << 16));
 
 	  lovalue = 0;
 	  hivalue = 0;
@@ -4616,6 +4920,12 @@ faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask)
   return (OK);
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Print the thresholds of all channels to standard out
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3PrintThreshold(int id)
@@ -4868,6 +5178,19 @@ faV3DACGet(int id, int chan, uint32_t *dac_value)
   return rval;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set the pedestal value of specified channel
+ *
+ *    The pedestal is the value that will be subtracted from specified channel
+ *    for each sample before it is sent through the trigger path
+ *
+ *  @param id Slot number
+ *  @param chan Channel Number
+ *  @param ped Pedestal value
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 int
 faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped)
 {
@@ -4903,6 +5226,14 @@ faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped)
   return (OK);
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Get the pedestal value of specified channel
+ *  @param id Slot number
+ *  @param chan Channel Number
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 int
 faV3GetChannelPedestal(int id, uint32_t chan)
 {
@@ -4932,6 +5263,71 @@ faV3GetChannelPedestal(int id, uint32_t chan)
   return (rval);
 }
 
+
+int
+faV3SetPedestal(int id, uint32_t wvalue)
+{
+  int ii;
+
+  if(id == 0)
+    id = faV3ID[0];
+
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3SetPedestal: ERROR : ADC in slot %d is not initialized \n",
+	     id, 0, 0, 0, 0, 0);
+      return (ERROR);
+    }
+
+  FAV3LOCK;
+  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
+    {
+      if(!(ii & 0x1))
+	vmeWrite32((uint32_t *) & (FAV3p[id]->adc.pedestal[ii]),
+		   wvalue | (wvalue << 16));
+    }
+  FAV3UNLOCK;
+
+  return (OK);
+}
+
+int
+faV3PrintPedestal(int id)
+{
+  int ii;
+  uint32_t tval[FAV3_MAX_ADC_CHANNELS];
+
+  if(id == 0)
+    id = faV3ID[0];
+
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3PrintPedestal: ERROR : ADC in slot %d is not initialized \n",
+	     id, 0, 0, 0, 0, 0);
+      return (ERROR);
+    }
+
+  FAV3LOCK;
+  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
+    {
+      tval[ii] = vmeRead32(&(FAV3p[id]->adc.pedestal[ii]));
+    }
+  FAV3UNLOCK;
+
+
+  printf(" Pedestal Settings for FADC in slot %d:", id);
+  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
+    {
+      if((ii % 4) == 0)
+	{
+	  printf("\n");
+	}
+      printf("chan %2d: %3d   ", (ii + 1), tval[ii]);
+    }
+  printf("\n");
+
+  return (OK);
+}
 
 
 
@@ -5019,22 +5415,23 @@ faV3SyncResetMode(int id, uint32_t mode)
   return faV3SetMGTTestMode(id, mode);
 }
 
-/**************************************************************************************
+/**
+ *  @ingroup Readout
+ *  @brief Scaler Data readout routine
  *
- *  faReadScalers - Scaler Data readout routine
  *        Readout the desired scalers (indicated by the channel mask), as well
  *        as the timer counter.  The timer counter will be the last word
  *        in the "data" array.
  *
- *    id     - Slot number of module to read
- *    data   - local memory address to place data
- *    chmask - Channel Mask (indicating which channels to read)
- *    rflag  - Readout Flag
- *            bit 0 - Latch Scalers before read
- *            bit 1 - Clear Scalers after read
- *
- *   RETURNS the number of 32bit words read, or ERROR if unsuccessful.
+ *  @param id Slot number
+ *  @param data   - local memory address to place data
+ *  @param chmask - Channel Mask (indicating which channels to read)
+ *  @param rflag  - Readout Flag
+ *    - bit 0: Latch Scalers before read
+ *    - bit 1: Clear Scalers after read
+ *  @return OK if successful, otherwise ERROR.
  */
+
 int
 faV3ReadScalers(int id, volatile uint32_t * data, uint32_t chmask, int rflag)
 {
@@ -5086,18 +5483,20 @@ faV3ReadScalers(int id, volatile uint32_t * data, uint32_t chmask, int rflag)
 
 }
 
-/**************************************************************************************
+/**
+ *  @ingroup Readout
+ *  @brief Scaler Print Out routine
  *
- *  faPrintScalers - Scaler Print Out routine
  *        Print out the scalers as well as the timer counter.
  *
- *    id     - Slot number of module to read
- *    rflag  - Printout Flag
- *            bit 0 - Latch Scalers before read
- *            bit 1 - Clear Scalers after read
- *
- *   RETURNS ok if successful , or ERROR if unsuccessful.
+ *  @param id Slot number
+ *  @param rflag  - Printout Flag
+ *     - bit 0: Latch Scalers before read
+ *     - bit 1: Clear Scalers after read
+
+ *  @return OK if successful, otherwise ERROR.
  */
+
 int
 faV3PrintScalers(int id, int rflag)
 {
@@ -5154,6 +5553,13 @@ faV3PrintScalers(int id, int rflag)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Clear the scalers (and enable, if disabled)
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 int
 faV3ClearScalers(int id)
 {
@@ -5175,6 +5581,12 @@ faV3ClearScalers(int id)
   return OK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Latch the current scaler count
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3LatchScalers(int id)
@@ -5197,6 +5609,12 @@ faV3LatchScalers(int id)
   return OK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable the scalers to count
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
 int
 faV3EnableScalers(int id)
 {
@@ -5216,6 +5634,13 @@ faV3EnableScalers(int id)
 
   return OK;
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Disable counting in the scalers
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
 
 int
 faV3DisableScalers(int id)
@@ -5344,6 +5769,7 @@ faV3GetMinA32MB(int id)
  *  @param id Slot number
  *  @return multiblock max address if successful, otherwise ERROR.
  */
+
 uint32_t
 faV3GetMaxA32MB(int id)
 {
@@ -5379,26 +5805,18 @@ faV3GetMaxA32MB(int id)
   return rval;
 }
 
-
-
-
-
-
-/*********************************************
+/**
+ *  @ingroup Status
+ *  @brief Print to standard out some auxillary scalers
  *
- *  FADC Internal Trigger FADC Configuration and Control
- *  Routines.
+ *   Prints out
+ *     - Total number of words generated
+ *     - Total number of headers generated
+ *     - Total number of trailers generated
+ *     - Total number of lost triggers
+ *
+ *  @param id Slot number
  */
-
-// FIXME: Need itrig regs defined to uncomment
-/* #include "faV3Itrig.c" */
-
-
-
-/* -------------------------------------------------------------------------------------
-
-   Utility routines
-*/
 
 void
 faV3PrintAuxScal(int id)
@@ -5420,10 +5838,18 @@ faV3PrintAuxScal(int id)
   printf("       Headers   :         %d\n", vmeRead32(&FAV3p[id]->header_scal));
   printf("       Trailers  :         %d\n",
 	 vmeRead32(&FAV3p[id]->trailer_scal));
+  printf("  Lost Triggers  :         %d\n",
+	 vmeRead32(&FAV3p[id]->lost_trig_scal));
   FAV3UNLOCK;
 
   return;
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Print the status of the FIFO to standard out
+ *  @param id Slot number
+ */
 
 void
 faV3PrintFifoStatus(int id)
@@ -5505,11 +5931,19 @@ faV3PrintFifoStatus(int id)
 
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Return the internal live trigger count
+ *  @param id Slot number
+ *  @param reset
+ *    - >0: Reset count after read
+ *  @return Internal Live trigger count if Successful, otherwise ERROR
+ */
+
 int
 faV3Live(int id, int sflag)
 {
-  int ilt = 0;
-  uint32_t live;
+  int rval = 0;
 
   if(id == 0)
     id = faV3ID[0];
@@ -5523,18 +5957,22 @@ faV3Live(int id, int sflag)
 
   /* Read Current Scaler values */
   FAV3LOCK;
-  live = vmeRead32(&(FAV3p[id]->trig_live_count));
+  rval = (int)vmeRead32(&(FAV3p[id]->trig_live_count));
 
-  vmeWrite32(&(FAV3p[id]->trig_live_count), 0x80000000);
+  /* Reset if requested */
+  if(sflag)
+    vmeWrite32(&(FAV3p[id]->trig_live_count), 0x80000000);
   FAV3UNLOCK;
 
-  if(live == 0)			/* scaler is zero or disabled */
-    return (0);
-  ilt = live;
-
-  return (ilt);
+  return (rval);
 }
 
+
+/**
+ *  @ingroup Status
+ *  @brief Decode a data word from an fADC250 and print to standard out.
+ *  @param data 32bit fADC250 data word
+ */
 
 void
 faV3DataDecode(uint32_t data)
@@ -5791,6 +6229,15 @@ faV3DataDecode(uint32_t data)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable System test mode
+ *  @param id Slot number
+ *  @param mode
+ *    -  0: Disable Test Mode
+ *    - >0: Enable Test Mode
+ */
+
 void
 faV3TestSetSystemTestMode(int id, int mode)
 {
@@ -5819,6 +6266,19 @@ faV3TestSetSystemTestMode(int id, int mode)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set the level of Trig Out to the SD
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @param mode
+ *    -  0: Not asserted
+ *    - >0: Asserted
+ */
+
 void
 faV3TestSetTrigOut(int id, int mode)
 {
@@ -5843,6 +6303,19 @@ faV3TestSetTrigOut(int id, int mode)
   FAV3UNLOCK;
 
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Set the level of Busy Out to the SD
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @param mode
+ *    -  0: Not asserted
+ *    - >0: Asserted
+ */
 
 void
 faV3TestSetBusyOut(int id, int mode)
@@ -5869,6 +6342,19 @@ faV3TestSetBusyOut(int id, int mode)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set the level of the SD Link
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @param mode
+ *    -  0: Not asserted
+ *    - >0: Asserted
+ */
+
 void
 faV3TestSetSdLink(int id, int mode)
 {
@@ -5893,6 +6379,19 @@ faV3TestSetSdLink(int id, int mode)
   FAV3UNLOCK;
 
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Set the level of Token Out to the SD
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @param mode
+ *    -  0: Not asserted
+ *    - >0: Asserted
+ */
 
 void
 faV3TestSetTokenOut(int id, int mode)
@@ -5919,6 +6418,17 @@ faV3TestSetTokenOut(int id, int mode)
 
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Get the level of the StatBitB to the SD
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @return 1 if asserted, 0 if not, otherwise ERROR.
+ */
+
 int
 faV3TestGetStatBitB(int id)
 {
@@ -5940,6 +6450,17 @@ faV3TestGetStatBitB(int id)
   return reg;
 
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Get the level of the Token In from the SD
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @return 1 if asserted, 0 if not, otherwise ERROR.
+ */
 
 int
 faV3TestGetTokenIn(int id)
@@ -5963,6 +6484,17 @@ faV3TestGetTokenIn(int id)
 
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Return the status of the 250Mhz Clock Counter
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @return 1 if counting, 0 if not counting, otherwise ERROR.
+ */
+
 int
 faV3TestGetClock250CounterStatus(int id)
 {
@@ -5984,6 +6516,17 @@ faV3TestGetClock250CounterStatus(int id)
   return reg;
 
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Return the value of the 250Mhz Clock scaler
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @return 250Mhz Clock scaler counter if successful, otherwise ERROR.
+ */
 
 uint32_t
 faV3TestGetClock250Counter(int id)
@@ -6007,6 +6550,17 @@ faV3TestGetClock250Counter(int id)
 
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Return the value of the SyncReset scaler
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @return SyncReset scaler counter if successful, otherwise ERROR.
+ */
+
 uint32_t
 faV3TestGetSyncCounter(int id)
 {
@@ -6028,6 +6582,17 @@ faV3TestGetSyncCounter(int id)
   return reg;
 
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Return the value of the trig1 scaler
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @return trig1 scaler counter if successful, otherwise ERROR.
+ */
 
 uint32_t
 faV3TestGetTrig1Counter(int id)
@@ -6051,6 +6616,17 @@ faV3TestGetTrig1Counter(int id)
 
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Return the value of the trig2 scaler
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @return trig2 scaler counter if successful, otherwise ERROR.
+ */
+
 uint32_t
 faV3TestGetTrig2Counter(int id)
 {
@@ -6073,6 +6649,16 @@ faV3TestGetTrig2Counter(int id)
 
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Reset the counter of the 250MHz Clock scaler
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ */
+
 void
 faV3TestResetClock250Counter(int id)
 {
@@ -6093,6 +6679,16 @@ faV3TestResetClock250Counter(int id)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Reset the counter of the SyncReset scaler
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ */
+
 void
 faV3TestResetSyncCounter(int id)
 {
@@ -6111,6 +6707,16 @@ faV3TestResetSyncCounter(int id)
   FAV3UNLOCK;
 
 }
+
+/**
+ *  @ingroup Config
+ *  @brief Reset the counter of the trig1 scaler
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ */
 
 void
 faV3TestResetTrig1Counter(int id)
@@ -6131,6 +6737,16 @@ faV3TestResetTrig1Counter(int id)
 
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Reset the counter of the trig2 scaler
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ */
+
 void
 faV3TestResetTrig2Counter(int id)
 {
@@ -6149,6 +6765,17 @@ faV3TestResetTrig2Counter(int id)
   FAV3UNLOCK;
 
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Return the current value of the testBit register
+ *
+ *   Available only in System Test Mode
+ *
+ *  @sa faV3TestSetSystemTestMode
+ *  @param id Slot number
+ *  @return testBit register value if successful, otherwise ERROR.
+ */
 
 uint32_t
 faV3TestGetTestBitReg(int id)
@@ -6241,11 +6868,13 @@ faV3TestSystemClock(int id, int pflag)
 }
 
 
-/**************************************************************************************
- *
- *  faV3GetSerialNumber - Available for firmware>=0x0211
- *      Fills 'rval' with a character array containing the fa250 serial number.
- *
+/**
+ *  @ingroup Status
+ *  @brief Fills 'rval' with a character array containing the fa250 serial number.
+ *  @param id Slot number
+ *  @param rval Where to return Serial number string
+ *  @param snfix
+ *<pre>
  *      If snfix >= 1, will attempt to format the serial number to maintain
  *        consistency between serials made by the same vendor.
  *        e.g. Advanced Assembly:
@@ -6254,9 +6883,8 @@ faV3TestSystemClock(int id, int pflag)
  *        e.g. ACDI
  *          snfix=0: ACDI002
  *          snfix=1: ACDI-002
- *
- *
- *   RETURNS length of character array 'rval' if successful, otherwise ERROR
+ *</pre>
+ *  @return length of character array 'rval' if successful, otherwise ERROR
  */
 
 int
@@ -6390,22 +7018,20 @@ faV3GetSerialNumber(int id, char **rval, int snfix)
 }
 
 
-/**************************************************************************************
+/**
+ *  @ingroup Config
+ *  @brief Set the block interval of scaler data insertion
  *
- *  faV3SetScalerBlockInterval
- *      Data from scalers may be inserted into the readout data stream
- *      at regular event count intervals.  The interval is specified in
- *      multiples of blocks.
- *
- *    Argument:
- *        nblock:
- *             0 : No insertion of scaler data into the data stream
- *           >=1 : The current scaler values are appended to the last event
- *                  of the appropriate n'th block of events.
- *
+ *   Data from scalers may be inserted into the readout data stream at
+ *   regular event count intervals.  The interval is specified in
+ *   multiples of blocks.
  *    Note: Scalers are NOT reset after their values are captured.
  *
- *   RETURNS OK if successful, otherwise ERROR.
+ *  @param id Slot number
+ *  @param nblock
+ *    -   0: No insertion of scaler data into the data stream
+ *    - >=1: The current scaler values are appended to the last event of the appropriate n'th block of events.
+ *  @return OK if successful, otherwise ERROR.
  */
 
 int
@@ -6434,6 +7060,13 @@ faV3SetScalerBlockInterval(int id, uint32_t nblock)
   return OK;
 }
 
+/**
+ *  @ingroup Status
+ *  @brief
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
+
 int
 faV3GetScalerBlockInterval(int id)
 {
@@ -6456,19 +7089,19 @@ faV3GetScalerBlockInterval(int id)
   return rval;
 }
 
-/**************************************************************************************
+/**
+ *  @ingroup Config
+ *  @brief Allows for the insertion of a block trailer into the data stream.
  *
- *  faForceEndOfBlock
  *      Allows for the insertion of a block trailer into the data stream.  This is
  *      useful for the efficient extraction of a partial block of events
  *      from the FADC (e.g. for an end of run event, or the resynchonize with
  *      other modules).
  *      Event count within block is reset, after successful execution.
  *
- *   ARG:
- *     scalers:  If set to > 0, scalers will also be inserted with the End of Block
- *
- *   RETURNS OK if successful, otherwise ERROR.
+ *  @param id Slot number
+ *  @param scalers If set to > 0, scalers will also be inserted with the End of Block
+ *  @return OK if successful, otherwise ERROR.
  */
 
 int
@@ -6533,6 +7166,20 @@ faV3ForceEndOfBlock(int id, int scalers)
   return rval;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Allows for the insertion of a block trailer into the data stream for all
+ *    initialized fADC250s
+ *
+ *      Allows for the insertion of a block trailer into the data stream.  This is
+ *      useful for the efficient extraction of a partial block of events
+ *      from the FADC (e.g. for an end of run event, or the resynchonize with
+ *      other modules).
+ *      Event count within block is reset, after successful execution.
+ *
+ *  @param scalers If set to > 0, scalers will also be inserted with the End of Block
+ */
+
 void
 faV3GForceEndOfBlock(int scalers)
 {
@@ -6548,245 +7195,187 @@ faV3GForceEndOfBlock(int scalers)
 
 }
 
-/***************************************************************************************
-   JLAB FADC Signal Distribution Card (SDC) Routines
-
-   cFlag:  controls the configuation of the SDC
-
-          0:  Default Mode  Internal CLK, Sync External Trigger and Sync Reset
-        > 0:  Pass through mode
-
-   bMask:  mask of Busy enables for the SDC - Do not Enable busy if there is no FADC
-
-*/
-
+/**
+ *  @ingroup Config
+ *  @brief Set the threshold to trigger for the history buffer to be saved for readout
+ *  @param id Slot number
+ *  @param thres History Buffer Threshold
+ *  @return OK if successful, otherwise ERROR.
+ */
 int
-faV3SDC_Config(uint16_t cFlag, uint16_t bMask)
+faV3SetHistoryBufferThreshold(int id, int thres)
 {
+  if(id==0) id=faV3ID[0];
 
-  if(FAV3SDCp == NULL)
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
     {
-      logMsg("faV3SDC_Config: ERROR : Cannot Configure FADC Signal Board \n", 0,
-	     0, 0, 0, 0, 0);
-      return (ERROR);
+      printf("%s: ERROR : ADC in slot %d is not initialized \n",
+	     __FUNCTION__,id);
+      return ERROR;
     }
 
-  /* Reset the Board */
+  if(thres>FAV3_SUM_THRESHOLD_MASK)
+    {
+      printf("%s: ERROR: Invalid value for threshold (%d)\n",
+	     __FUNCTION__,thres);
+      return ERROR;
+    }
+
   FAV3LOCK;
-  vmeWrite16(&(FAV3SDCp->csr), FAV3SDC_CSR_INIT);
-
-  if(cFlag == 0)
-    {
-      /* Default - Enable Internal Clock, Sync Trigger and Sync-Reset */
-      vmeWrite16(&(FAV3SDCp->ctrl),
-		 (FAV3SDC_CTRL_ENABLE_SOFT_TRIG |
-		  FAV3SDC_CTRL_ENABLE_SOFT_SRESET));
-      faV3SDCPassthrough = 0;
-    }
-  else if(cFlag == 1)
-    {
-      /* Pass Through - */
-      vmeWrite16(&(FAV3SDCp->ctrl),
-		 (FAV3SDC_CTRL_CLK_EXT | FAV3SDC_CTRL_NOSYNC_TRIG |
-		  FAV3SDC_CTRL_NOSYNC_SRESET));
-      faV3SDCPassthrough = 1;
-    }
-  else
-    {
-      /* Level Translator - re-sync the signals coming in to the SDC */
-      vmeWrite16(&(FAV3SDCp->ctrl), (FAV3SDC_CTRL_CLK_EXT));
-      faV3SDCPassthrough = 1;
-    }
-
-  vmeWrite16(&(FAV3SDCp->busy_enable), bMask);
+  vmeWrite32(&FAV3p[id]->sum_threshold,thres);
   FAV3UNLOCK;
 
-  return (OK);
+  return OK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set the threshold to trigger for the history buffer to be saved for readout
+ *     for all initialized fADC250s
+ *  @param thres History Buffer Threshold
+ */
 void
-faV3SDC_Status(int sFlag)
+faV3GSetHistoryBufferThreshold(int thres)
 {
+  int ifa=0;
 
-  uint16_t sdc[4];
-  int ibit = 0;
-
-  if(FAV3SDCp == NULL)
+  for (ifa=0;ifa<nfaV3;ifa++)
     {
-      printf("faV3SDC_Status: ERROR : No FADC SDC available \n");
-      return;
+      faV3SetHistoryBufferThreshold(faV3Slot(ifa),thres);
+    }
+}
+
+/**
+ *  @ingroup Status
+ *  @brief Get the history buffer threshold
+ *  @param id Slot number
+ *  @return threshold if successful, otherwise ERROR.
+ */
+int
+faV3GetHistoryBufferThreshold(int id)
+{
+  int rval=0;
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      printf("%s: ERROR : ADC in slot %d is not initialized \n",
+	     __FUNCTION__,id);
+      return ERROR;
     }
 
   FAV3LOCK;
-  sdc[0] = vmeRead16(&(FAV3SDCp->csr));
-  sdc[1] = vmeRead16(&(FAV3SDCp->ctrl)) & FAV3SDC_CTRL_MASK;
-  sdc[2] = vmeRead16(&(FAV3SDCp->busy_enable)) & FAV3SDC_BUSY_MASK;
-  sdc[3] = vmeRead16(&(FAV3SDCp->busy_status));
+  rval = vmeRead32(&FAV3p[id]->sum_threshold) & FAV3_SUM_THRESHOLD_MASK;
   FAV3UNLOCK;
 
+  return rval;
+}
 
-#ifdef VXWORKS
-  printf("\nSTATUS for FADC Signal Distribution Card at base address 0x%x \n",
-	 (uint32_t) FAV3SDCp);
-#else
-  printf("\nSTATUS for FADC Signal Distribution Card at\n VME (Local) base address 0x%x (0x%lx)\n",
-	 (uint32_t) ((u_long) FAV3SDCp - faV3A16Offset), (u_long) FAV3SDCp);
+/**
+ *  @ingroup Config
+ *  @brief Enable the history buffer for data acquisition for the module
+ *  @param id Slot number
+ *  @return OK if successful, otherwise ERROR.
+ */
+int
+faArmHistoryBuffer(int id)
+{
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faArmHistoryBuffer: ERROR : ADC in slot %d is not initialized \n",
+	     id,2,3,4,5,6);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->sum_data, FAV3_SUM_DATA_ARM_HISTORY_BUFFER);
+  FAV3UNLOCK;
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable the history buffer for data acquisition for all initialized fADC250s
+ */
+void
+faV3GArmHistoryBuffer()
+{
+  int ifa=0;
+
+  for (ifa=0;ifa<nfaV3;ifa++)
+    {
+      faV3ArmHistoryBuffer(faV3Slot(ifa));
+    }
+}
+
+/**
+ *  @ingroup Readout
+ *  @brief Return whether or not the history buffer has been triggered
+ *  @param id Slot number
+ *  @return 1 if history buffer data is ready for readout, 0 if not, otherwise ERROR.
+ */
+int
+faV3HistoryBufferDReady(int id)
+{
+  int rval=0;
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faHistoryBufferDReady: ERROR : ADC in slot %d is not initialized \n",
+	     id,2,3,4,5,6);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  rval = (vmeRead32(&FAV3p[id]->sum_threshold) & FAV3_SUM_THRESHOLD_DREADY)>>31;
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+/**
+ *  @ingroup Readout
+ *  @brief Read out history buffer from the module
+ *  @param id Slot number
+ *  @param  data   local memory address to place data
+ *  @param  nwrds  Max number of words to transfer
+ *  @return Number of words read if successful, otherwise ERROR.
+ */
+int
+faV3ReadHistoryBuffer(int id, volatile unsigned int *data, int nwrds)
+{
+  int idata=0, dCnt=0;
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faHistoryBufferDReady: ERROR : ADC in slot %d is not initialized \n",
+	     id,2,3,4,5,6);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  while(idata<nwrds)
+    {
+      data[idata] = vmeRead32(&FAV3p[id]->sum_data) & FAV3_SUM_DATA_SAMPLE_MASK;
+#ifndef VXWORKS
+      data[idata] = LSWAP(data[idata]);
 #endif
-  printf("---------------------------------------------------------------- \n");
-
-  printf(" Board Firmware Rev/ID = 0x%02x\n", ((sdc[0] & 0xff00) >> 8));
-  printf(" Registers: \n");
-  printf("   CSR         = 0x%04x     Control     = 0x%04x\n", sdc[0],
-	 sdc[1]);
-  printf("   Busy Enable = 0x%04x     Busy Status = 0x%04x\n", sdc[2],
-	 sdc[3]);
-  printf("\n");
-
-  if((sdc[1] & FAV3SDC_CTRL_CLK_EXT))
-    printf(" Ref Clock : External\n");
-  else
-    printf(" Ref Clock : Internal\n");
-
-
-  printf("   Trigger :");
-  if((sdc[1] & FAV3SDC_CTRL_ENABLE_SOFT_TRIG))
-    {
-      printf(" Internal (Software)\n");
+      idata++;
     }
-  else
-    {
-      if((sdc[1] & FAV3SDC_CTRL_NOSYNC_TRIG))
-	printf(" External (Pass through)\n");
-      else
-	printf(" External (Sync with clock)\n");
-    }
+  idata++;
 
-  printf(" SyncReset :");
-  if((sdc[1] & FAV3SDC_CTRL_ENABLE_SOFT_SRESET))
-    {
-      printf(" Internal (Software)\n");
-    }
-  else
-    {
-      if((sdc[1] & FAV3SDC_CTRL_NOSYNC_SRESET))
-	printf(" External (Pass through)\n");
-      else
-	printf(" External (Sync with clock)\n");
-    }
-  printf("\n");
-  printf(" Busy Ports\n  Enabled  :");
-  for(ibit = 0; ibit < 7; ibit++)
-    if((1 << ibit) & sdc[2])
-      printf(" %d", ibit + 1);
+  /* Use this to clear the data ready bit (dont set back to zero) */
+  vmeWrite32(&FAV3p[id]->sum_data,FAV3_SUM_DATA_ARM_HISTORY_BUFFER);
 
-  printf("\n");
-
-  printf("\n");
-  printf(" Busy Ports\n  Asserted :");
-  for(ibit = 0; ibit < 7; ibit++)
-    if((1 << ibit) & sdc[3])
-      printf(" %d", ibit + 1);
-
-  printf("\n");
-
-  printf("\n");
-
-}
-
-
-void
-faV3SDC_Enable(int nsync)
-{
-
-  if(FAV3SDCp == NULL)
-    {
-      logMsg("faV3SDC_Enable: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
-	     0);
-      return;
-    }
-
-  FAV3LOCK;
-  if(nsync != 0)		/* FP triggers only */
-    vmeWrite16(&(FAV3SDCp->ctrl), FAV3SDC_CTRL_ENABLE_SOFT_SRESET);
-  else				/* both FP triggers and sync reset */
-    vmeWrite16(&(FAV3SDCp->ctrl), 0);
   FAV3UNLOCK;
+  dCnt += idata;
+
+  return dCnt;
 }
-
-void
-faV3SDC_Disable()
-{
-
-  if(FAV3SDCp == NULL)
-    {
-      logMsg("faV3SDC_Disable: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
-	     0);
-      return;
-    }
-
-  FAV3LOCK;
-  vmeWrite16(&(FAV3SDCp->ctrl),
-	     (FAV3SDC_CTRL_ENABLE_SOFT_TRIG | FAV3SDC_CTRL_ENABLE_SOFT_SRESET));
-  FAV3UNLOCK;
-}
-
-
-
-void
-faV3SDC_Sync()
-{
-
-  if(FAV3SDCp == NULL)
-    {
-      logMsg("faV3SDC_Sync: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
-	     0);
-      return;
-    }
-
-  FAV3LOCK;
-  vmeWrite16(&(FAV3SDCp->csr), FAV3SDC_CSR_SRESET);
-  FAV3UNLOCK;
-}
-
-void
-faV3SDC_Trig()
-{
-  if(FAV3SDCp == NULL)
-    {
-      logMsg("faV3SDC_Trig: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
-	     0);
-      return;
-    }
-
-  FAV3LOCK;
-  vmeWrite16(&(FAV3SDCp->csr), FAV3SDC_CSR_TRIG);
-  FAV3UNLOCK;
-}
-
-int
-faV3SDC_Busy()
-{
-  int busy = 0;
-
-  if(FAV3SDCp == NULL)
-    {
-      logMsg("faV3SDC_Busy: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
-	     0);
-      return -1;
-    }
-
-  FAV3LOCK;
-  busy = vmeRead16(&(FAV3SDCp->csr)) & FAV3SDC_CSR_BUSY;
-  FAV3UNLOCK;
-
-  return (busy);
-}
-
-
-
-/********************************/
-/* sergey: returns some globals */
-
 
 
 int
@@ -6824,21 +7413,6 @@ faV3GetNfadc()
 {
   return (nfaV3);
 }
-
-/*
-  int
-  faV3Slot(uint32_t id)
-  {
-  if(id>=nfaV3)
-  {
-  printf("%s: ERROR: Index (%d) >= FADCs initialized (%d).\n",__func__,id,nfaV3);
-  return(ERROR);
-  }
-
-  return(faV3ID[id]);
-  }
-*/
-
 
 int
 faV3Id(uint32_t slot)
@@ -6881,221 +7455,350 @@ faV3SetThresholdAll(int id, uint16_t tvalue[16])
   return (OK);
 }
 
-
-
-/*sergey: set same pedestal for all channels, will change it later*/
-
-/*
-  todo
-  setgain
-  printgain
-*/
-
-int
-faV3SetPedestal(int id, uint32_t wvalue)
-{
-  int ii;
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetPedestal: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-      if(!(ii & 0x1))
-	vmeWrite32((uint32_t *) & (FAV3p[id]->adc.pedestal[ii]),
-		   wvalue | (wvalue << 16));
-    }
-  FAV3UNLOCK;
-
-  return (OK);
-}
-
-int
-faV3PrintPedestal(int id)
-{
-  int ii;
-  uint32_t tval[FAV3_MAX_ADC_CHANNELS];
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3PrintPedestal: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-      tval[ii] = vmeRead32(&(FAV3p[id]->adc.pedestal[ii]));
-    }
-  FAV3UNLOCK;
-
-
-  printf(" Pedestal Settings for FADC in slot %d:", id);
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-      if((ii % 4) == 0)
-	{
-	  printf("\n");
-	}
-      printf("chan %2d: %3d   ", (ii + 1), tval[ii]);
-    }
-  printf("\n");
-
-  return (OK);
-}
-
-
-
-/**************************/
-/* begin debugging for Ed */
-
-/* Ed's email:
-
-   I am adding state machine tracing code to the firmware.  This will save the last 500 state changes of the data flow control state machine into a FIFO.  Please modify your code to do the following:
-
-
-   STATE_CSR register:  address = 0x504
-
-   STATE_VALUE register:  address = 0x508
-
-
-   Before 'GO':
-
-   - Arm the storage of states by writing value 0x80000000 to STATE_CSR  (0x504)
-
-
-   After the error occurs and all status registers have been read and printed:
-
-   - Disarm storage of states by writing 0x0 to STATE_CSR  (0x504)
-
-   - Read (and print) STATE_CSR (= value) to get the number of valid states stored
-
-   - Print all valid stored state values:
-
-   num_states = 0x1FF & value;
-
-   for(ii = 0; ii < num_states; ii++)
-
-   {
-
-   read and print STATE_VALUE register  (0x508);      // read gets next value in FIFO
-
-   }
-
-
-   ----------------
-
-   Since the data flow state machine will stop changing when the triggers stop due to the busy assertion I can trace back the history of this state machine.  The Xilinx Chipscope tool records state values on each clock edge and thus can only show a limited history of the state machine.
-
-   ----------------
-*/
-
-int
-faV3ArmStatesStorage(int id)
-{
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ArmStatesStorage: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-  vmeWrite32(&(FAV3p[id]->aux.state_csr), 0x80000000);
-  FAV3UNLOCK;
-
-  printf("faV3ArmStatesStorage: ARMED slot %d\n", id);
-
-  return (OK);
-}
-
-int
-faV3DisarmStatesStorage(int id)
-{
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3DisarmStatesStorage: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-  vmeWrite32(&(FAV3p[id]->aux.state_csr), 0x0);
-  FAV3UNLOCK;
-
-  printf("faV3DisarmStatesStorage: DISARMED slot %d\n", id);
-
-  return (OK);
-}
-
-int
-faV3ReadStatesStorage(int id)
-{
-  int ii;
-  uint32_t value, fifo;
-  int num_states;
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ReadStatesStorage: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-
-  value = vmeRead32(&(FAV3p[id]->aux.state_csr));
-
-  num_states = value & 0x1FF;
-  printf("\nfaV3ReadStatesStorage: slot %d, state_csr = 0x%08x, num_states = %d\n",
-	 id, value, num_states);
-
-  /* read and print STATE_VALUE fifo */
-  for(ii = 0; ii < num_states; ii++)
-    {
-      fifo = vmeRead32(&(FAV3p[id]->aux.state_value));
-      printf("faV3ReadStatesStorage: fifo[%4d] = 0x%08x\n", ii, fifo);
-    }
-
-  FAV3UNLOCK;
-
-  printf("faV3ReadStatesStorage: done printing fifo\n\n");
-
-  return (OK);
-}
-
-
-/*  end debugging for Ed  */
-/**************************/
-
-/*
- * Sparsification Routines for NPS
- *
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable Buffer to store state machine diagnostics
+ *  @param id Slot number
+ *  @param enable If enable != 0, enable buffer, otherwise disable.
+ *  @return OK successful, otherwise ERROR.
  */
 
+int
+faV3StateArmBuffer(int id, int enable)
+{
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3StateArmBuffer: ERROR : ADC in slot %d is not initialized \n",
+	     id,2,3,4,5,6);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  if(enable)
+    vmeWrite32(&FAV3p[id]->aux.state_csr, FAV3_STATE_CSR_ARM_BUFFER);
+  else
+    vmeWrite32(&FAV3p[id]->aux.state_csr, 0);
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+/**
+ *  @ingroup Status
+ *  @brief Read state machine buffer.
+ *  @param id Slot number
+ *  @param  data   local memory address to place data
+ *  @param  nwrds  Max number of words to transfer
+ *  @return Number of words read if successful, otherwise ERROR.
+ */
+int
+faV3StateReadBuffer(int id, volatile unsigned int *data, int nwords)
+{
+  int rval=0, idata=0, ndata=0;
+
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3StateReadBuffer: ERROR : ADC in slot %d is not initialized \n",
+	     id,2,3,4,5,6);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  /* Read in how many words are available */
+  ndata = vmeRead32(&FAV3p[id]->aux.state_csr) & FAV3_STATE_CSR_BUFFER_WORDS_MASK;
+
+  if(ndata == 0)
+    {
+      logMsg("faV3StateReadBuffer(%d): WARN: No words in State Machine buffer\n",
+	     id, 2, 3, 4, 5, 6);
+      rval = 0;
+    }
+  else
+    {
+      if(ndata > nwords)
+	{
+	  logMsg("faV3StateReadBuffer(%d): WARN: %d words remain in State Machine buffer\n",
+		 id, ndata, 3, 4, 5, 6);
+
+	}
+      for(idata = 0; idata < ndata; idata++)
+	{
+	  data[idata] = vmeRead32(&FAV3p[id]->aux.state_value) & FAV3_STATE_VALUE_MASK;
+	}
+      rval = ndata;
+    }
+
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+/**
+ *  @ingroup Status
+ *  @brief Convert state value to mapped identifier
+ *  @param state_value State Value to convert
+ *  @return Mapped id if successful, otherwise ERROR.
+ */
+int
+faV3StateMap(unsigned int state_value)
+{
+  int rval=0;
+
+  switch(state_value)
+    {
+    case 0x0:
+      rval = 0;
+      break;
+
+    case 0x02000:
+      rval = 4;
+      break;
+
+    case 0x04000:
+      rval = 1001;
+      break;
+
+    case 0x06000:
+      rval = 134;
+      break;
+
+    case 0x08000:
+      rval = 135;
+      break;
+
+    case 0x0A000:
+      rval = 102;
+      break;
+
+    case 0x0C000:
+      rval = 1003;
+      break;
+
+    case 0x0E000:
+      rval = 104;
+      break;
+
+    case 0x10000:
+      rval = 1005;
+      break;
+
+    case 0x12000:
+      rval = 106;
+      break;
+
+    case 0x14000:
+      rval = 722;
+      break;
+
+    case 0x16000:
+      rval = 155;
+      break;
+
+    case 0x18000:
+      rval = 1009;
+      break;
+
+    case 0x00002:
+      rval = 1;
+      break;
+
+    case 0x02002:
+      rval = 101;
+      break;
+
+    case 0x00020:
+      rval = 2;
+      break;
+
+    case 0x02020:
+      rval = 6;
+      break;
+
+    case 0x00024:
+      rval = 3;
+      break;
+
+    case 0x00008:
+      rval = 5;
+      break;
+
+    case 0x02008:
+      rval = 105;
+      break;
+
+    case 0x00100:
+      rval = 55;
+      break;
+
+    case 0x00071:
+      rval = 7;
+      break;
+
+    case 0x02071:
+      rval = 14;
+      break;
+
+    case 0x00011:
+      rval = 9;
+      break;
+
+    case 0x02011:
+      rval = 130;
+      break;
+
+    case 0x04011:
+      rval = 131;
+      break;
+
+    case 0x06011:
+      rval = 1010;
+      break;
+
+    case 0x08011:
+      rval = 1011;
+      break;
+
+    case 0x00051:
+      rval = 10;
+      break;
+
+    case 0x00031:
+      rval = 12;
+      break;
+
+    case 0x02031:
+      rval = 22;
+      break;
+
+    case 0x04031:
+      rval = 23;
+      break;
+
+    case 0x06031:
+      rval = 27;
+      break;
+
+    case 0x08031:
+      rval = 121;
+      break;
+
+    case 0x00211:
+      rval = 20;
+      break;
+
+    case 0x02211:
+      rval = 129;
+      break;
+
+    case 0x00231:
+      rval = 21;
+      break;
+
+    case 0x02231:
+      rval = 128;
+      break;
+
+    case 0x00531:
+      rval = 24;
+      break;
+
+    case 0x000B1:
+      rval = 32;
+      break;
+
+    case 0x020B1:
+      rval = 33;
+      break;
+
+    case 0x001B1:
+      rval = 34;
+      break;
+
+    case 0x021B1:
+      rval = 35;
+      break;
+
+    case 0x025B1:
+      rval = 36;
+      break;
+
+    case 0x00800:
+      rval = 132;
+      break;
+
+    case 0x02800:
+      rval = 336;
+      break;
+
+    case 0x00C00:
+      rval = 133;
+      break;
+
+    case 0x00004:
+      rval = 103;
+      break;
+
+    case 0x01000:
+      rval = 109;
+      break;
+
+    case 0x03000:
+      rval = 1012;
+      break;
+
+    default:
+      rval = -1;		// no valid state
+
+    }
+
+  return rval;
+}
 
 
+/**
+ *  @ingroup Status
+ *  @brief Print the contents of the State Machine buffer to standard out.
+ *  @param state_value State Value to convert
+ *  @return OK if successful, otherwise ERROR.
+ */
+
+int
+faV3StatePrintBuffer(int id)
+{
+  unsigned int data[0xff];
+  int nwords = 0, idata = 0;
+
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3StatePrintBuffer: ERROR : ADC in slot %d is not initialized \n",
+	     id,2,3,4,5,6);
+      return ERROR;
+    }
+
+  nwords = faV3StateReadBuffer(id, (volatile unsigned int *)&data, 0xff);
+  if(nwords < 0)
+    {
+      logMsg("faV3StatePrintBuffer(%d): ERROR: Unable to retreive state machine data\n", id, 2, 3, 4, 5, 6);
+      return ERROR;
+    }
+
+  printf("\n--- number of state values saved = %d\n\n", nwords);
+  for(idata = 0; idata < nwords; idata++)
+    {
+      printf("state %4d   value = %5X   id = %4d\n",
+	     (idata + 1),
+	     data[idata],
+	     faV3StateMap(data[idata]));
+    }
+
+  return OK;
+}
 
 /**
  * @brief Enable / Disable sparsification
@@ -7299,4 +8002,273 @@ faV3GetTriggersProcessedCount(int id)
   FAV3UNLOCK;
 
   return rval;
+}
+
+/***************************************************************************************
+   JLAB FADC Signal Distribution Card (SDC) Routines
+***************************************************************************************/
+
+/**
+ *  @ingroup SDCConfig
+ *  @brief Configure the Signal Distribution Card (SDC)
+ *  @param id Slot number
+ *  @param  cFlag  controls the configuation of the SDC
+ *   -  0:  Default Mode  Internal CLK, Sync External Trigger and Sync Reset
+ *   - >0:  Pass through mode
+ *  @param bMask:  mask of Busy enables for the SDC - Do not Enable busy if there is no FADC
+ *  @return OK if successful, otherwise ERROR.
+ */
+
+int
+faV3SDC_Config(uint16_t cFlag, uint16_t bMask)
+{
+
+  if(FAV3SDCp == NULL)
+    {
+      logMsg("faV3SDC_Config: ERROR : Cannot Configure FADC Signal Board \n", 0,
+	     0, 0, 0, 0, 0);
+      return (ERROR);
+    }
+
+  /* Reset the Board */
+  FAV3LOCK;
+  vmeWrite16(&(FAV3SDCp->csr), FAV3SDC_CSR_INIT);
+
+  if(cFlag == 0)
+    {
+      /* Default - Enable Internal Clock, Sync Trigger and Sync-Reset */
+      vmeWrite16(&(FAV3SDCp->ctrl),
+		 (FAV3SDC_CTRL_ENABLE_SOFT_TRIG |
+		  FAV3SDC_CTRL_ENABLE_SOFT_SRESET));
+      faV3SDCPassthrough = 0;
+    }
+  else if(cFlag == 1)
+    {
+      /* Pass Through - */
+      vmeWrite16(&(FAV3SDCp->ctrl),
+		 (FAV3SDC_CTRL_CLK_EXT | FAV3SDC_CTRL_NOSYNC_TRIG |
+		  FAV3SDC_CTRL_NOSYNC_SRESET));
+      faV3SDCPassthrough = 1;
+    }
+  else
+    {
+      /* Level Translator - re-sync the signals coming in to the SDC */
+      vmeWrite16(&(FAV3SDCp->ctrl), (FAV3SDC_CTRL_CLK_EXT));
+      faV3SDCPassthrough = 1;
+    }
+
+  vmeWrite16(&(FAV3SDCp->busy_enable), bMask);
+  FAV3UNLOCK;
+
+  return (OK);
+}
+
+/**
+ *  @ingroup SDCStatus
+ *  @brief Print status of SDC to standard out
+ *  @param sFlag Not used
+ */
+
+void
+faV3SDC_Status(int sFlag)
+{
+
+  uint16_t sdc[4];
+  int ibit = 0;
+
+  if(FAV3SDCp == NULL)
+    {
+      printf("faV3SDC_Status: ERROR : No FADC SDC available \n");
+      return;
+    }
+
+  FAV3LOCK;
+  sdc[0] = vmeRead16(&(FAV3SDCp->csr));
+  sdc[1] = vmeRead16(&(FAV3SDCp->ctrl)) & FAV3SDC_CTRL_MASK;
+  sdc[2] = vmeRead16(&(FAV3SDCp->busy_enable)) & FAV3SDC_BUSY_MASK;
+  sdc[3] = vmeRead16(&(FAV3SDCp->busy_status));
+  FAV3UNLOCK;
+
+
+#ifdef VXWORKS
+  printf("\nSTATUS for FADC Signal Distribution Card at base address 0x%x \n",
+	 (uint32_t) FAV3SDCp);
+#else
+  printf("\nSTATUS for FADC Signal Distribution Card at\n VME (Local) base address 0x%x (0x%lx)\n",
+	 (uint32_t) ((u_long) FAV3SDCp - faV3A16Offset), (u_long) FAV3SDCp);
+#endif
+  printf("---------------------------------------------------------------- \n");
+
+  printf(" Board Firmware Rev/ID = 0x%02x\n", ((sdc[0] & 0xff00) >> 8));
+  printf(" Registers: \n");
+  printf("   CSR         = 0x%04x     Control     = 0x%04x\n", sdc[0],
+	 sdc[1]);
+  printf("   Busy Enable = 0x%04x     Busy Status = 0x%04x\n", sdc[2],
+	 sdc[3]);
+  printf("\n");
+
+  if((sdc[1] & FAV3SDC_CTRL_CLK_EXT))
+    printf(" Ref Clock : External\n");
+  else
+    printf(" Ref Clock : Internal\n");
+
+
+  printf("   Trigger :");
+  if((sdc[1] & FAV3SDC_CTRL_ENABLE_SOFT_TRIG))
+    {
+      printf(" Internal (Software)\n");
+    }
+  else
+    {
+      if((sdc[1] & FAV3SDC_CTRL_NOSYNC_TRIG))
+	printf(" External (Pass through)\n");
+      else
+	printf(" External (Sync with clock)\n");
+    }
+
+  printf(" SyncReset :");
+  if((sdc[1] & FAV3SDC_CTRL_ENABLE_SOFT_SRESET))
+    {
+      printf(" Internal (Software)\n");
+    }
+  else
+    {
+      if((sdc[1] & FAV3SDC_CTRL_NOSYNC_SRESET))
+	printf(" External (Pass through)\n");
+      else
+	printf(" External (Sync with clock)\n");
+    }
+  printf("\n");
+  printf(" Busy Ports\n  Enabled  :");
+  for(ibit = 0; ibit < 7; ibit++)
+    if((1 << ibit) & sdc[2])
+      printf(" %d", ibit + 1);
+
+  printf("\n");
+
+  printf("\n");
+  printf(" Busy Ports\n  Asserted :");
+  for(ibit = 0; ibit < 7; ibit++)
+    if((1 << ibit) & sdc[3])
+      printf(" %d", ibit + 1);
+
+  printf("\n");
+
+  printf("\n");
+
+}
+
+/**
+ *  @ingroup SDCConfig
+ *  @brief Enable Triggers and/or SyncReset on the SDC
+ *  @param nsync
+ *    -  0: Front panel triggers and syncreset
+ *    - !0: Front panel triggers only
+ */
+
+void
+faV3SDC_Enable(int nsync)
+{
+
+  if(FAV3SDCp == NULL)
+    {
+      logMsg("faV3SDC_Enable: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
+	     0);
+      return;
+    }
+
+  FAV3LOCK;
+  if(nsync != 0)		/* FP triggers only */
+    vmeWrite16(&(FAV3SDCp->ctrl), FAV3SDC_CTRL_ENABLE_SOFT_SRESET);
+  else				/* both FP triggers and sync reset */
+    vmeWrite16(&(FAV3SDCp->ctrl), 0);
+  FAV3UNLOCK;
+}
+
+/**
+ *  @ingroup SDCConfig
+ *  @brief Disable Triggers and SyncReset on the SDC
+ */
+
+void
+faV3SDC_Disable()
+{
+
+  if(FAV3SDCp == NULL)
+    {
+      logMsg("faV3SDC_Disable: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
+	     0);
+      return;
+    }
+
+  FAV3LOCK;
+  vmeWrite16(&(FAV3SDCp->ctrl),
+	     (FAV3SDC_CTRL_ENABLE_SOFT_TRIG | FAV3SDC_CTRL_ENABLE_SOFT_SRESET));
+  FAV3UNLOCK;
+}
+
+/**
+ *  @ingroup SDCConfig
+ *  @brief Perform a SyncReset from the SDC
+ */
+
+void
+faV3SDC_Sync()
+{
+
+  if(FAV3SDCp == NULL)
+    {
+      logMsg("faV3SDC_Sync: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
+	     0);
+      return;
+    }
+
+  FAV3LOCK;
+  vmeWrite16(&(FAV3SDCp->csr), FAV3SDC_CSR_SRESET);
+  FAV3UNLOCK;
+}
+
+/**
+ *  @ingroup SDCConfig
+ *  @brief Perform a trigger pulse from the SDC
+ */
+
+void
+faV3SDC_Trig()
+{
+  if(FAV3SDCp == NULL)
+    {
+      logMsg("faV3SDC_Trig: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
+	     0);
+      return;
+    }
+
+  FAV3LOCK;
+  vmeWrite16(&(FAV3SDCp->csr), FAV3SDC_CSR_TRIG);
+  FAV3UNLOCK;
+}
+
+/**
+ *  @ingroup SDCStatus
+ *  @brief Return Busy status of the SDC
+ *  @return 1 if busy, 0 if not, otherwise ERROR.
+ */
+
+int
+faV3SDC_Busy()
+{
+  int busy = 0;
+
+  if(FAV3SDCp == NULL)
+    {
+      logMsg("faV3SDC_Busy: ERROR : No FADC SDC available \n", 0, 0, 0, 0, 0,
+	     0);
+      return -1;
+    }
+
+  FAV3LOCK;
+  busy = vmeRead16(&(FAV3SDCp->csr)) & FAV3SDC_CSR_BUSY;
+  FAV3UNLOCK;
+
+  return (busy);
 }

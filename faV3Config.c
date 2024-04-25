@@ -543,7 +543,7 @@ faV3DownloadAll()
 		    faV3[slot].winWidth,
 		    faV3[slot].nsb,
 		    faV3[slot].nsa,
-		    faV3[slot].npeak, 0);
+		    faV3[slot].npeak);
 
       faV3ChanDisable(slot, faV3[slot].chDisMask);
 

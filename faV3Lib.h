@@ -121,7 +121,7 @@ typedef struct
   /* 0x0018 */ volatile uint32_t adr32;
   /* 0x001C */ volatile uint32_t adr_mb;
   /* 0x0020 */ volatile uint32_t sec_adr;
-  /* 0x0024 */ volatile uint32_t delay;
+  /* 0x0024 */ BLANK[1];
   /* 0x0028 */ volatile uint32_t trig_cfg;
   /* 0x002C */ volatile uint32_t reset;
   /* 0x0030 */ volatile uint32_t trig_count;
@@ -149,7 +149,7 @@ typedef struct
   /* 0x00A0 */ volatile uint32_t berr_count;
   /* 0x00A4 */ volatile uint32_t berr_in_count;
   /* 0x00A8 */ volatile uint32_t proc_words_scal;
-  /* 0x00AC */ volatile uint32_t aux_scal2;
+  /* 0x00AC */ volatile uint32_t lost_trig_scal;
   /* 0x00B0 */ volatile uint32_t header_scal;
   /* 0x00B4 */ volatile uint32_t trig2_scal;
   /* 0x00B8 */ volatile uint32_t trailer_scal;
@@ -550,6 +550,16 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 #define FAV3_ITRIG_WINDOW_MAX_WIDTH 0x200	/* 2.048 microsec */
 
+/* Define State registers bits and masks */
+#define FAV3_STATE_LEVEL_CAPTURE_MASK    0x000000FF
+
+#define FAV3_STATE_CSR_ARM_BUFFER        (1<<31)
+#define FAV3_STATE_CSR_BUFFER_FULL       (1<<27)
+#define FAV3_STATE_CSR_BUFFER_EMPTY      (1<<26)
+#define FAV3_STATE_CSR_BUFFER_WORDS_MASK 0x000000FF
+
+#define FAV3_STATE_VALUE_MASK            0x0000FFFF
+
 
 /* Define ADC Data Types and Masks */
 
@@ -599,6 +609,14 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 /* Define Scaler Insert Mask */
 #define FAV3_SCALER_INSERT_MASK   0x0000FFFF
+
+/* Define Sum Threshold bits and masks */
+#define FAV3_SUM_THRESHOLD_DREADY      (1<<31)
+#define FAV3_SUM_THRESHOLD_MASK     0x0000FFFF
+
+/* Define Sum Data bits and masks */
+#define FAV3_SUM_DATA_ARM_HISTORY_BUFFER    (1<<31)
+#define FAV3_SUM_DATA_SAMPLE_MASK        0x0000FFFF
 
 /* Define Serial Number bits and masks */
 #define FAV3_SERIAL_NUMBER_ACDI               0x41434449
@@ -726,16 +744,16 @@ void faV3Status(int id, int sflag);
 void faV3GStatus(int sflag);
 uint32_t faV3GetFirmwareVersions(int id, int pflag);
 int faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
-		  uint32_t NSB, uint32_t NSA, uint32_t NP, int bank);
+		    uint32_t NSB, uint32_t NSA, uint32_t NP);
 void faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
-		    uint32_t NSB, uint32_t NSA, uint32_t NP, int bank);
+		      uint32_t NSB, uint32_t NSA, uint32_t NP);
 int32_t faV3SetupADC(int id, int32_t mode);
-int faV3SetPPG(int id, int pmode, uint16_t * sdata, int nsamples);
+int faV3SetPPG(int id, uint16_t *sdata, int nsamples);
 void faV3PPGEnable(int id);
 void faV3PPGDisable(int id);
 int faV3ReadBlock(int id, volatile uint32_t * data, int nwrds, int rflag);
 int faV3GetBlockError(int pflag);
-int faV3PrintBlock(int id, int rflag);
+int faV3PrintBlock(int id);
 void faV3Clear(int id);
 void faV3ClearError(int id);
 uint32_t faV3ReadCSR(int id);
@@ -755,8 +773,8 @@ int faV3SetChannelEnableMask(int id, uint16_t enMask);
 int faV3GetChannelMask(int id, int type);
 uint32_t faV3GetChanMask(int id);
 void faV3EnableSyncReset(int id);
-void faV3Enable(int id, int eflag, int bank);
-void faV3GEnable(int eflag, int bank);
+void faV3Enable(int id, int eflag);
+void faV3GEnable(int eflag);
 void faV3Disable(int id, int eflag);
 void faV3GDisable(int eflag);
 void faV3Trig(int id);
@@ -938,9 +956,6 @@ int faV3SetChThreshold(int id, int ch, int threshold);
 
 void faV3SetA32BaseAddress(uint32_t addr);
 
-
-
-int faV3CalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np);
 int faV3SetTriggerStopCondition(int id, int trigger_max);
 int faV3SetTriggerBusyCondition(int id, int trigger_max);
 int faV3SetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT);

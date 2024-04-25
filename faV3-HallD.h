@@ -35,14 +35,14 @@ typedef struct
   /* 0x0124 */ volatile uint32_t nsb;
   /* 0x0128 */ volatile uint32_t nsa;
   /* 0x012C */ volatile uint32_t thres[8];
-  /* 0x0118 */ volatile uint32_t config6;
-  /* 0x0118 */ volatile uint32_t config7;
+  /* 0x014C */ volatile uint32_t config6;
+  /* 0x0150 */ volatile uint32_t config7;
   /* 0x0154 */ volatile uint32_t test_wave;
   /* 0x0158 */ volatile uint32_t pedestal[16];
   /* 0x0198 */ volatile uint32_t config3;
   /* 0x019C */ volatile uint32_t status3;
-  /* 0x019C */ volatile uint32_t status4;
-  /* 0x019C */ volatile uint32_t roque_ptw_fall_back;
+  /* 0x01A0 */ volatile uint32_t status4;
+  /* 0x01A4 */ volatile uint32_t roque_ptw_fall_back;
 } faV3_halld_adc_t;
 
 #define FAV3_HALLD_PROC_MODE_PULSE_PARAM  9
@@ -62,3 +62,21 @@ extern const char *faV3_halld_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 #define FAV3_ADC_CONFIG7_NPED_MASK    0x00003C00
 #define FAV3_ADC_CONFIG7_MAXPED_MASK  0x000003FF
+
+#define FAV3_ROQUE_PTW_FALL_BACK_MASK 0x0000FFFF
+
+int faV3HallDInit();
+int faV3HallDCalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np);
+int faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
+			 int NSB, uint32_t NSA, uint32_t NP,
+			 uint32_t NPED, uint32_t MAXPED, uint32_t NSAT);
+void faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
+			   int NSB, uint32_t NSA, uint32_t NP,
+			   uint32_t NPED, uint32_t MAXPED, uint32_t NSAT);
+int faV3HallDProcPedConfig(int id, int nsamples, int maxvalue);
+int faV3HallDGProcPedConfig(int nsamples, int maxvalue);
+int faV3HallDSampleConfig(int id, int nsamples, int maxvalue);
+int faV3HallDGSampleConfig(int nsamples, int maxvalue);
+int faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data);
+int faV3HallDSetRoguePTWFallBack(int id, uint16_t enablemask);
+int faV3HallDGetRoguePTWFallBack(int id, uint16_t *enablemask);
