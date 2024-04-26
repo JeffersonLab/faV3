@@ -8,6 +8,23 @@
 #define EIEIO
 #endif
 
+#include <stdio.h>
+#include <pthread.h>
+
+#include "jvme.h"
+#include "faV3Lib.h"
+#include "faV3Itrig.h"
+
+
+extern pthread_mutex_t faV3Mutex;
+
+#define FAV3LOCK      if(pthread_mutex_lock(&faV3Mutex)<0) perror("pthread_mutex_lock");
+#define FAV3UNLOCK    if(pthread_mutex_unlock(&faV3Mutex)<0) perror("pthread_mutex_unlock");
+
+extern int nfaV3;
+extern int faV3ID[FAV3_MAX_BOARDS];
+extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];	/* pointers to FAV3 memory map */
+
 uint32_t
 faItrigStatus(int id, int sFlag)
 {
@@ -27,16 +44,16 @@ faItrigStatus(int id, int sFlag)
 
   /* Express Time in ns - 4ns/clk  */
   FAV3LOCK;
-  status = vmeRead32(&FAV3p[id]->hitsum_status) & 0xffff;
-  config = vmeRead32(&FAV3p[id]->hitsum_cfg) & 0xffff;
+  status = vmeRead32(&FAV3p[id]->hitsum.status) & 0xffff;
+  config = vmeRead32(&FAV3p[id]->hitsum.cfg) & 0xffff;
   twidth =
-    (vmeRead32(&FAV3p[id]->hitsum_trig_width) & 0xffff) * FAV3_ADC_NS_PER_CLK;
-  wMask = vmeRead32(&FAV3p[id]->hitsum_window_bits) & 0xffff;
+    (vmeRead32(&FAV3p[id]->hitsum.trig_width) & 0xffff) * FAV3_ADC_NS_PER_CLK;
+  wMask = vmeRead32(&FAV3p[id]->hitsum.window_bits) & 0xffff;
   wWidth =
-    (vmeRead32(&FAV3p[id]->hitsum_window_width) & 0xffff) * FAV3_ADC_NS_PER_CLK;
-  cMask = vmeRead32(&FAV3p[id]->hitsum_coin_bits) & 0xffff;
-  sum_th = vmeRead32(&FAV3p[id]->hitsum_sum_thresh) & 0xffff;
-  itrigCnt = vmeRead32(&FAV3p[id]->internal_trig_scal);
+    (vmeRead32(&FAV3p[id]->hitsum.window_width) & 0xffff) * FAV3_ADC_NS_PER_CLK;
+  cMask = vmeRead32(&FAV3p[id]->hitsum.coin_bits) & 0xffff;
+  sum_th = vmeRead32(&FAV3p[id]->hitsum.sum_thresh) & 0xffff;
+  itrigCnt = vmeRead32(&FAV3p[id]->trig_live_count);
   trigOut = vmeRead32(&FAV3p[id]->ctrl1) & FAV3_ITRIG_OUT_MASK;
   FAV3UNLOCK;
 
@@ -107,7 +124,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
 
   /* Make sure we are not enabled or running */
   FAV3LOCK;
-  config = vmeRead32(&FAV3p[id]->hitsum_cfg) & FAV3_ITRIG_CONFIG_MASK;
+  config = vmeRead32(&FAV3p[id]->hitsum.cfg) & FAV3_ITRIG_CONFIG_MASK;
   FAV3UNLOCK;
   if((config & FAV3_ITRIG_ENABLE_MASK) == 0)
     {
@@ -128,14 +145,14 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
       printf("faItrigSetMode: Loading trigger table from address 0x%lx \n",
 	     (unsigned long) tTable);
       FAV3LOCK;
-      vmeWrite32(&FAV3p[id]->s_adr, FAV3_SADR_AUTO_INCREMENT);
-      vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
+      vmeWrite32(&FAV3p[id]->sec_adr, FAV3_SADR_AUTO_INCREMENT);
+      vmeWrite32(&FAV3p[id]->hitsum.pattern, 0);	/* Make sure address 0 is not a valid trigger */
       for(ii = 1; ii <= 0xffff; ii++)
 	{
 	  if(tTable[ii])
-	    vmeWrite32(&FAV3p[id]->hitsum_pattern, 1);
+	    vmeWrite32(&FAV3p[id]->hitsum.pattern, 1);
 	  else
-	    vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);
+	    vmeWrite32(&FAV3p[id]->hitsum.pattern, 0);
 	}
       FAV3UNLOCK;
     }
@@ -147,7 +164,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
       FAV3LOCK;
       if((sumThresh > 0) && (sumThresh <= 0xffff))
 	{
-	  vmeWrite32(&FAV3p[id]->hitsum_sum_thresh, sumThresh);
+	  vmeWrite32(&FAV3p[id]->hitsum.sum_thresh, sumThresh);
 	}
       else
 	{
@@ -156,7 +173,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
 	  return (ERROR);
 	}
       stat = (config & ~FAV3_ITRIG_MODE_MASK) | FAV3_ITRIG_SUM_MODE;
-      vmeWrite32(&FAV3p[id]->hitsum_cfg, stat);
+      vmeWrite32(&FAV3p[id]->hitsum.cfg, stat);
       FAV3UNLOCK;
       printf("faItrigSetMode: Configure for SUM Mode (Threshold = 0x%x)\n",
 	     sumThresh);
@@ -167,7 +184,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
       FAV3LOCK;
       if((cMask > 0) && (cMask <= 0xffff))
 	{
-	  vmeWrite32(&FAV3p[id]->hitsum_coin_bits, cMask);
+	  vmeWrite32(&FAV3p[id]->hitsum.coin_bits, cMask);
 	}
       else
 	{
@@ -176,7 +193,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
 	  return (ERROR);
 	}
       stat = (config & ~FAV3_ITRIG_MODE_MASK) | FAV3_ITRIG_COIN_MODE;
-      vmeWrite32(&FAV3p[id]->hitsum_cfg, stat);
+      vmeWrite32(&FAV3p[id]->hitsum.cfg, stat);
       FAV3UNLOCK;
       printf("faItrigSetMode: Configure for COINCIDENCE Mode (channel mask = 0x%x)\n",
 	 cMask);
@@ -187,7 +204,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
       FAV3LOCK;
       if((wMask > 0) && (wMask <= 0xffff))
 	{
-	  vmeWrite32(&FAV3p[id]->hitsum_window_bits, wMask);
+	  vmeWrite32(&FAV3p[id]->hitsum.window_bits, wMask);
 	}
       else
 	{
@@ -197,7 +214,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
 	}
       if((wWidth > 0) && (wWidth <= FAV3_ITRIG_MAX_WIDTH))
 	{
-	  vmeWrite32(&FAV3p[id]->hitsum_window_width, wWidth);
+	  vmeWrite32(&FAV3p[id]->hitsum.window_width, wWidth);
 	  wTime = 4 * wWidth;
 	}
       else
@@ -207,7 +224,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
 	  return (ERROR);
 	}
       stat = (config & ~FAV3_ITRIG_MODE_MASK) | FAV3_ITRIG_WINDOW_MODE;
-      vmeWrite32(&FAV3p[id]->hitsum_cfg, stat);
+      vmeWrite32(&FAV3p[id]->hitsum.cfg, stat);
       FAV3UNLOCK;
       printf("faItrigSetMode: Configure for Trigger WINDOW Mode (channel mask = 0x%x, width = %d ns)\n",
 	     wMask, wTime);
@@ -216,7 +233,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
     case FAV3_ITRIG_TABLE_MODE:
       FAV3LOCK;
       stat = (config & ~FAV3_ITRIG_MODE_MASK) | FAV3_ITRIG_TABLE_MODE;
-      vmeWrite32(&FAV3p[id]->hitsum_cfg, stat);
+      vmeWrite32(&FAV3p[id]->hitsum.cfg, stat);
       FAV3UNLOCK;
       printf("faItrigSetMode: Configure for Trigger TABLE Mode\n");
     }
@@ -255,7 +272,7 @@ faItrigInitTable(int id, uint32_t * table)
 
   /* Check and make sure we are not running */
   FAV3LOCK;
-  config = vmeRead32(&FAV3p[id]->hitsum_cfg);
+  config = vmeRead32(&FAV3p[id]->hitsum.cfg);
   if((config & FAV3_ITRIG_ENABLE_MASK) != FAV3_ITRIG_DISABLED)
     {
       printf("faItrigInitTable: ERROR: Cannot update Trigger Table while trigger is Enabled\n");
@@ -267,25 +284,25 @@ faItrigInitTable(int id, uint32_t * table)
   if(table == NULL)
     {
       /* Use default Initialization - all combinations of inputs will be a valid trigger */
-      vmeWrite32(&FAV3p[id]->s_adr, FAV3_SADR_AUTO_INCREMENT);
-      vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
+      vmeWrite32(&FAV3p[id]->sec_adr, FAV3_SADR_AUTO_INCREMENT);
+      vmeWrite32(&FAV3p[id]->hitsum.pattern, 0);	/* Make sure address 0 is not a valid trigger */
       for(ii = 1; ii <= 0xffff; ii++)
 	{
-	  vmeWrite32(&FAV3p[id]->hitsum_pattern, 1);
+	  vmeWrite32(&FAV3p[id]->hitsum.pattern, 1);
 	}
 
     }
   else
     {				/* Load specified table into hitsum FPGA */
 
-      vmeWrite32(&FAV3p[id]->s_adr, FAV3_SADR_AUTO_INCREMENT);
-      vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);	/* Make sure address 0 is not a valid trigger */
+      vmeWrite32(&FAV3p[id]->sec_adr, FAV3_SADR_AUTO_INCREMENT);
+      vmeWrite32(&FAV3p[id]->hitsum.pattern, 0);	/* Make sure address 0 is not a valid trigger */
       for(ii = 1; ii <= 0xffff; ii++)
 	{
 	  if(table[ii])
-	    vmeWrite32(&FAV3p[id]->hitsum_pattern, 1);
+	    vmeWrite32(&FAV3p[id]->hitsum.pattern, 1);
 	  else
-	    vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);
+	    vmeWrite32(&FAV3p[id]->hitsum.pattern, 0);
 	}
 
     }
@@ -315,7 +332,7 @@ faItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask)
 
   /* Check and make sure we are not running */
   FAV3UNLOCK;
-  config = vmeRead32(&FAV3p[id]->hitsum_cfg);
+  config = vmeRead32(&FAV3p[id]->hitsum.cfg);
   if((config & FAV3_ITRIG_ENABLE_MASK) != FAV3_ITRIG_DISABLED)
     {
       printf("faItrigSetHBwidth: ERROR: Cannot set HB widths while trigger is Enabled\n");
@@ -332,11 +349,11 @@ faItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask)
     {
       if((1 << ii) & hbMask)
 	{
-	  vmeWrite32(&FAV3p[id]->s_adr, ii);	/* Set Channel to Read/Write */
+	  vmeWrite32(&FAV3p[id]->sec_adr, ii);	/* Set Channel to Read/Write */
 	  hbval =
-	    vmeRead32(&FAV3p[id]->hitsum_hit_info) & ~FAV3_ITRIG_HB_WIDTH_MASK;
+	    vmeRead32(&FAV3p[id]->hitsum.hit_width) & ~FAV3_ITRIG_HB_WIDTH_MASK;
 	  hbval = hbval | hbWidth;
-	  vmeWrite32(&FAV3p[id]->hitsum_hit_info, hbval);	/* Set Value */
+	  vmeWrite32(&FAV3p[id]->hitsum.hit_width, hbval);	/* Set Value */
 	}
     }
   FAV3UNLOCK;
@@ -368,9 +385,9 @@ faItrigGetHBwidth(int id, uint32_t chan)
     }
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->s_adr, chan);	/* Set Channel */
+  vmeWrite32(&FAV3p[id]->sec_adr, chan);	/* Set Channel */
   EIEIO;
-  rval = vmeRead32(&FAV3p[id]->hitsum_hit_info) & FAV3_ITRIG_HB_WIDTH_MASK;	/* Get Value */
+  rval = vmeRead32(&FAV3p[id]->hitsum.hit_width) & FAV3_ITRIG_HB_WIDTH_MASK;	/* Get Value */
   FAV3UNLOCK;
 
   return (rval);
@@ -394,7 +411,7 @@ faItrigSetHBdelay(int id, uint16_t hbDelay, uint16_t hbMask)
 
   /* Check and make sure we are not running */
   FAV3LOCK;
-  config = vmeRead32(&FAV3p[id]->hitsum_cfg);
+  config = vmeRead32(&FAV3p[id]->hitsum.cfg);
   if((config & FAV3_ITRIG_ENABLE_MASK) != FAV3_ITRIG_DISABLED)
     {
       printf("faItrigSetHBdelay: ERROR: Cannot set HB delays while trigger is Enabled\n");
@@ -412,11 +429,11 @@ faItrigSetHBdelay(int id, uint16_t hbDelay, uint16_t hbMask)
     {
       if((1 << ii) & hbMask)
 	{
-	  vmeWrite32(&FAV3p[id]->s_adr, ii);	/* Set Channel */
+	  vmeWrite32(&FAV3p[id]->sec_adr, ii);	/* Set Channel */
 	  hbval =
-	    vmeRead32(&FAV3p[id]->hitsum_hit_info) & ~FAV3_ITRIG_HB_DELAY_MASK;
+	    vmeRead32(&FAV3p[id]->hitsum.hit_width) & ~FAV3_ITRIG_HB_DELAY_MASK;
 	  hbval |= (hbDelay << 8);
-	  vmeWrite32(&FAV3p[id]->hitsum_hit_info, hbval);	/* Set Value */
+	  vmeWrite32(&FAV3p[id]->hitsum.hit_width, hbval);	/* Set Value */
 	}
     }
   FAV3UNLOCK;
@@ -448,9 +465,9 @@ faItrigGetHBdelay(int id, uint32_t chan)
     }
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->s_adr, chan);	/* Set Channel */
+  vmeWrite32(&FAV3p[id]->sec_adr, chan);	/* Set Channel */
   EIEIO;
-  rval = (vmeRead32(&FAV3p[id]->hitsum_hit_info) & FAV3_ITRIG_HB_DELAY_MASK) >> 8;	/* Get Value */
+  rval = (vmeRead32(&FAV3p[id]->hitsum.hit_width) & FAV3_ITRIG_HB_DELAY_MASK) >> 8;	/* Get Value */
   FAV3UNLOCK;
 
   return (rval);
@@ -474,11 +491,11 @@ faItrigPrintHBinfo(int id)
     }
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->s_adr, ii);
+  vmeWrite32(&FAV3p[id]->sec_adr, 0);
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
     {
-      vmeWrite32(&FAV3p[id]->s_adr, ii);
-      hbval[ii] = vmeRead32(&FAV3p[id]->hitsum_hit_info) & FAV3_ITRIG_HB_INFO_MASK;	/* Get Values */
+      vmeWrite32(&FAV3p[id]->sec_adr, ii);
+      hbval[ii] = vmeRead32(&FAV3p[id]->hitsum.hit_width) & FAV3_ITRIG_HB_INFO_MASK;	/* Get Values */
     }
   FAV3UNLOCK;
 
@@ -517,10 +534,10 @@ faItrigSetOutWidth(int id, uint16_t itrigWidth)
 
   FAV3LOCK;
   if(itrigWidth)
-    vmeWrite32(&FAV3p[id]->hitsum_trig_width, itrigWidth);
+    vmeWrite32(&FAV3p[id]->hitsum.trig_width, itrigWidth);
 
   EIEIO;
-  retval = vmeRead32(&FAV3p[id]->hitsum_trig_width) & 0xffff;
+  retval = vmeRead32(&FAV3p[id]->hitsum.trig_width) & 0xffff;
   FAV3UNLOCK;
 
   return (retval);
@@ -542,10 +559,10 @@ faItrigEnable(int id, int eflag)
     }
 
   FAV3LOCK;
-  rval = vmeRead32(&FAV3p[id]->hitsum_cfg);
+  rval = vmeRead32(&FAV3p[id]->hitsum.cfg);
   rval &= ~(FAV3_ITRIG_DISABLED);
 
-  vmeWrite32(&FAV3p[id]->hitsum_cfg, rval);
+  vmeWrite32(&FAV3p[id]->hitsum.cfg, rval);
 
   if(eflag)
     {				/* Enable Live trigger to Front Panel Output */
@@ -572,10 +589,10 @@ faItrigDisable(int id, int dflag)
     }
 
   FAV3LOCK;
-  rval = vmeRead32(&FAV3p[id]->hitsum_cfg);
+  rval = vmeRead32(&FAV3p[id]->hitsum.cfg);
   rval |= FAV3_ITRIG_DISABLED;
 
-  vmeWrite32(&FAV3p[id]->hitsum_cfg, rval);
+  vmeWrite32(&FAV3p[id]->hitsum.cfg, rval);
 
   if(dflag)
     {				/* Disable Live trigger to Front Panel Output */
@@ -605,9 +622,9 @@ faItrigGetTableVal(int id, uint16_t pMask)
     }
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->s_adr, pMask);
+  vmeWrite32(&FAV3p[id]->sec_adr, pMask);
   EIEIO;			/* Make sure write comes before read */
-  rval = vmeRead32(&FAV3p[id]->hitsum_pattern) & 0x1;
+  rval = vmeRead32(&FAV3p[id]->hitsum.pattern) & 0x1;
   FAV3UNLOCK;
 
   return (rval);
@@ -629,11 +646,11 @@ faItrigSetTableVal(int id, uint16_t tval, uint16_t pMask)
     }
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->s_adr, pMask);
+  vmeWrite32(&FAV3p[id]->sec_adr, pMask);
   if(tval)
-    vmeWrite32(&FAV3p[id]->hitsum_pattern, 1);
+    vmeWrite32(&FAV3p[id]->hitsum.pattern, 1);
   else
-    vmeWrite32(&FAV3p[id]->hitsum_pattern, 0);
+    vmeWrite32(&FAV3p[id]->hitsum.pattern, 0);
   FAV3UNLOCK;
 
 }

@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include "jvme.h"
 #include "faV3Lib.h"
+#include "faV3FirmwareTools.h"
 
 #define FADC_ADDR (3<<19)
 #define NFADC     16

@@ -102,13 +102,6 @@ int faV3SDCPassthrough = 0;	/* If > 0 SDC in level translate / passthrough mode 
 faV3data_t faV3_data;
 int faV3BlockError = FAV3_BLOCKERROR_NO_ERROR;	/* Whether (>0) or not (0) Block Transfer had an error */
 
-/* Include Firmware Tools */
-#include "faV3FirmwareTools.c"
-
-// FIXME: Need itrig regs defined to uncomment
-/* #include "faV3Itrig.c" */
-
-
 /**
  * @defgroup Config Initialization/Configuration
  * @defgroup SDCConfig SDC Initialization/Configuration
@@ -817,12 +810,12 @@ faV3SetA32BaseAddress(uint32_t addr)
 }
 
 /**
- *  @ingroup Config
- *  @brief Convert an index into a slot number, where the index is
+ * @ingroup Status
+ * @brief Convert an index into a slot number, where the index is
  *          the element of an array of FADCs in the order in which they were
  *          initialized.
  *
- * @param i Initialization number
+ * @param[in] i Initialization number
  * @return Slot number if Successfull, otherwise ERROR.
  *
  */
@@ -838,6 +831,41 @@ faV3Slot(uint32_t i)
     }
 
   return faV3ID[i];
+}
+
+
+/**
+ * @ingroup Status
+ * @brief Convert a slot number into the index, where the index is
+ *          the element of an array of FADCs in the order in which they were
+ *          initialized.
+ *
+ * @param[in] slot faV3 slot number
+ * @return Index if Successfull, otherwise ERROR.
+ *
+ */
+int
+faV3Id(uint32_t slot)
+{
+  int id;
+
+  for(id = 0; id < nfaV3; id++)
+    {
+      if(faV3ID[id] == slot)
+	{
+	  return (id);
+	}
+    }
+
+  printf("%s: ERROR: FADC in slot %d does not exist or not initialized.\n",
+	 __func__, slot);
+  return (ERROR);
+}
+
+int
+faV3GetN()
+{
+  return (nfaV3);
 }
 
 /**
@@ -1959,6 +1987,34 @@ faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 	printf("ERROR: slot %d, in faV3SetProcMode()\n", faV3ID[ii]);
     }
 }
+
+int
+faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
+		uint32_t * NSB, uint32_t * NSA, uint32_t * NP)
+{
+  uint32_t tmp;
+
+  if(id == 0)
+    id = faV3ID[0];
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3GetProcMode: ERROR : FADC in slot %d is not initialized \n",
+	     id, 0, 0, 0, 0, 0);
+      return (ERROR);
+    }
+
+  *PTW = (vmeRead32(&(FAV3p[id]->adc.ptw)) & 0xFFFF);
+  *PL = (vmeRead32(&(FAV3p[id]->adc.pl)) & 0xFFFF);
+  *NSB = (vmeRead32(&(FAV3p[id]->adc.nsb)) & 0xFFFF);
+  *NSA = (vmeRead32(&(FAV3p[id]->adc.nsa)) & 0xFFFF);
+
+  tmp = (vmeRead32(&(FAV3p[id]->adc.config1)) & 0xFFFF);
+  *pmode = (tmp & FAV3_ADC_PROC_MASK) + 1;
+  *NP = (tmp & FAV3_ADC_PEAK_MASK) >> 4;
+
+  return (0);
+}
+
 
 /**
  *  @ingroup Config
@@ -3304,7 +3360,7 @@ faV3GetTokenStatus(int pflag)
  *  @return OK if successful, otherwise ERROR.
  */
 
-void
+int
 faV3SetChanDisableMask(int id, uint16_t cmask)
 {
 
@@ -3315,7 +3371,7 @@ faV3SetChanDisableMask(int id, uint16_t cmask)
     {
       logMsg("faV3ChanDisable: ERROR : ADC in slot %d is not initialized \n",
 	     id, 0, 0, 0, 0, 0);
-      return;
+      return OK;
     }
 
   faV3ChanDisableMask[id] = cmask;	/* Set Global Variable */
@@ -3325,6 +3381,7 @@ faV3SetChanDisableMask(int id, uint16_t cmask)
   vmeWrite32(&(FAV3p[id]->adc.config2), cmask);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 
@@ -4869,11 +4926,63 @@ faV3ResetTriggerCount(int id)
  */
 
 int
-faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask)
+faV3SetChannelThreshold(int id, int chan, uint16_t tvalue)
 {
+  if(id == 0)
+    id = faV3ID[0];
 
-  int ii, doWrite = 0;
-  uint32_t lovalue = 0, hivalue = 0;
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3SetThreshold: ERROR : ADC in slot %d is not initialized \n",
+	     id, 0, 0, 0, 0, 0);
+      return (ERROR);
+    }
+
+  int index = chan / 2;
+  int hibyte = chan % 2;
+  uint32_t regval = 0;
+
+  FAV3LOCK;
+  regval = vmeRead32(&FAV3p[id]->adc.thres[index]);
+  if(hibyte)
+    vmeWrite32(&FAV3p[id]->adc.thres[index],
+	       (regval & 0xFFFF) | (tvalue << 16));
+  else
+    vmeWrite32(&FAV3p[id]->adc.thres[index],
+	       (regval & 0xFFFF0000) | tvalue);
+
+  FAV3UNLOCK;
+
+  return (OK);
+}
+
+int
+faV3SetThresholdAll(int id, uint16_t tvalue[16])
+{
+  int ii;
+
+  if(id == 0)
+    id = faV3ID[0];
+
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3SetThresholdAll: ERROR : ADC in slot %d is not initialized \n",
+	     id, 0, 0, 0, 0, 0);
+      return (ERROR);
+    }
+
+  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
+    {
+      faV3SetChannelThreshold(id, ii, tvalue[ii]);
+    }
+
+  return (OK);
+}
+
+int
+faV3GetChannelThreshold(int id, int chan)
+{
+  int rval = 0;
 
   if(id == 0)
     id = faV3ID[0];
@@ -4885,39 +4994,20 @@ faV3SetThreshold(int id, uint16_t tvalue, uint16_t chmask)
       return (ERROR);
     }
 
-  if(chmask == 0)
-    chmask = 0xffff;		/* Set All channels the same */
+  int index = chan / 2;
+  int hibyte = chan % 2;
+  uint32_t regval = 0;
 
   FAV3LOCK;
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-      if(ii % 2 == 0)
-	{
-	  lovalue = (vmeRead32(&FAV3p[id]->adc.thres[ii])) & 0xFFFF;
-	  hivalue = (vmeRead32(&FAV3p[id]->adc.thres[ii]) & 0xFFFF0000) >> 16;
-
-	  if((1 << ii) & chmask)
-	    {
-	      lovalue = (lovalue & ~FAV3_THR_VALUE_MASK) | tvalue;
-	      doWrite = 1;
-	    }
-	  if((1 << (ii + 1)) & chmask)
-	    {
-	      hivalue = (hivalue & ~FAV3_THR_VALUE_MASK) | tvalue;
-	      doWrite = 1;
-	    }
-
-	  if(doWrite)
-	    vmeWrite32(&FAV3p[id]->adc.thres[ii], lovalue | (hivalue << 16));
-
-	  lovalue = 0;
-	  hivalue = 0;
-	  doWrite = 0;
-	}
-    }
+  regval = vmeRead32(&FAV3p[id]->adc.thres[index]);
   FAV3UNLOCK;
 
-  return (OK);
+  if(hibyte)
+    rval = (regval >> 16) & 0xFFFF;
+  else
+    rval = (regval & 0xFFFF);
+
+  return rval;
 }
 
 /**
@@ -5329,92 +5419,6 @@ faV3PrintPedestal(int id)
   return (OK);
 }
 
-
-
-
-int
-faV3GetChThreshold(int id, int ch)
-{
-  uint32_t rvalue = 0;
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetThresholdAll: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-  rvalue = vmeRead32(&(FAV3p[id]->adc.thres[ch])) & FAV3_THR_VALUE_MASK;
-  FAV3UNLOCK;
-
-  return rvalue;
-}
-
-int
-faV3SetChThreshold(int id, int ch, int threshold)
-{
-  /*  printf("faV3SetChThreshold: slot %d, ch %d, threshold=%d\n",id,ch,threshold); */
-
-  return faV3SetThreshold(id, threshold, (1 << ch));
-}
-
-
-
-
-/**************************************************************************************
- *
- *  faV3SetMGTTestMode -
- *  faSyncResetMode  -  Set the fa250 operation when Sync Reset is received
- *
- *        When SYNC RESET is received by the module, the module may:
- *      mode : 0  - Send a calibration sequence to the CTP for alignment purposes
- *             1  - Normal operation
- *
- *        In both instances, timestamps and counters will be reset.
- *
- *   RETURNS OK, or ERROR if unsuccessful.
- */
-
-int
-faV3SetMGTTestMode(int id, uint32_t mode)
-{
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
-
-  FAV3LOCK;
-  if(mode)
-    {				/* After Sync Reset (Normal mode) */
-      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_MGT_RESET);
-      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_MGT_FRONT_END_TO_CTP);
-    }
-  else
-    {				/* Before Sync Reset (Calibration Mode) */
-      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_RELEASE_MGT_RESET);
-      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_MGT_RESET);
-      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_MGT_ENABLE_DATA_ALIGNMENT);
-    }
-  FAV3UNLOCK;
-
-  return (OK);
-}
-
-int
-faV3SyncResetMode(int id, uint32_t mode)
-{
-  return faV3SetMGTTestMode(id, mode);
-}
-
 /**
  *  @ingroup Readout
  *  @brief Scaler Data readout routine
@@ -5803,46 +5807,6 @@ faV3GetMaxA32MB(int id)
   FAV3UNLOCK;
 
   return rval;
-}
-
-/**
- *  @ingroup Status
- *  @brief Print to standard out some auxillary scalers
- *
- *   Prints out
- *     - Total number of words generated
- *     - Total number of headers generated
- *     - Total number of trailers generated
- *     - Total number of lost triggers
- *
- *  @param id Slot number
- */
-
-void
-faV3PrintAuxScal(int id)
-{
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3PrintAuxScal: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
-
-  FAV3LOCK;
-  printf("Auxillary Scalers:\n");
-  printf("       Word Count:         %d\n",
-	 vmeRead32(&FAV3p[id]->proc_words_scal));
-  printf("       Headers   :         %d\n", vmeRead32(&FAV3p[id]->header_scal));
-  printf("       Trailers  :         %d\n",
-	 vmeRead32(&FAV3p[id]->trailer_scal));
-  printf("  Lost Triggers  :         %d\n",
-	 vmeRead32(&FAV3p[id]->lost_trig_scal));
-  FAV3UNLOCK;
-
-  return;
 }
 
 /**
@@ -7278,7 +7242,7 @@ faV3GetHistoryBufferThreshold(int id)
  *  @return OK if successful, otherwise ERROR.
  */
 int
-faArmHistoryBuffer(int id)
+faV3ArmHistoryBuffer(int id)
 {
   if(id==0) id=faV3ID[0];
 
@@ -7378,82 +7342,6 @@ faV3ReadHistoryBuffer(int id, volatile unsigned int *data, int nwrds)
 }
 
 
-int
-faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
-		uint32_t * NSB, uint32_t * NSA, uint32_t * NP)
-{
-  uint32_t tmp;
-
-  if(id == 0)
-    id = faV3ID[0];
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3GetProcMode: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  *PTW = (vmeRead32(&(FAV3p[id]->adc.ptw)) & 0xFFFF);
-  *PL = (vmeRead32(&(FAV3p[id]->adc.pl)) & 0xFFFF);
-  *NSB = (vmeRead32(&(FAV3p[id]->adc.nsb)) & 0xFFFF);
-  *NSA = (vmeRead32(&(FAV3p[id]->adc.nsa)) & 0xFFFF);
-
-  tmp = (vmeRead32(&(FAV3p[id]->adc.config1)) & 0xFFFF);
-  *pmode = (tmp & FAV3_ADC_PROC_MASK) + 1;
-  *NP = (tmp & FAV3_ADC_PEAK_MASK) >> 4;
-
-  return (0);
-}
-
-
-
-
-int
-faV3GetNfadc()
-{
-  return (nfaV3);
-}
-
-int
-faV3Id(uint32_t slot)
-{
-  int id;
-
-  for(id = 0; id < nfaV3; id++)
-    {
-      if(faV3ID[id] == slot)
-	{
-	  return (id);
-	}
-    }
-
-  printf("%s: ERROR: FADC in slot %d does not exist or not initialized.\n",
-	 __func__, slot);
-  return (ERROR);
-}
-
-int
-faV3SetThresholdAll(int id, uint16_t tvalue[16])
-{
-  int ii;
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetThresholdAll: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
-
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-      faV3SetChThreshold(id, ii, tvalue[ii]);
-    }
-
-  return (OK);
-}
 
 /**
  *  @ingroup Config
@@ -7801,6 +7689,7 @@ faV3StatePrintBuffer(int id)
 }
 
 /**
+ * @ingroup Config
  * @brief Enable / Disable sparsification
  * @details Enable or disable the sparsification logic for the specified module
  * @param[in] id fadc slot number
@@ -7834,6 +7723,7 @@ faV3SetSparsificationMode(int id, int mode)
 
 
 /**
+ * @ingroup Status
  * @brief Enable / Disable sparsification
  * @details Enable or disable the sparsification logic for all initialized modules
  * @param[in] mode sparsification mode
@@ -7858,6 +7748,7 @@ faV3GSetSparsificationMode(int mode)
 }
 
 /**
+ * @ingroup Status
  * @brief Sparisification is Enabled / Disabled
  * @details Return the state of the sparsification logic for specified module
  * @param[in] id fadc slot number
@@ -7941,6 +7832,55 @@ faV3GClearSparsificationStatus()
   FAV3UNLOCK;
 }
 
+
+/**
+ *  @ingroup Status
+ *  @brief Print to standard out some auxillary scalers
+ *
+ *   Prints out
+ *     - Total number of words generated
+ *     - Total number of headers generated
+ *     - Total number of trailers generated
+ *     - Total number of lost triggers
+ *
+ *  @param id Slot number
+ */
+
+void
+faV3PrintAuxScal(int id)
+{
+  if(id == 0)
+    id = faV3ID[0];
+
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      logMsg("faV3PrintAuxScal: ERROR : ADC in slot %d is not initialized \n",
+	     id, 0, 0, 0, 0, 0);
+      return;
+    }
+
+  FAV3LOCK;
+  printf("Auxillary Scalers:\n");
+  printf("       Word Count:         %d\n",
+	 vmeRead32(&FAV3p[id]->proc_words_scal));
+  printf("       Headers   :         %d\n", vmeRead32(&FAV3p[id]->header_scal));
+  printf("       Trailers  :         %d\n",
+	 vmeRead32(&FAV3p[id]->trailer_scal));
+  printf("  Lost Triggers  :         %d\n",
+	 vmeRead32(&FAV3p[id]->lost_trig_scal));
+  FAV3UNLOCK;
+
+  return;
+}
+
+/**
+ *  @ingroup Status
+ *  @brief Return the first trigger mismatch count
+ *
+ *  @param id Slot number
+ *  @return mismatch count, if successful.  Otherwise ERROR
+ */
+
 uint32_t
 faV3GetFirstTriggerMismatch(int id)
 {
@@ -7962,6 +7902,14 @@ faV3GetFirstTriggerMismatch(int id)
   return rval;
 }
 
+/**
+ *  @ingroup Status
+ *  @brief Return the trigger mismatch count
+ *
+ *  @param id Slot number
+ *  @return mismatch count, if successful.  Otherwise ERROR
+ */
+
 uint32_t
 faV3GetMismatchTriggerCount(int id)
 {
@@ -7982,6 +7930,14 @@ faV3GetMismatchTriggerCount(int id)
 
   return rval;
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Return the triggers processed count
+ *
+ *  @param id Slot number
+ *  @return triggers processed count, if successful.  Otherwise ERROR
+ */
 
 uint32_t
 faV3GetTriggersProcessedCount(int id)

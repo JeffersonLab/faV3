@@ -132,7 +132,7 @@ faV3Config(char *fname)
   char string[10]; /*dummy, will not be used*/
 
   /* faInit() must be called by now; get the number of boards from there */
-  nfadc = faV3GetNfadc();
+  nfadc = faV3GetN();
   printf("fadc250Config: nfadc=%d\n",nfadc);
 
   if(strlen(fname) > 0) /* filename specified  - upload initial settings from the hardware */
@@ -545,7 +545,7 @@ faV3DownloadAll()
 		    faV3[slot].nsa,
 		    faV3[slot].npeak);
 
-      faV3ChanDisable(slot, faV3[slot].chDisMask);
+      faV3SetChanDisableMask(slot, faV3[slot].chDisMask);
 
 
       faV3SetCompression(slot,faV3[slot].compression);
@@ -562,9 +562,9 @@ faV3DownloadAll()
 
 	  /* if threshold=0, don't add pedestal since user is disabling zero suppression */
 	  if(faV3[slot].thr[ii] > 0)
-	    faV3SetChThreshold(slot, ii, ((int)faV3[slot].ped[ii])+faV3[slot].thr[ii]);
+	    faV3SetChannelThreshold(slot, ii, ((int)faV3[slot].ped[ii])+faV3[slot].thr[ii]);
 	  else
-	    faV3SetChThreshold(slot, ii, 0);
+	    faV3SetChannelThreshold(slot, ii, 0);
 	}
     }
 
@@ -591,7 +591,7 @@ faV3UploadAll(char *string, int length)
 		    &faV3[slot].nsa,
 		    &faV3[slot].npeak);
 
-      faV3[slot].chDisMask = faV3GetChanMask(slot);
+      faV3[slot].chDisMask = faV3GetChanDisableMask(slot);
 
       faV3[slot].compression = faV3GetCompression(slot);
 
@@ -604,7 +604,7 @@ faV3UploadAll(char *string, int length)
 	  faV3[slot].ped[i] = faV3GetChannelPedestal(slot, i);
 	  faV3[slot].ped[i] = ((float)faV3[slot].ped[i])/(faV3[slot].nsa+faV3[slot].nsb); /* go back from integral to amplitude */
 
-	  faV3[slot].thr[i] = faV3GetChThreshold(slot, i);
+	  faV3[slot].thr[i] = faV3GetChannelThreshold(slot, i);
 	  if(faV3[slot].thr[i] > 0)
 	    {
 	      faV3[slot].thr[i] = faV3[slot].thr[i] - (int)faV3[slot].ped[i]; /* MUST SUBTRACT PEDESTAL TO BE CONSISTENT WITH DOWNLOADED THRESHOLD */

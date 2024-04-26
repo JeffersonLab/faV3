@@ -53,6 +53,11 @@ typedef struct
 
 extern const char *faV3_halld_mode_names[FAV3_MAX_PROC_MODE + 1];
 
+/* Define MGT Control bits */
+#define FAV3_MGT_FRONT_END_TO_CTP         0x2
+#define FAV3_MGT_ENABLE_DATA_ALIGNMENT    0x4
+#define FAV3_MGT_HITBITS_TO_CTP           0x8
+
 
 #define FAV3_ADC_CONFIG1_CHAN_MASK         0x0F00
 #define FAV3_ADC_CONFIG1_CHAN_READ_ENABLE (1<<15)

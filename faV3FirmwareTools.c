@@ -15,7 +15,22 @@
  *
  */
 
+#include <stdio.h>
+#include <pthread.h>
+#include <string.h>
 #include <ctype.h>
+#include "faV3Lib.h"
+#include "faV3FirmwareTools.h"
+
+extern pthread_mutex_t faV3Mutex;
+
+#define FAV3LOCK      if(pthread_mutex_lock(&faV3Mutex)<0) perror("pthread_mutex_lock");
+#define FAV3UNLOCK    if(pthread_mutex_unlock(&faV3Mutex)<0) perror("pthread_mutex_unlock");
+
+extern int nfaV3;
+extern int faV3ID[FAV3_MAX_BOARDS];
+extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];	/* pointers to FAV3 memory map */
+
 
 #define        FAV3_FPGAID_MASK     0xFFFFF000
 #define        FAV3_FPGAID_CTRL     0xf2501000

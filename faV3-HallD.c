@@ -35,6 +35,8 @@ extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];	/* pointers to FAV3 memory
 extern uint16_t faV3ChanDisableMask[(FAV3_MAX_BOARDS + 1)];
 volatile faV3_halld_adc_t *HallDp[(FAV3_MAX_BOARDS + 1)];
 
+int faV3AlignmentDebug=0;                            /* Flag to send alignment sequence to CTP */
+
 const char *fa_halld_mode_names[FAV3_MAX_PROC_MODE+1] =
   {
     "NOT DEFINED", // 0
@@ -513,6 +515,152 @@ faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data)
   FAV3UNLOCK;
 
   return (FAV3_MAX_ADC_CHANNELS/2);
+}
+
+
+/**
+ *  @ingroup Deprec
+ *  @brief Set the fa250 operation when Sync Reset is received
+ *
+ *   This routine is deprecated.  Use faSetAlignmentDebugMode
+ *
+ *  @param id Slot number
+ *  @param  mode
+ *    - 0:  Send a calibration sequence to the CTP for alignment purposes
+ *    - 1:  Normal operation
+ *  @sa faSetAlignmentDebugMode
+ *  @return OK if successful, otherwise ERROR.
+ */
+
+int
+faV3SetMGTTestMode(int id, uint32_t mode)
+{
+  if(id == 0)
+    id = faV3ID[0];
+
+  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
+    {
+      printf("%s: ERROR : ADC in slot %d is not initialized \n",
+	     __func__, id);
+      return (ERROR);
+    }
+
+  FAV3LOCK;
+  if(mode)
+    {				/* After Sync Reset (Normal mode) */
+      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_MGT_RESET);
+      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_MGT_FRONT_END_TO_CTP);
+    }
+  else
+    {				/* Before Sync Reset (Calibration Mode) */
+      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_RELEASE_MGT_RESET);
+      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_MGT_RESET);
+      vmeWrite32(&FAV3p[id]->ctrl_mgt, FAV3_MGT_ENABLE_DATA_ALIGNMENT);
+    }
+  FAV3UNLOCK;
+
+  return (OK);
+}
+
+
+
+int
+faV3SyncResetMode(int id, uint32_t mode)
+{
+  return faV3SetMGTTestMode(id, mode);
+}
+
+
+
+/**
+ *  @ingroup Status
+ *  @brief Return whether or not the module will send the alignment sequence to the CTP
+ *  @return 1 if enabled, 0 if disabled
+ */
+int
+faV3GetAlignmentDebugMode()
+{
+  return faV3AlignmentDebug;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable Hitbits mode on the module
+ *  @param id Slot number
+ *  @param enable
+ *   -  0: Disable
+ *   - >0: Enable
+ *  @return OK if successful, otherwise ERROR.
+ */
+int
+faV3SetHitbitsMode(int id, int enable)
+{
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      printf("%s: ERROR : ADC in slot %d is not initialized \n",
+	     __FUNCTION__,id);
+      return(ERROR);
+    }
+
+  FAV3LOCK;
+  if(enable)
+    {
+      vmeWrite32(&FAV3p[id]->ctrl_mgt,
+		 vmeRead32(&FAV3p[id]->ctrl_mgt) | FAV3_MGT_HITBITS_TO_CTP);
+    }
+  else
+    { /* Before Sync Reset (Calibration Mode) */
+      vmeWrite32(&FAV3p[id]->ctrl_mgt,
+		 vmeRead32(&FAV3p[id]->ctrl_mgt) & ~FAV3_MGT_HITBITS_TO_CTP);
+    }
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable Hitbits mode for all initialized fADC250s
+ *  @param enable
+ *   -  0: Disable
+ *   - >0: Enable
+ */
+void
+faV3GSetHitbitsMode(int enable)
+{
+  int ifadc;
+
+  for(ifadc=0;ifadc<nfaV3;ifadc++)
+    faV3SetHitbitsMode(faV3Slot(ifadc),enable);
+
+}
+
+/**
+ *  @ingroup Status
+ *  @brief Get the enabled/disabled status of hitbits mode for the module
+ *  @param id Slot number
+ *  @return 1 if enabled, 0 if disabled, otherwise ERROR.
+ */
+int
+faV3GetHitbitsMode(int id)
+{
+  int rval;
+  if(id==0) id=faV3ID[0];
+
+  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
+    {
+      printf("%s: ERROR : ADC in slot %d is not initialized \n",
+	     __FUNCTION__,id);
+      return(ERROR);
+    }
+
+  FAV3LOCK;
+  rval = (vmeRead32(&FAV3p[id]->ctrl_mgt)&FAV3_MGT_HITBITS_TO_CTP)>>3;
+  FAV3UNLOCK;
+
+  return rval;
 }
 
 /**

@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include "jvme.h"
 #include "faV3Lib.h"
+#include "faV3FirmwareTools.h"
 
 char *progName;
 
