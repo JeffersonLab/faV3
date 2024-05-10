@@ -31,6 +31,11 @@ extern int nfaV3;
 extern int faV3ID[FAV3_MAX_BOARDS];
 extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];	/* pointers to FAV3 memory map */
 
+#define CHECKID	{							\
+    if(id == 0) id = faV3ID[0];						\
+    if((id <= 0) || (id > 21) || (FAV3p[id] == NULL)) {			\
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id); \
+      return ERROR; }}
 
 #define        FAV3_FPGAID_MASK     0xFFFFF000
 #define        FAV3_FPGAID_CTRL     0xf2501000
@@ -60,15 +65,7 @@ int
 faV3FirmwareLoad(int id, int chip, int pFlag)
 {
   faV3UpdateWatcherArgs_t updateArgs;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(chip < 0 || chip > 2)
     {
@@ -580,15 +577,7 @@ faV3FirmwareVerifyDownload(int id)
   uint32_t value;
 #endif
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(MSC_loaded != 1)
     {
@@ -677,15 +666,7 @@ faV3FirmwareTestReady(int id, int n_try, int pFlag)
   faV3UpdateWatcherArgs_t updateArgs;
   uint32_t value = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   result = ERROR;
 
@@ -734,15 +715,7 @@ faV3FirmwareZeroSRAM(int id)
   int ii, value = 0, value_1 = 0, value_2 = 0;
   int ErrorCount = 0, stopPrint = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   /* set address = 0; allow increment on mem2 access */
   FAV3LOCK;
@@ -803,15 +776,7 @@ faV3FirmwareCheckSRAM(int id)
 #ifdef DEBUG
   uint32_t value;
 #endif
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   faV3FirmwareZeroSRAM(id);
 

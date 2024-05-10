@@ -12,8 +12,8 @@ int faV3ItrigSetMode(int id, int tmode, uint32_t wMask, uint32_t wWidth,
 int faV3ItrigInitTable(int id, uint32_t * table);
 int faV3ItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask);
 uint32_t faV3ItrigGetHBwidth(int id, uint32_t chan);
-void faV3ItrigPrintHBwidth(int id);
+int faV3ItrigPrintHBwidth(int id);
 uint32_t faV3ItrigOutConfig(int id, uint16_t itrigDelay, uint16_t itrigWidth);
-void faV3ItrigEnable(int id);
-void faV3ItrigDisable(int id);
+int faV3ItrigEnable(int id);
+int faV3ItrigDisable(int id);
 int faV3ItrigGetTableVal(int id, uint16_t pMask);

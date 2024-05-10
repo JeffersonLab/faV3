@@ -37,6 +37,20 @@ volatile faV3_halld_adc_t *HallDp[(FAV3_MAX_BOARDS + 1)];
 
 int faV3AlignmentDebug=0;                            /* Flag to send alignment sequence to CTP */
 
+#define CHECKID	{							\
+    if(id == 0) id = faV3ID[0];						\
+    if((id <= 0) || (id > 21) || (FAV3p[id] == NULL)) {			\
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id); \
+      return ERROR; }}
+
+#define FAV3_FIRMWARE(__slot_id, _compat_mask) {			\
+    if((faV3FwType[__slot_id] & _compat_mask) == 0) {			\
+      printf("%s: ERROR: Firmware type (%d) not with this function\n", __func__, \
+	     faV3FwType[__slot_id]);					\
+      return ERROR; }}
+
+
+
 const char *fa_halld_mode_names[FAV3_MAX_PROC_MODE+1] =
   {
     "NOT DEFINED", // 0
@@ -147,14 +161,7 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   int mode_supported=0;
   int mode_bit=0;
 
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n",
-	     __func__, id);
-      return(ERROR);
-    }
+  CHECKID;
 
   for(imode=0; imode<FAV3_SUPPORTED_NMODES; imode++)
     {
@@ -345,13 +352,7 @@ faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 int
 faV3HallDProcPedConfig(int id, int nsamples, int maxvalue)
 {
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (HallDp[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
-      return(ERROR);
-    }
+  CHECKID;
 
   if((nsamples < FAV3_ADC_MIN_NPED) || (nsamples > FAV3_ADC_MAX_NPED))
     {
@@ -408,13 +409,7 @@ faV3HallDGProcPedConfig(int nsamples, int maxvalue)
 int
 faV3HallDSampleConfig(int id, int nsamples, int maxvalue)
 {
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (HallDp[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
-      return(ERROR);
-    }
+  CHECKID;
 
   if((nsamples < FAV3_ADC_MIN_MNPED) || (nsamples > FAV3_ADC_MAX_MNPED))
     {
@@ -475,13 +470,7 @@ faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data)
 {
   int ichan=0;
   uint32_t write=0, read=0;
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (HallDp[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
-      return(ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   write = vmeRead32(&HallDp[id]->config1) & 0xFFFF;
@@ -535,15 +524,7 @@ faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data)
 int
 faV3SetMGTTestMode(int id, uint32_t mode)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   if(mode)
@@ -595,14 +576,7 @@ faV3GetAlignmentDebugMode()
 int
 faV3SetHitbitsMode(int id, int enable)
 {
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __FUNCTION__,id);
-      return(ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   if(enable)
@@ -647,14 +621,7 @@ int
 faV3GetHitbitsMode(int id)
 {
   int rval;
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __FUNCTION__,id);
-      return(ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = (vmeRead32(&FAV3p[id]->ctrl_mgt)&FAV3_MGT_HITBITS_TO_CTP)>>3;
@@ -678,14 +645,7 @@ faV3GetHitbitsMode(int id)
 int
 faV3HallDSetRoguePTWFallBack(int id, uint16_t enablemask)
 {
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (HallDp[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized\n",
-	     __func__, id);
-      return(ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&HallDp[id]->roque_ptw_fall_back, enablemask);
@@ -709,14 +669,7 @@ int
 faV3HallDGetRoguePTWFallBack(int id, uint16_t *enablemask)
 {
   int rval = OK;
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (HallDp[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized\n",
-	     __func__, id);
-      return(ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   *enablemask = vmeRead32(&HallDp[id]->roque_ptw_fall_back) & FAV3_ROQUE_PTW_FALL_BACK_MASK;

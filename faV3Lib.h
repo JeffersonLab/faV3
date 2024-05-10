@@ -325,12 +325,15 @@ typedef struct faV3_sdc_struct
 #define FAV3_CTRL_VXS_RO_ENABLE    (1 << 10)
 
 /* Define Reset Bits */
-#define FAV3_RESET_CNTL_FPGA              0x1
-#define FAV3_RESET_ADC_FPGA1              0x2
-#define FAV3_RESET_ADC_FIFO1            0x100
-#define FAV3_RESET_DAC                  0x800
-#define FAV3_RESET_EXT_RAM_PT          0x1000
-#define FAV3_RESET_TOKEN              0x10000
+#define FAV3_RESET_HARD_CNTL          (1 << 0)
+#define FAV3_RESET_HARD_PROC          (1 << 1)
+#define FAV3_RESET_SOFT_CNTL          (1 << 4)
+#define FAV3_RESET_SOFT_PROC          (1 << 5)
+#define FAV3_RESET_ADC_FIFO           (1 << 8)
+#define FAV3_RESET_HITSUM_FIFO        (1 << 10)
+#define FAV3_RESET_DAC                (1 << 11)
+#define FAV3_RESET_EXT_RAM_PT         (1 << 12)
+#define FAV3_RESET_TOKEN              (1 << 16)
 #define FAV3_RESET_ALL                 0xFFFF
 
 /* Define trig_scal bits */
@@ -755,7 +758,7 @@ int faV3GetN();
 int faV3SetClockSource(int id, int clkSrc);
 int faV3GSetClockSource(int clkSrc);
 
-void faV3Status(int id, int sflag);
+int faV3Status(int id, int sflag);
 void faV3GStatus(int sflag);
 uint32_t faV3GetFirmwareVersions(int id, int pflag);
 
@@ -777,8 +780,8 @@ void faV3GSetTriggerPathThreshold(uint32_t TPT);
 int32_t faV3SetupADC(int id, int32_t mode);
 
 int faV3SetPPG(int id, uint16_t *sdata, int nsamples);
-void faV3PPGEnable(int id);
-void faV3PPGDisable(int id);
+int faV3PPGEnable(int id);
+int faV3PPGDisable(int id);
 
 uint32_t faV3ItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt);
 
@@ -787,15 +790,15 @@ int faV3GetBlockError(int pflag);
 int faV3PrintBlock(int id);
 
 uint32_t faV3ReadCSR(int id);
-void faV3Clear(int id);
+int faV3Clear(int id);
 void faV3GClear();
-void faV3ClearError(int id);
+int faV3ClearError(int id);
 void faV3GClearError();
 
-void faV3Reset(int id, int iFlag);
+int faV3Reset(int id, int iFlag);
 void faV3GReset(int iFlag);
-void faV3SoftReset(int id, int cflag);
-void faV3ResetToken(int id);
+int faV3SoftReset(int id, int cflag);
+int faV3ResetToken(int id);
 int faV3TokenStatus(int id);
 int faV3GTokenStatus();
 uint32_t faV3GetTokenStatus(int pflag);
@@ -803,28 +806,28 @@ uint32_t faV3GetTokenStatus(int pflag);
 int faV3SetChanDisableMask(int id, uint16_t channel);
 uint32_t faV3GetChanDisableMask(int id);
 
-void faV3SetCompression(int id, int opt);
+int faV3SetCompression(int id, int opt);
 int faV3GetCompression(int id);
-void faV3SetVXSReadout(int id, int opt);
+int faV3SetVXSReadout(int id, int opt);
 void faV3GSetVXSReadout(int opt);
 int faV3GetVXSReadout(int id);
 
-void faV3EnableSyncSrc(int id);
+int faV3EnableSyncSrc(int id);
 void faV3GEnableSyncSrc();
 
-void faV3Enable(int id, int eflag);
+int faV3Enable(int id, int eflag);
 void faV3GEnable(int eflag);
-void faV3Disable(int id, int eflag);
+int faV3Disable(int id, int eflag);
 void faV3GDisable(int eflag);
 
-void faV3Trig(int id);
+int faV3Trig(int id);
 void faV3GTrig();
-void faV3Trig2(int id);
+int faV3Trig2(int id);
 void faV3GTrig2();
 int faV3SetTrig21Delay(int id, int delay);
 int faV3GetTrig21Delay(int id);
 int faV3EnableInternalPlaybackTrigger(int id);
-void faV3Sync(int id);
+int faV3Sync(int id);
 int faV3Dready(int id, int dflag);
 int faV3Bready(int id);
 uint32_t faV3GBready();
@@ -832,26 +835,26 @@ uint32_t faV3GBlockReady(uint32_t slotmask, int nloop);
 uint32_t faV3ScanMask();
 int faV3BusyLevel(int id, uint32_t val, int bflag);
 int faV3Busy(int id);
-void faV3EnableSoftTrig(int id);
-void faV3DisableSoftTrig(int id);
-void faV3EnableSoftSync(int id);
-void faV3DisableSoftSync(int id);
+int faV3EnableSoftTrig(int id);
+int faV3DisableSoftTrig(int id);
+int faV3EnableSoftSync(int id);
+int faV3DisableSoftSync(int id);
 
-void faV3EnableClk(int id);
-void faV3DisableClk(int id);
-void faV3EnableTriggerOut(int id, int output);
-void faV3EnableBusError(int id);
+int faV3EnableClk(int id);
+int faV3DisableClk(int id);
+int faV3EnableTriggerOut(int id, int output);
+int faV3EnableBusError(int id);
 void faV3GEnableBusError();
-void faV3DisableBusError(int id);
-void faV3EnableMultiBlock(int tflag);
-void faV3DisableMultiBlock();
+int faV3DisableBusError(int id);
+int faV3EnableMultiBlock(int tflag);
+int faV3DisableMultiBlock();
 int faV3SetBlockLevel(int id, int level);
 void faV3GSetBlockLevel(int level);
 
 int faV3SetClkSource(int id, int source);
 int faV3SetTrigSource(int id, int source);
 int faV3SetSyncSource(int id, int source);
-void faV3EnableFP(int id);
+int faV3EnableFP(int id);
 int faV3SetTrigOut(int id, int trigout);
 
 uint32_t faV3GetTriggerCount(int id);
@@ -888,15 +891,15 @@ uint32_t faV3GetA32M();
 uint32_t faV3GetMinA32MB(int id);
 uint32_t faV3GetMaxA32MB(int id);
 
-void faV3PrintFifoStatus(int id);
+int faV3PrintFifoStatus(int id);
 int faV3Live(int id, int sflag);
 void faV3DataDecode(uint32_t data);
 
-void faV3TestSetSystemTestMode(int id, int mode);
-void faV3TestSetTrigOut(int id, int mode);
-void faV3TestSetBusyOut(int id, int mode);
-void faV3TestSetSdLink(int id, int mode);
-void faV3TestSetTokenOut(int id, int mode);
+int faV3TestSetSystemTestMode(int id, int mode);
+int faV3TestSetTrigOut(int id, int mode);
+int faV3TestSetBusyOut(int id, int mode);
+int faV3TestSetSdLink(int id, int mode);
+int faV3TestSetTokenOut(int id, int mode);
 int faV3TestGetStatBitB(int id);
 int faV3TestGetTokenIn(int id);
 int faV3TestGetClock250CounterStatus(int id);
@@ -904,10 +907,10 @@ uint32_t faV3TestGetClock250Counter(int id);
 uint32_t faV3TestGetSyncCounter(int id);
 uint32_t faV3TestGetTrig1Counter(int id);
 uint32_t faV3TestGetTrig2Counter(int id);
-void faV3TestResetClock250Counter(int id);
-void faV3TestResetSyncCounter(int id);
-void faV3TestResetTrig1Counter(int id);
-void faV3TestResetTrig2Counter(int id);
+int faV3TestResetClock250Counter(int id);
+int faV3TestResetSyncCounter(int id);
+int faV3TestResetTrig1Counter(int id);
+int faV3TestResetTrig2Counter(int id);
 uint32_t faV3TestGetTestBitReg(int id);
 int faV3TestSystemClock(int id, int pflag);
 

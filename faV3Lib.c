@@ -102,6 +102,13 @@ int faV3SDCPassthrough = 0;	/* If > 0 SDC in level translate / passthrough mode 
 faV3data_t faV3_data;
 int faV3BlockError = FAV3_BLOCKERROR_NO_ERROR;	/* Whether (>0) or not (0) Block Transfer had an error */
 
+#define CHECKID	{							\
+    if(id == 0) id = faV3ID[0];						\
+    if((id <= 0) || (id > 21) || (FAV3p[id] == NULL)) {			\
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id); \
+      return ERROR; }}
+
+
 /**
  * @defgroup Config Initialization/Configuration
  * @defgroup SDCConfig SDC Initialization/Configuration
@@ -685,7 +692,8 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       for(ii = 0; ii < nfaV3; ii++)
 	{
 	  vmeWrite32(&(FAV3p[faV3ID[ii]]->reset),
-		     (FAV3_RESET_ADC_FPGA1 | FAV3_RESET_ADC_FIFO1 |
+		     (FAV3_RESET_HARD_CNTL | FAV3_RESET_HARD_PROC |
+		      FAV3_RESET_ADC_FIFO | FAV3_RESET_HITSUM_FIFO |
 		      FAV3_RESET_DAC | FAV3_RESET_EXT_RAM_PT));
 
 	  /* Release reset on MGTs */
@@ -786,20 +794,19 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
     }
 
   faV3Inited = nfaV3;
-  if(errFlag > 0)
+
+  if(nfaV3 <= 0)
     {
-#ifdef DEBUG
-      printf("faInit: WARN: Unable to initialize all requested FADC Modules (%d)\n",
-	     nadc);
-#endif
-      if(nfaV3 > 0)
-	printf("faInit: %d FADC(s) successfully initialized\n", nfaV3);
+      printf("%s: ERROR: No FADCs initialized\n", __func__);
+
       return (ERROR);
     }
-  else
-    {
-      return (OK);
-    }
+
+  printf("%s: %d FADC(s) successfully initialized\n",
+	 __func__, nfaV3);
+
+  return nfaV3;
+
 }				//End of faInit
 
 void
@@ -949,6 +956,24 @@ faV3GetFWType(int id, int function, int version, int *type)
   return OK;
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Set all sram registers to zero
+ *
+ *  @param id Slot Number
+ *
+ *  @return OK if successful, otherwise ERROR.
+ */
+
+int
+faV3ZeroSram(int id)
+{
+  int rval = OK;
+
+  CHECKID;
+
+  return rval;
+}
 
 /**
  *  @ingroup Config
@@ -975,15 +1000,7 @@ faV3GetFWType(int id, int function, int version, int *type)
 int
 faV3SetClockSource(int id, int clkSrc)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(clkSrc > 0x3)
     {
@@ -1097,7 +1114,8 @@ faV3GSetClockSource(int clkSrc)
  *  @param sflag Reserved for future use
  *
  */
-void
+
+int
 faV3Status(int id, int sflag)
 {
   int ii;
@@ -1117,15 +1135,7 @@ faV3Status(int id, int sflag)
   uint32_t val, trig_mode[16], inverted[16], playback_ch[16];
   char *trig_mode_string;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vers = vmeRead32(&FAV3p[id]->version);
@@ -1447,7 +1457,7 @@ faV3Status(int id, int sflag)
     printf("\n");
 
 
-
+  return OK;
 }
 
 /**
@@ -1817,15 +1827,7 @@ uint32_t
 faV3GetFirmwareVersions(int id, int pflag)
 {
   uint32_t cntl = 0, proc = 0, rval = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__,
-	     id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   /* Control FPGA firmware version */
@@ -1875,14 +1877,7 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   uint32_t ptw_last_adr, ptw_max_buf;
 
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   if((pmode <= 0) || (pmode > 8))
     {
@@ -1994,14 +1989,7 @@ faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 {
   uint32_t tmp;
 
-  if(id == 0)
-    id = faV3ID[0];
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3GetProcMode: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   *PTW = (vmeRead32(&(FAV3p[id]->adc.ptw)) & 0xFFFF);
   *PL = (vmeRead32(&(FAV3p[id]->adc.pl)) & 0xFFFF);
@@ -2029,14 +2017,7 @@ faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 int
 faV3SetTriggerStopCondition(int id, int trigger_max)
 {
-  if(id == 0)
-    id = faV3ID[0];
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(trigger_max > 0xFF)
     {
@@ -2076,14 +2057,7 @@ faV3SetTriggerStopCondition(int id, int trigger_max)
 int
 faV3SetTriggerBusyCondition(int id, int trigger_max)
 {
-  if(id == 0)
-    id = faV3ID[0];
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(trigger_max > 0xFF)
     {
@@ -2124,14 +2098,7 @@ faV3SetTriggerPathSamples(int id, uint32_t TNSB, uint32_t TNSA)
 {
   uint32_t readback_nsb = 0, readback_nsa = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   // FIXME: Check for updated v3 values
   if((TNSA < FAV3_ADC_MIN_TNSA) || (TNSA > FAV3_ADC_MAX_TNSA))
@@ -2195,14 +2162,7 @@ faV3GSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT)
 int
 faV3SetTriggerPathThreshold(int id, uint32_t TPT)
 {
-  if(id == 0)
-    id = faV3ID[0];
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : FADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(TPT > FAV3_ADC_MAX_TPT)
     {
@@ -2314,14 +2274,7 @@ faV3SetupADC(int id, int32_t mode)
 {
   int32_t rval = OK;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR: FADC in slot %d is not initialized \n", __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   mode = 0;
   taskDelay(1);
@@ -2379,16 +2332,7 @@ faV3SetPPG(int id, uint16_t *sdata, int nsamples)
   int ii;
   uint16_t rval;
 
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetPPG: ERROR : FADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   if(sdata == NULL)
     {
@@ -2439,13 +2383,12 @@ faV3SetPPG(int id, uint16_t *sdata, int nsamples)
  *  @sa faV3SetPPG faV3PPGDisable
  */
 
-void
+int
 faV3PPGEnable(int id)
 {
   uint16_t val1;
 
-  if(id == 0)
-    id = faV3ID[0];
+  CHECKID;
 
   FAV3LOCK;
   val1 = (vmeRead32(&FAV3p[id]->adc.config1) & 0xFFFF);
@@ -2453,6 +2396,7 @@ faV3PPGEnable(int id)
   vmeWrite32(&FAV3p[id]->adc.config1, val1);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -2462,20 +2406,12 @@ faV3PPGEnable(int id)
  *  @sa faV3SetPPG faV3PPGEnable
  */
 
-void
+int
 faV3PPGDisable(int id)
 {
   uint16_t val1;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3PPGDisable: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   val1 = (vmeRead32(&FAV3p[id]->adc.config1) & 0xFFFF);
@@ -2484,6 +2420,7 @@ faV3PPGDisable(int id)
   vmeWrite32(&FAV3p[id]->adc.config1, val1);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -2500,15 +2437,7 @@ faV3ItrigControl(int id, uint16_t itrig_width, uint16_t itrig_dt)
 {
   uint32_t retval = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ItrigControl: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (0xffffffff);
-    }
+  CHECKID;
 
   /* If both parameters = 0 then just return the current value */
   FAV3LOCK;
@@ -2562,15 +2491,7 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
   uint32_t bhead, ehead, val;
   uint32_t vmeAdr, csr;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ReadBlock: ERROR : FADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   if(data == NULL)
     {
@@ -2887,15 +2808,7 @@ faV3PrintBlock(int id)
   int nwrds = 32768, dCnt, berr = 0;
   uint32_t data, bhead, ehead;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("faV3PrintBlock: ERROR : FADC in slot %d is not initialized \n",
-	     id);
-      return (ERROR);
-    }
+  CHECKID;
 
   /* Check if data available */
   FAV3LOCK;
@@ -2994,15 +2907,7 @@ faV3ReadCSR(int id)
 {
   uint32_t rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ReadCSR: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return (0);
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&(FAV3p[id]->csr));
@@ -3017,22 +2922,16 @@ faV3ReadCSR(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3Clear(int id)
 {
+  CHECKID;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Clear: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return;
-    }
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->csr), FAV3_CSR_SOFT_RESET);
   FAV3UNLOCK;
+
+  return OK;
 }
 
 /**
@@ -3046,22 +2945,10 @@ faV3GClear()
 
   int ii, id;
 
-  FAV3LOCK;
   for(ii = 0; ii < nfaV3; ii++)
     {
-      id = faV3ID[ii];
-      if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-	{
-	  logMsg("faV3GClear: ERROR : ADC in slot %d is not initialized \n", id,
-		 0, 0, 0, 0, 0);
-	}
-      else
-	{
-	  vmeWrite32(&(FAV3p[id]->csr), FAV3_CSR_SOFT_RESET);
-	}
+      faV3Clear(faV3Slot(ii));
     }
-  FAV3UNLOCK;
-
 }
 
 /**
@@ -3070,24 +2957,17 @@ faV3GClear()
  *  @param id Slot number
  */
 
-void
+int
 faV3ClearError(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ClearErr: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->csr), FAV3_CSR_ERROR_CLEAR);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -3101,21 +2981,10 @@ faV3GClearError()
 
   int ii, id;
 
-  FAV3LOCK;
   for(ii = 0; ii < nfaV3; ii++)
     {
-      id = faV3ID[ii];
-      if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-	{
-	  logMsg("faV3GClearErr: ERROR : ADC in slot %d is not initialized \n",
-		 id, 0, 0, 0, 0, 0);
-	}
-      else
-	{
-	  vmeWrite32(&(FAV3p[id]->csr), FAV3_CSR_ERROR_CLEAR);
-	}
+      faV3ClearError(faV3Slot(ii));
     }
-  FAV3UNLOCK;
 
 }
 
@@ -3128,20 +2997,12 @@ faV3GClearError()
  *     - !0: Do not restore A32 readout after reset. (Useful for configuration changes)
  */
 
-void
+int
 faV3Reset(int id, int iFlag)
 {
   uint32_t a32addr, addrMB;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Reset: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   if(iFlag == 0)
@@ -3160,6 +3021,7 @@ faV3Reset(int id, int iFlag)
     }
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -3217,18 +3079,10 @@ faV3GReset(int iFlag)
  *    - >0: Soft Reset
  */
 
-void
+int
 faV3SoftReset(int id, int cflag)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Reset: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   if(cflag)			/* perform soft clear */
@@ -3237,6 +3091,7 @@ faV3SoftReset(int id, int cflag)
     vmeWrite32(&(FAV3p[id]->csr), FAV3_CSR_SOFT_RESET);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -3250,23 +3105,16 @@ faV3SoftReset(int id, int cflag)
  *  @param id Slot number
  */
 
-void
+int
 faV3ResetToken(int id)
 {
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ResetToken: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->reset), FAV3_RESET_TOKEN);
   FAV3UNLOCK;
+
+  return OK;
 }
 
 
@@ -3282,15 +3130,7 @@ faV3TokenStatus(int id)
 {
   int rval = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ResetToken: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = (vmeRead32(&FAV3p[id]->csr) & FAV3_CSR_TOKEN_STATUS) >> 4;
@@ -3364,15 +3204,7 @@ int
 faV3SetChanDisableMask(int id, uint16_t cmask)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ChanDisable: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return OK;
-    }
+  CHECKID;
 
   faV3ChanDisableMask[id] = cmask;	/* Set Global Variable */
 
@@ -3397,16 +3229,7 @@ faV3GetChanDisableMask(int id)
 {
   uint32_t tmp, cmask = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3GetChanMask: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (0);
-    }
-
+  CHECKID;
 
   FAV3LOCK;
   tmp = vmeRead32(&(FAV3p[id]->adc.config2)) & 0xFFFF;
@@ -3420,20 +3243,12 @@ faV3GetChanDisableMask(int id)
 
 
 /* opt=0 - disable, 1-enable, 2-verify */
-void
+int
 faV3SetCompression(int id, int opt)
 {
   uint32_t ctrl2;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetCompression: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
 
@@ -3470,6 +3285,8 @@ faV3SetCompression(int id, int opt)
   vmeWrite32(&(FAV3p[id]->ctrl2), ctrl2);
 
   FAV3UNLOCK;
+
+  return OK;
 }
 
 
@@ -3479,15 +3296,7 @@ faV3GetCompression(int id)
   uint32_t ctrl2;
   int opt;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3GetCompression: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (-1);
-    }
+  CHECKID;
 
   FAV3LOCK;
 
@@ -3516,20 +3325,12 @@ faV3GetCompression(int id)
 }
 
 /* opt=0 - disable, 1-enable */
-void
+int
 faV3SetVXSReadout(int id, int opt)
 {
   uint32_t ctrl2;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetVXSReadout: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
 
@@ -3547,6 +3348,7 @@ faV3SetVXSReadout(int id, int opt)
   vmeWrite32(&(FAV3p[id]->ctrl2), ctrl2);
 
   FAV3UNLOCK;
+  return OK;
 }
 
 void
@@ -3568,15 +3370,7 @@ faV3GetVXSReadout(int id)
   uint32_t ctrl2;
   int opt;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3GetVXSReadout: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (-1);
-    }
+  CHECKID;
 
   FAV3LOCK;
 
@@ -3598,25 +3392,19 @@ faV3GetVXSReadout(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3EnableSyncSrc(int id)
 {
   uint32_t ctrl2;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Enable: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   ctrl2 = vmeRead32(&FAV3p[id]->ctrl2) | FAV3_CTRL_ENABLE_SRESET;
   vmeWrite32(&FAV3p[id]->ctrl2, ctrl2);
   FAV3UNLOCK;
+
+  return OK;
 }
 
 /**
@@ -3640,21 +3428,13 @@ faV3GEnableSyncSrc()
  *  @param eflag Enable Internal Trigger Logic, as well
  */
 
-void
+int
 faV3Enable(int id, int eflag)
 {
   uint32_t ctrl2;
   int compress_opt, vxsro_opt;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Enable: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   /* call it BEFORE 'FAV3LOCK' !!! */
   compress_opt = faV3GetCompression(id);
@@ -3686,6 +3466,8 @@ faV3Enable(int id, int eflag)
   vmeWrite32(&(FAV3p[id]->ctrl2), ctrl2);
 
   FAV3UNLOCK;
+
+  return OK;
 }
 
 /**
@@ -3716,19 +3498,12 @@ faV3GEnable(int eflag)
  *  @param eflag
  *    - >0: Turn off FIFO transfer as well.
  */
-void
+
+int
 faV3Disable(int id, int eflag)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Disable: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   if(eflag)
@@ -3736,6 +3511,8 @@ faV3Disable(int id, int eflag)
   else
     vmeWrite32(&(FAV3p[id]->ctrl2), (FAV3_CTRL_GO | FAV3_CTRL_ENABLE_SRESET));	/* Keep SYNC RESET detection enabled */
   FAV3UNLOCK;
+
+  return OK;
 }
 
 /**
@@ -3764,26 +3541,22 @@ faV3GDisable(int eflag)
  *  @param id Slot number
  */
 
-void
+int
 faV3Trig(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Trig: ERROR : ADC in slot %d is not initialized \n", id, 0, 0,
-	     0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
+
   if(vmeRead32(&(FAV3p[id]->ctrl1)) & (FAV3_ENABLE_SOFT_TRIG))
     vmeWrite32(&(FAV3p[id]->csr), FAV3_CSR_TRIGGER);
   else
     logMsg("faV3Trig: ERROR: Software Triggers not enabled", 0, 0, 0, 0, 0, 0);
+
   FAV3UNLOCK;
+
+  return OK;
 }
 
 /**
@@ -3806,24 +3579,19 @@ faV3GTrig()
  *  @param id Slot number
  */
 
-void
+int
 faV3Trig2(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
+  CHECKID;
 
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Trig2: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return;
-    }
   FAV3LOCK;
   if(vmeRead32(&(FAV3p[id]->ctrl1)) & (FAV3_ENABLE_SOFT_TRIG))
     vmeWrite32(&(FAV3p[id]->csr), FAV3_CSR_SOFT_PULSE_TRIG2);
   else
     logMsg("faV3Trig2: ERROR: Software Triggers not enabled", 0, 0, 0, 0, 0, 0);
   FAV3UNLOCK;
+
+  return OK;
 }
 
 /**
@@ -3852,15 +3620,7 @@ faV3GTrig2()
 int
 faV3SetTrig21Delay(int id, int delay)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(delay > FAV3_TRIG21_DELAY_MASK)
     {
@@ -3886,15 +3646,7 @@ int
 faV3GetTrig21Delay(int id)
 {
   int rval = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->trig21_del) & FAV3_TRIG21_DELAY_MASK;
@@ -3914,15 +3666,7 @@ faV3GetTrig21Delay(int id)
 int
 faV3EnableInternalPlaybackTrigger(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->ctrl1,
@@ -3939,19 +3683,11 @@ faV3EnableInternalPlaybackTrigger(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3Sync(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Sync: ERROR : ADC in slot %d is not initialized \n", id, 0, 0,
-	     0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   if(vmeRead32(&(FAV3p[id]->ctrl1)) & (FAV3_ENABLE_SOFT_SRESET))
@@ -3960,6 +3696,8 @@ faV3Sync(int id)
     logMsg("faV3Sync: ERROR: Software Sync Resets not enabled\n", 0, 0, 0, 0, 0,
 	   0);
   FAV3UNLOCK;
+
+  return OK;
 }
 
 
@@ -3978,15 +3716,7 @@ faV3Dready(int id, int dflag)
 {
   uint32_t dcnt = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Dready: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   if(dflag)
@@ -4011,15 +3741,7 @@ faV3Bready(int id)
 {
   int stat = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Bready: ERROR : ADC in slot %d is not initialized \n", id, 0,
-	     0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   stat = (vmeRead32(&(FAV3p[id]->csr))) & FAV3_CSR_BLOCK_READY;
@@ -4143,15 +3865,8 @@ faV3BusyLevel(int id, uint32_t val, int bflag)
 {
   uint32_t blreg = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
+  CHECKID;
 
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3BusyLevel: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return (ERROR);
-    }
   if(val > FAV3_BUSY_LEVEL_MASK)
     return (ERROR);
 
@@ -4188,15 +3903,7 @@ faV3Busy(int id)
   uint32_t blreg = 0;
   uint32_t dreg = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Busy: ERROR : ADC in slot %d is not initialized \n", id, 0, 0,
-	     0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   blreg = vmeRead32(&(FAV3p[id]->busy_level)) & FAV3_BUSY_LEVEL_MASK;
@@ -4215,19 +3922,10 @@ faV3Busy(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3EnableSoftTrig(int id)
 {
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3EnableSoftTrig: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   /* Clear the source */
   FAV3LOCK;
@@ -4237,6 +3935,8 @@ faV3EnableSoftTrig(int id)
 	     vmeRead32(&(FAV3p[id]->ctrl1)) | (FAV3_TRIG_VME |
 					       FAV3_ENABLE_SOFT_TRIG));
   FAV3UNLOCK;
+
+  return OK;
 }
 
 /**
@@ -4263,25 +3963,18 @@ faV3GEnableSoftTrig()
  *  @param id Slot number
  */
 
-void
+int
 faV3DisableSoftTrig(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3DisableSoftTrig: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
 	     vmeRead32(&(FAV3p[id]->ctrl1)) & ~FAV3_ENABLE_SOFT_TRIG);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4290,19 +3983,11 @@ faV3DisableSoftTrig(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3EnableSoftSync(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3EnableSoftSync: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   /* Clear the source */
   FAV3LOCK;
@@ -4313,6 +3998,8 @@ faV3EnableSoftSync(int id)
 	     vmeRead32(&(FAV3p[id]->ctrl1)) | (FAV3_SRESET_VME |
 					       FAV3_ENABLE_SOFT_SRESET));
   FAV3UNLOCK;
+
+  return OK;
 }
 
 /**
@@ -4321,25 +4008,17 @@ faV3EnableSoftSync(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3DisableSoftSync(int id)
 {
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3DisableSoftSync: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
 	     vmeRead32(&(FAV3p[id]->ctrl1)) & ~FAV3_ENABLE_SOFT_SRESET);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4348,19 +4027,11 @@ faV3DisableSoftSync(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3EnableClk(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3EnableClk: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
@@ -4368,6 +4039,7 @@ faV3EnableClk(int id)
 					       FAV3_ENABLE_INTERNAL_CLK));
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4376,25 +4048,17 @@ faV3EnableClk(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3DisableClk(int id)
 {
-
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3DisableClk: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
 	     vmeRead32(&(FAV3p[id]->ctrl1)) & ~FAV3_ENABLE_INTERNAL_CLK);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4407,25 +4071,18 @@ faV3DisableClk(int id)
  *    - 2: FP and P0 trigger out
  */
 
-void
+int
 faV3EnableTriggerOut(int id, int output)
 {
   int bitset = 0;
-  if(id == 0)
-    id = faV3ID[0];
 
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3EnableTriggerOut: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   if(output > 2)
     {
       logMsg("faV3EnableTriggerOut: ERROR: output (%d) out of range.  Must be less than 3",
 	     output, 2, 3, 4, 5, 6);
-      return;
+      return ERROR;
 
     }
 
@@ -4446,6 +4103,7 @@ faV3EnableTriggerOut(int id, int output)
   vmeWrite32(&(FAV3p[id]->ctrl1), vmeRead32(&(FAV3p[id]->ctrl1)) | bitset);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4454,25 +4112,18 @@ faV3EnableTriggerOut(int id, int output)
  *  @param id Slot number
  */
 
-void
+int
 faV3EnableBusError(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3EnableBusError: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
 	     vmeRead32(&(FAV3p[id]->ctrl1)) | FAV3_ENABLE_BERR);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4501,25 +4152,18 @@ faV3GEnableBusError()
  *  @param id Slot number
  */
 
-void
+int
 faV3DisableBusError(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3DisableBusError: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
 	     vmeRead32(&(FAV3p[id]->ctrl1)) & ~FAV3_ENABLE_BERR);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4530,7 +4174,7 @@ faV3DisableBusError(int id)
  *    -  0: Token via P2
  */
 
-void
+int
 faV3EnableMultiBlock(int tflag)
 {
   int ii, id;
@@ -4540,7 +4184,7 @@ faV3EnableMultiBlock(int tflag)
     {
       logMsg("faV3EnableMultiBlock: ERROR : Cannot Enable MultiBlock mode \n",
 	     0, 0, 0, 0, 0, 0);
-      return;
+      return ERROR;
     }
 
   /* if token = 0 then send via P2 else via VXS */
@@ -4573,6 +4217,7 @@ faV3EnableMultiBlock(int tflag)
 	}
     }
 
+  return OK;
 }
 
 /**
@@ -4580,7 +4225,7 @@ faV3EnableMultiBlock(int tflag)
  *  @brief Disable multiblock transfer for all initialized fADC250s
  */
 
-void
+int
 faV3DisableMultiBlock()
 {
   int ii;
@@ -4589,7 +4234,7 @@ faV3DisableMultiBlock()
     {
       logMsg("faV3DisableMultiBlock: ERROR : Cannot Disable MultiBlock Mode\n",
 	     0, 0, 0, 0, 0, 0);
-      return;
+      return ERROR;
     }
 
   FAV3LOCK;
@@ -4598,6 +4243,7 @@ faV3DisableMultiBlock()
 	       vmeRead32(&(FAV3p[faV3ID[ii]]->ctrl1)) & ~FAV3_ENABLE_MULTIBLOCK);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4613,15 +4259,7 @@ faV3SetBlockLevel(int id, int level)
 {
   int rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetBlockLevel: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   if(level <= 0)
     level = 1;
@@ -4635,7 +4273,6 @@ faV3SetBlockLevel(int id, int level)
   FAV3UNLOCK;
 
   return (rval);
-
 }
 
 /**
@@ -4674,15 +4311,7 @@ faV3SetClkSource(int id, int source)
 {
   int rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetClkSource: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
@@ -4695,7 +4324,6 @@ faV3SetClkSource(int id, int source)
 
 
   return (rval);
-
 }
 
 /**
@@ -4718,15 +4346,7 @@ faV3SetTrigSource(int id, int source)
 {
   int rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetTrigSource: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
@@ -4762,15 +4382,7 @@ faV3SetSyncSource(int id, int source)
 {
   int rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetSyncSource: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
@@ -4793,19 +4405,11 @@ faV3SetSyncSource(int id, int source)
  *
  *  @param id Slot number
  */
-void
+int
 faV3EnableFP(int id)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3EnableFP: ERROR : ADC in slot %d is not initialized \n", id,
-	     0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&(FAV3p[id]->ctrl1),
@@ -4817,6 +4421,7 @@ faV3EnableFP(int id)
 					       FAV3_SRESET_FP_ISYNC));
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -4835,15 +4440,7 @@ faV3EnableFP(int id)
 int
 faV3SetTrigOut(int id, int trigout)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("faV3SetTrigOut: ERROR : ADC in slot %d is not initialized \n",
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(trigout < 0 || trigout > 7)
     {
@@ -4872,21 +4469,12 @@ faV3GetTriggerCount(int id)
 {
   uint32_t rval = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3GetTrigCount: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return 0xffffffff;
-    }
+  CHECKID;
 
   /* Just reading - not need to Lock mutex */
   rval = vmeRead32(&FAV3p[id]->trig_count);
 
   return rval;
-
 }
 
 /**
@@ -4899,15 +4487,7 @@ faV3GetTriggerCount(int id)
 int
 faV3ResetTriggerCount(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ResetTriggerCount: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->trig_count, FAV3_TRIG_COUNT_RESET);
@@ -4928,15 +4508,7 @@ faV3ResetTriggerCount(int id)
 int
 faV3SetChannelThreshold(int id, int chan, uint16_t tvalue)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetThreshold: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   int index = chan / 2;
   int hibyte = chan % 2;
@@ -4961,15 +4533,7 @@ faV3SetThresholdAll(int id, uint16_t tvalue[16])
 {
   int ii;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetThresholdAll: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
     {
@@ -4984,15 +4548,7 @@ faV3GetChannelThreshold(int id, int chan)
 {
   int rval = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetThreshold: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   int index = chan / 2;
   int hibyte = chan % 2;
@@ -5023,15 +4579,7 @@ faV3PrintThreshold(int id)
   int ii;
   uint16_t tval[FAV3_MAX_ADC_CHANNELS];
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3PrintThreshold: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS/2; ii++)
@@ -5062,14 +4610,7 @@ faV3DACInit(int id)
   uint32_t csr_value = 0, init_done = 0;
   int32_t rval = OK;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->dac_csr, FAV3_DAC_INIT);
@@ -5095,14 +4636,7 @@ faV3DACClear(int id)
   uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
   int32_t rval = OK;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->dac_csr, FAV3_DAC_CLEAR);
@@ -5132,14 +4666,7 @@ faV3DACStatus(int id)
   uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
   int32_t rval = OK;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
@@ -5165,14 +4692,7 @@ faV3DACSet(int id, int chan, uint32_t dac_value)
   uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
   int32_t rval = OK;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   if(chan > FAV3_MAX_ADC_CHANNELS)
     {
@@ -5223,14 +4743,7 @@ faV3DACGet(int id, int chan, uint32_t *dac_value)
   uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
   int32_t rval = OK;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   if(chan > FAV3_MAX_ADC_CHANNELS)
     {
@@ -5285,15 +4798,7 @@ int
 faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped)
 {
   uint32_t lovalue = 0, hivalue = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetChannelPedestal: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   if(chan > 16)
     {
@@ -5329,15 +4834,7 @@ faV3GetChannelPedestal(int id, uint32_t chan)
 {
   uint32_t rval = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetChannelPedestal: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   if(chan > 16)
     {
@@ -5359,15 +4856,7 @@ faV3SetPedestal(int id, uint32_t wvalue)
 {
   int ii;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3SetPedestal: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
@@ -5387,15 +4876,7 @@ faV3PrintPedestal(int id)
   int ii;
   uint32_t tval[FAV3_MAX_ADC_CHANNELS];
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3PrintPedestal: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
@@ -5442,15 +4923,7 @@ faV3ReadScalers(int id, volatile uint32_t * data, uint32_t chmask, int rflag)
   int doLatch = 0, doClear = 0, ichan = 0;
   int dCnt = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ReadScalers: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return ERROR;
-    }
+  CHECKID;
 
   if(rflag & ~(FAV3_SCALER_CTRL_MASK))
     {
@@ -5507,15 +4980,7 @@ faV3PrintScalers(int id, int rflag)
   int doLatch = 0, doClear = 0, ichan = 0;
   uint32_t data[16], time_count;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3PrintScalers: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return ERROR;
-    }
+  CHECKID;
 
   if(rflag & ~(FAV3_SCALER_CTRL_MASK))
     {
@@ -5567,15 +5032,7 @@ faV3PrintScalers(int id, int rflag)
 int
 faV3ClearScalers(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ClearScalers: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->scaler_ctrl,
@@ -5595,15 +5052,7 @@ faV3ClearScalers(int id)
 int
 faV3LatchScalers(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3LatchScalers: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->scaler_ctrl,
@@ -5622,15 +5071,7 @@ faV3LatchScalers(int id)
 int
 faV3EnableScalers(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3EnableScalers: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->scaler_ctrl, FAV3_SCALER_CTRL_ENABLE);
@@ -5649,15 +5090,7 @@ faV3EnableScalers(int id)
 int
 faV3DisableScalers(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3DisableScalers: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->scaler_ctrl, ~FAV3_SCALER_CTRL_ENABLE);
@@ -5679,6 +5112,8 @@ uint32_t
 faV3GetA32(int id)
 {
   uint32_t rval = 0;
+  CHECKID;
+
   if(FAV3pd[id])
     {
       rval = (uint32_t) ((u_long) (FAV3pd[id]) - faV3A32Offset);
@@ -5704,6 +5139,7 @@ uint32_t
 faV3GetA32M()
 {
   uint32_t rval = 0;
+
   if(FAV3pmb)
     {
       rval = (uint32_t) ((u_long) (FAV3pmb) - faV3A32Offset);
@@ -5729,15 +5165,7 @@ uint32_t
 faV3GetMinA32MB(int id)
 {
   uint32_t rval = 0, a32addr, addrMB;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
 
@@ -5779,14 +5207,7 @@ faV3GetMaxA32MB(int id)
 {
   uint32_t rval = 0, a32addr, addrMB;
 
-  if(id == 0)
-    id = faV3ID[0];
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
 
@@ -5815,22 +5236,14 @@ faV3GetMaxA32MB(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3PrintFifoStatus(int id)
 {
   uint32_t ibuf, bbuf, obuf, dflow;
   uint32_t wc[2], mt[2], full[2];
   uint32_t rdy[2];
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3PrintFifoStatus: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   dflow = vmeRead32(&(FAV3p[id]->flow_status));
@@ -5891,7 +5304,7 @@ faV3PrintFifoStatus(int id)
   printf("    BUF_B: wc=%d   Empty=%d Full=%d \n", wc[0], mt[0], full[0]);
 
 
-  return;
+  return OK;
 
 }
 
@@ -5909,15 +5322,7 @@ faV3Live(int id, int sflag)
 {
   int rval = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3Live: ERROR : ADC in slot %d is not initialized \n", id, 0, 0,
-	     0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   /* Read Current Scaler values */
   FAV3LOCK;
@@ -6202,19 +5607,11 @@ faV3DataDecode(uint32_t data)
  *    - >0: Enable Test Mode
  */
 
-void
+int
 faV3TestSetSystemTestMode(int id, int mode)
 {
   int reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   if(mode >= 1)
     reg = FAV3_CTRL1_SYSTEM_TEST_MODE;
@@ -6228,6 +5625,7 @@ faV3TestSetSystemTestMode(int id, int mode)
   /*   printf(" ctrl1 = 0x%08x\n",vmeRead32(&FAV3p[id]->ctrl1)); */
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6243,19 +5641,11 @@ faV3TestSetSystemTestMode(int id, int mode)
  *    - >0: Asserted
  */
 
-void
+int
 faV3TestSetTrigOut(int id, int mode)
 {
   int reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   if(mode >= 1)
     reg = FAV3_TESTBIT_TRIGOUT;
@@ -6266,6 +5656,7 @@ faV3TestSetTrigOut(int id, int mode)
   vmeWrite32(&(FAV3p[id]->system_test.testbit), reg);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6281,19 +5672,11 @@ faV3TestSetTrigOut(int id, int mode)
  *    - >0: Asserted
  */
 
-void
+int
 faV3TestSetBusyOut(int id, int mode)
 {
   int reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   if(mode >= 1)
     reg = FAV3_TESTBIT_BUSYOUT;
@@ -6304,6 +5687,7 @@ faV3TestSetBusyOut(int id, int mode)
   vmeWrite32(&(FAV3p[id]->system_test.testbit), reg);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6319,19 +5703,11 @@ faV3TestSetBusyOut(int id, int mode)
  *    - >0: Asserted
  */
 
-void
+int
 faV3TestSetSdLink(int id, int mode)
 {
   int reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   if(mode >= 1)
     reg = FAV3_TESTBIT_SDLINKOUT;
@@ -6342,6 +5718,7 @@ faV3TestSetSdLink(int id, int mode)
   vmeWrite32(&(FAV3p[id]->system_test.testbit), reg);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6357,19 +5734,11 @@ faV3TestSetSdLink(int id, int mode)
  *    - >0: Asserted
  */
 
-void
+int
 faV3TestSetTokenOut(int id, int mode)
 {
   int reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   if(mode >= 1)
     reg = FAV3_TESTBIT_TOKENOUT;
@@ -6380,6 +5749,7 @@ faV3TestSetTokenOut(int id, int mode)
   vmeWrite32(&(FAV3p[id]->system_test.testbit), reg);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6397,15 +5767,7 @@ int
 faV3TestGetStatBitB(int id)
 {
   int reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   reg = (vmeRead32(&FAV3p[id]->system_test.testbit) & FAV3_TESTBIT_STATBITB) >> 8;
@@ -6430,15 +5792,7 @@ int
 faV3TestGetTokenIn(int id)
 {
   int reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   reg = (vmeRead32(&FAV3p[id]->system_test.testbit) & FAV3_TESTBIT_TOKENIN) >> 9;
@@ -6463,15 +5817,7 @@ int
 faV3TestGetClock250CounterStatus(int id)
 {
   int reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   reg = (vmeRead32(&FAV3p[id]->system_test.testbit) & FAV3_TESTBIT_CLOCK250_STATUS) >> 15;
@@ -6496,15 +5842,7 @@ uint32_t
 faV3TestGetClock250Counter(int id)
 {
   uint32_t reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   reg = vmeRead32(&FAV3p[id]->system_test.count_250);
@@ -6529,15 +5867,7 @@ uint32_t
 faV3TestGetSyncCounter(int id)
 {
   uint32_t reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   reg = vmeRead32(&FAV3p[id]->system_test.count_sync);
@@ -6562,15 +5892,7 @@ uint32_t
 faV3TestGetTrig1Counter(int id)
 {
   uint32_t reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   reg = vmeRead32(&FAV3p[id]->system_test.count_trig1);
@@ -6595,15 +5917,7 @@ uint32_t
 faV3TestGetTrig2Counter(int id)
 {
   uint32_t reg = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   reg = vmeRead32(&FAV3p[id]->system_test.count_trig2);
@@ -6623,24 +5937,17 @@ faV3TestGetTrig2Counter(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3TestResetClock250Counter(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->system_test.count_250, FAV3_CLOCK250COUNT_RESET);
   vmeWrite32(&FAV3p[id]->system_test.count_250, FAV3_CLOCK250COUNT_START);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6653,23 +5960,16 @@ faV3TestResetClock250Counter(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3TestResetSyncCounter(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->system_test.count_sync, FAV3_SYNCP0COUNT_RESET);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6682,23 +5982,16 @@ faV3TestResetSyncCounter(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3TestResetTrig1Counter(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->system_test.count_trig1, FAV3_TRIG1P0COUNT_RESET);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6711,23 +6004,16 @@ faV3TestResetTrig1Counter(int id)
  *  @param id Slot number
  */
 
-void
+int
 faV3TestResetTrig2Counter(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->system_test.count_trig2, FAV3_TRIG2P0COUNT_RESET);
   FAV3UNLOCK;
 
+  return OK;
 }
 
 /**
@@ -6745,15 +6031,7 @@ uint32_t
 faV3TestGetTestBitReg(int id)
 {
   uint32_t rval = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return 0;
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->system_test.testbit);
@@ -6784,15 +6062,7 @@ faV3TestSystemClock(int id, int pflag)
 {
   uint32_t rval = OK;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   /* Enable test mode */
   faV3TestSetSystemTestMode(id, 1);
@@ -6865,15 +6135,7 @@ faV3GetSerialNumber(int id, char **rval, int snfix)
   char ret[12];
   int ret_len;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   for(i = 0; i < 3; i++)
@@ -7001,15 +6263,7 @@ faV3GetSerialNumber(int id, char **rval, int snfix)
 int
 faV3SetScalerBlockInterval(int id, uint32_t nblock)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(nblock > FAV3_SCALER_INSERT_MASK)
     {
@@ -7036,15 +6290,7 @@ faV3GetScalerBlockInterval(int id)
 {
   int rval = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__,
-	     id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->scaler_insert) & FAV3_SCALER_INSERT_MASK;
@@ -7074,15 +6320,7 @@ faV3ForceEndOfBlock(int id, int scalers)
   int rval = OK, icheck = 0, timeout = 1000, csr = 0;
   int proc_config = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3ForceEndOfBlock: ERROR : ADC in slot %d is not initialized \n",
-	     id, 2, 3, 4, 5, 6);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   /* Disable triggers to Processing FPGA (if enabled) */
@@ -7169,14 +6407,7 @@ faV3GForceEndOfBlock(int scalers)
 int
 faV3SetHistoryBufferThreshold(int id, int thres)
 {
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __FUNCTION__,id);
-      return ERROR;
-    }
+  CHECKID;
 
   if(thres>FAV3_SUM_THRESHOLD_MASK)
     {
@@ -7219,14 +6450,7 @@ int
 faV3GetHistoryBufferThreshold(int id)
 {
   int rval=0;
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __FUNCTION__,id);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->sum_threshold) & FAV3_SUM_THRESHOLD_MASK;
@@ -7244,14 +6468,7 @@ faV3GetHistoryBufferThreshold(int id)
 int
 faV3ArmHistoryBuffer(int id)
 {
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faArmHistoryBuffer: ERROR : ADC in slot %d is not initialized \n",
-	     id,2,3,4,5,6);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->sum_data, FAV3_SUM_DATA_ARM_HISTORY_BUFFER);
@@ -7284,14 +6501,7 @@ int
 faV3HistoryBufferDReady(int id)
 {
   int rval=0;
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faHistoryBufferDReady: ERROR : ADC in slot %d is not initialized \n",
-	     id,2,3,4,5,6);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = (vmeRead32(&FAV3p[id]->sum_threshold) & FAV3_SUM_THRESHOLD_DREADY)>>31;
@@ -7312,14 +6522,7 @@ int
 faV3ReadHistoryBuffer(int id, volatile unsigned int *data, int nwrds)
 {
   int idata=0, dCnt=0;
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faHistoryBufferDReady: ERROR : ADC in slot %d is not initialized \n",
-	     id,2,3,4,5,6);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   while(idata<nwrds)
@@ -7354,14 +6557,7 @@ faV3ReadHistoryBuffer(int id, volatile unsigned int *data, int nwrds)
 int
 faV3StateArmBuffer(int id, int enable)
 {
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3StateArmBuffer: ERROR : ADC in slot %d is not initialized \n",
-	     id,2,3,4,5,6);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   if(enable)
@@ -7385,15 +6581,7 @@ int
 faV3StateReadBuffer(int id, volatile unsigned int *data, int nwords)
 {
   int rval=0, idata=0, ndata=0;
-
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3StateReadBuffer: ERROR : ADC in slot %d is not initialized \n",
-	     id,2,3,4,5,6);
-      return ERROR;
-    }
+  CHECKID;
 
   FAV3LOCK;
   /* Read in how many words are available */
@@ -7660,14 +6848,7 @@ faV3StatePrintBuffer(int id)
   unsigned int data[0xff];
   int nwords = 0, idata = 0;
 
-  if(id==0) id=faV3ID[0];
-
-  if((id<=0) || (id>21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3StatePrintBuffer: ERROR : ADC in slot %d is not initialized \n",
-	     id,2,3,4,5,6);
-      return ERROR;
-    }
+  CHECKID;
 
   nwords = faV3StateReadBuffer(id, (volatile unsigned int *)&data, 0xff);
   if(nwords < 0)
@@ -7701,15 +6882,7 @@ faV3StatePrintBuffer(int id)
 int
 faV3SetSparsificationMode(int id, int mode)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   /* logic in register is reversed */
   mode = mode ? 0 : 1;
@@ -7758,15 +6931,7 @@ int
 faV3GetSparsificationMode(int id)
 {
   int mode = 0, rval = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   mode =
@@ -7783,15 +6948,7 @@ int
 faV3GetSparsificationStatus(int id)
 {
   int rval = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = (int) (vmeRead32(&FAV3p[id]->aux.sparsify_status) & FAV3_SPARSE_STATUS_MASK);
@@ -7803,15 +6960,7 @@ faV3GetSparsificationStatus(int id)
 int
 faV3ClearSparsificationStatus(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->aux.sparsify_control, FAV3_SPARSE_STATUS_CLEAR);
@@ -7846,18 +6995,10 @@ faV3GClearSparsificationStatus()
  *  @param id Slot number
  */
 
-void
+int
 faV3PrintAuxScal(int id)
 {
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faV3PrintAuxScal: ERROR : ADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   printf("Auxillary Scalers:\n");
@@ -7870,7 +7011,7 @@ faV3PrintAuxScal(int id)
 	 vmeRead32(&FAV3p[id]->lost_trig_scal));
   FAV3UNLOCK;
 
-  return;
+  return OK;
 }
 
 /**
@@ -7885,15 +7026,7 @@ uint32_t
 faV3GetFirstTriggerMismatch(int id)
 {
   uint32_t rval = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->aux.first_trigger_mismatch);
@@ -7914,15 +7047,7 @@ uint32_t
 faV3GetMismatchTriggerCount(int id)
 {
   uint32_t rval = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->aux.trigger_mismatch_counter);
@@ -7943,15 +7068,7 @@ uint32_t
 faV3GetTriggersProcessedCount(int id)
 {
   uint32_t rval = 0;
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("%s: ERROR : ADC in slot %d is not initialized \n",
-	     __func__, id);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->aux.triggers_processed);

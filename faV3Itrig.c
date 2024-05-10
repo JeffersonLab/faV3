@@ -25,6 +25,12 @@ extern int nfaV3;
 extern int faV3ID[FAV3_MAX_BOARDS];
 extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];	/* pointers to FAV3 memory map */
 
+#define CHECKID	{							\
+    if(id == 0) id = faV3ID[0];						\
+    if((id <= 0) || (id > 21) || (FAV3p[id] == NULL)) {			\
+      printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id); \
+      return ERROR; }}
+
 uint32_t
 faItrigStatus(int id, int sFlag)
 {
@@ -32,15 +38,7 @@ faItrigStatus(int id, int sFlag)
   uint32_t itrigCnt, trigOut;
   int vers, disabled, mode;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("faItrigStatus: ERROR : FADC in slot %d is not initialized \n",
-	     id);
-      return (ERROR);
-    }
+  CHECKID;
 
   /* Express Time in ns - 4ns/clk  */
   FAV3LOCK;
@@ -112,15 +110,7 @@ faItrigSetMode(int id, int tmode, uint32_t wWidth, uint32_t wMask,
   int ii;
   uint32_t config, stat, wTime;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("faItrigSetMode: ERROR : FADC in slot %d is not initialized \n",
-	     id);
-      return (ERROR);
-    }
+  CHECKID;
 
   /* Make sure we are not enabled or running */
   FAV3LOCK;
@@ -260,15 +250,7 @@ faItrigInitTable(int id, uint32_t * table)
   int ii;
   uint32_t config;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("faItrigInitTable: ERROR : FADC in slot %d is not initialized \n",
-	     id);
-      return (ERROR);
-    }
+  CHECKID;
 
   /* Check and make sure we are not running */
   FAV3LOCK;
@@ -320,15 +302,7 @@ faItrigSetHBwidth(int id, uint16_t hbWidth, uint16_t hbMask)
   int ii;
   uint32_t config, hbval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("faItrigSetHBwidth: ERROR : FADC in slot %d is not initialized \n",
-	     id);
-      return (ERROR);
-    }
+  CHECKID;
 
   /* Check and make sure we are not running */
   FAV3UNLOCK;
@@ -366,16 +340,7 @@ faItrigGetHBwidth(int id, uint32_t chan)
 {
   uint32_t rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg
-	("faItrigGetHBwidth: ERROR : FADC in slot %d is not initialized \n",
-	 id, 0, 0, 0, 0, 0);
-      return (0xffffffff);
-    }
+  CHECKID;
 
   if(chan >= FAV3_MAX_ADC_CHANNELS)
     {
@@ -399,15 +364,7 @@ faItrigSetHBdelay(int id, uint16_t hbDelay, uint16_t hbMask)
   int ii;
   uint32_t config, hbval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("faItrigSetHBdelay: ERROR : FADC in slot %d is not initialized \n",
-	     id);
-      return (ERROR);
-    }
+  CHECKID;
 
   /* Check and make sure we are not running */
   FAV3LOCK;
@@ -446,16 +403,7 @@ faItrigGetHBdelay(int id, uint32_t chan)
 {
   uint32_t rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg
-	("faItrigGetHBdelay: ERROR : FADC in slot %d is not initialized \n",
-	 id, 0, 0, 0, 0, 0);
-      return (0xffffffff);
-    }
+  CHECKID;
 
   if(chan > 15)
     {
@@ -474,21 +422,13 @@ faItrigGetHBdelay(int id, uint32_t chan)
 }
 
 
-void
+int
 faItrigPrintHBinfo(int id)
 {
   int ii;
   uint32_t hbval[16], wval, dval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      printf("faItrigPrintHBinfo: ERROR : FADC in slot %d is not initialized \n",
-	     id);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->sec_adr, 0);
@@ -511,6 +451,7 @@ faItrigPrintHBinfo(int id)
     }
   printf("\n");
 
+  return OK;
 }
 
 uint32_t
@@ -518,16 +459,7 @@ faItrigSetOutWidth(int id, uint16_t itrigWidth)
 {
   uint32_t retval = 0;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg
-	("faItrigSetOutWidth: ERROR : FADC in slot %d is not initialized \n",
-	 id, 0, 0, 0, 0, 0);
-      return (0xffffffff);
-    }
+  CHECKID;
 
   if(itrigWidth > FAV3_ITRIG_MAX_WIDTH)
     itrigWidth = FAV3_ITRIG_MAX_WIDTH;
@@ -543,20 +475,12 @@ faItrigSetOutWidth(int id, uint16_t itrigWidth)
   return (retval);
 }
 
-void
+int
 faItrigEnable(int id, int eflag)
 {
   uint32_t rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faItrigEnable: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->hitsum.cfg);
@@ -571,22 +495,15 @@ faItrigEnable(int id, int eflag)
     }
   FAV3UNLOCK;
 
+  return OK;
 }
 
-void
+int
 faItrigDisable(int id, int dflag)
 {
   uint32_t rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg("faItrigDisable: ERROR : FADC in slot %d is not initialized \n",
-	     id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   rval = vmeRead32(&FAV3p[id]->hitsum.cfg);
@@ -602,6 +519,7 @@ faItrigDisable(int id, int dflag)
     }
   FAV3UNLOCK;
 
+  return OK;
 }
 
 
@@ -610,16 +528,7 @@ faItrigGetTableVal(int id, uint16_t pMask)
 {
   int rval;
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg
-	("faItrigGetTableVal: ERROR : FADC in slot %d is not initialized \n",
-	 id, 0, 0, 0, 0, 0);
-      return (ERROR);
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->sec_adr, pMask);
@@ -630,20 +539,11 @@ faItrigGetTableVal(int id, uint16_t pMask)
   return (rval);
 }
 
-void
+int
 faItrigSetTableVal(int id, uint16_t tval, uint16_t pMask)
 {
 
-  if(id == 0)
-    id = faV3ID[0];
-
-  if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
-    {
-      logMsg
-	("faItrigSetTableVal: ERROR : FADC in slot %d is not initialized \n",
-	 id, 0, 0, 0, 0, 0);
-      return;
-    }
+  CHECKID;
 
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->sec_adr, pMask);
@@ -653,4 +553,5 @@ faItrigSetTableVal(int id, uint16_t tval, uint16_t pMask)
     vmeWrite32(&FAV3p[id]->hitsum.pattern, 0);
   FAV3UNLOCK;
 
+  return OK;
 }
