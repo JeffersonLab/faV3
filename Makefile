@@ -76,7 +76,8 @@ CFLAGS			+= -O2
 endif
 
 SRC			= ${BASENAME}Lib.c faV3Config.c faV3FirmwareTools.c faV3Itrig.c faV3-HallD.c
-OBJ			= ${BASENAME}Lib.o faV3Config.o faV3FirmwareTools.o faV3Itrig.o faV3-HallD.o
+OBJ			= $(SRC:%.c=%.o)
+HDRS			= $(SRC:%.c=%.h)
 
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
@@ -112,7 +113,7 @@ install: $(LIBS)
 	@echo " CP     $(<:%.a=%.so)"
 	${Q}cp $(PWD)/$(<:%.a=%.so) $(LINUXVME_LIB)/$(<:%.a=%.so)
 	@echo " CP     ${HDRS}"
-	${Q}cp ${PWD}/${HDRS} $(LINUXVME_INC)
+	${Q}cp $(PWD)/${HDRS} $(LINUXVME_INC)
 
 coda_install: $(LIBS)
 	@echo " CODACP $<"
@@ -120,7 +121,7 @@ coda_install: $(LIBS)
 	@echo " CODACP $(<:%.a=%.so)"
 	${Q}cp $(PWD)/$(<:%.a=%.so) $(CODA_VME_LIB)/$(<:%.a=%.so)
 	@echo " CODACP ${HDRS}"
-	${Q}cp ${PWD}/${HDRS} $(CODA_VME)/include
+	${Q}cp $(PWD)/${HDRS} $(CODA_VME)/include
 
 endif
 
