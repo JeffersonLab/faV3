@@ -33,23 +33,16 @@ extern int nfaV3;
 extern int faV3ID[FAV3_MAX_BOARDS];
 extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];	/* pointers to FAV3 memory map */
 extern uint16_t faV3ChanDisableMask[(FAV3_MAX_BOARDS + 1)];
+extern int faV3FwRev[(FAV3_MAX_BOARDS + 1)][FAV3_FW_FUNCTION_MAX];
 volatile faV3_halld_adc_t *HallDp[(FAV3_MAX_BOARDS + 1)];
 
 int faV3AlignmentDebug=0;                            /* Flag to send alignment sequence to CTP */
 
 #define CHECKID	{							\
     if(id == 0) id = faV3ID[0];						\
-    if((id <= 0) || (id > 21) || (FAV3p[id] == NULL)) {			\
+    if((id <= 0) || (id > 21) || (HallDp[id] == NULL)) {			\
       printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id); \
       return ERROR; }}
-
-#define FAV3_FIRMWARE(__slot_id, _compat_mask) {			\
-    if((faV3FwType[__slot_id] & _compat_mask) == 0) {			\
-      printf("%s: ERROR: Firmware type (%d) not with this function\n", __func__, \
-	     faV3FwType[__slot_id]);					\
-      return ERROR; }}
-
-
 
 const char *fa_halld_mode_names[FAV3_MAX_PROC_MODE+1] =
   {
@@ -67,11 +60,61 @@ const char *fa_halld_mode_names[FAV3_MAX_PROC_MODE+1] =
   };
 
 int
-faV3HallDInit()
+faV3HallDInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 {
+  int32_t rval = OK;
+
+  rval = faV3Init(addr, addr_inc, nadc, iFlag);
+
+  if(rval <= 0)
+    return ERROR;
+
   /* Check Firmware Versions and Map the Hall D pointer */
+  int32_t ifa;
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_CTRL] != FAV3_HALLD_SUPPORTED_CTRL_FIRMWARE)
+	{
+	  printf("%s: Slot %d control fw not compatible with Hall D library\n",
+		 __func__, faV3Slot(ifa));
+	  continue;
+	}
+
+      if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_PROC] != FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
+	{
+	  printf("%s: Slot %d processing fw not compatible with Hall D library\n",
+		 __func__, faV3Slot(ifa));
+	  continue;
+	}
+
+      HallDp[faV3Slot(ifa)] = (faV3_halld_adc_t *)((u_long)FAV3p[faV3Slot(ifa)] + 0x100);
+      printf("%s: Slot %d: CTRL 0x%x PROC 0x%x\n",
+	     __func__, faV3Slot(ifa),
+	     faV3FwRev[faV3Slot(ifa)][FAV3_FW_CTRL],
+	     faV3FwRev[faV3Slot(ifa)][FAV3_FW_PROC]);
+    }
 
   return OK;
+}
+
+int32_t
+faV3HallDCheckAddresses()
+{
+  faV3_t baseregs;
+  u_long offset = 0, expected = 0, base = 0;
+
+  faV3_t *v3p = (faV3_t *) &baseregs;
+  faV3_halld_adc_t *halld = (faV3_halld_adc_t *)((u_long)v3p + 0x100);
+
+  base = (u_long) v3p;
+
+  offset = ((u_long) &halld->status0) - base;
+  expected = 0x100;
+  if(offset != expected)
+    printf("%s: ERROR: status0 not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  return 0;
 }
 
 /**

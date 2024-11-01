@@ -90,7 +90,7 @@ volatile uint32_t *FAV3pmb;	/* pointer to Multblock window */
 int faV3ID[FAV3_MAX_BOARDS];	/* array of slot numbers for FAV3s */
 uint32_t faV3AddrList[FAV3_MAX_BOARDS];	/* array of a24 addresses for FAV3s */
 int faV3FwRev[(FAV3_MAX_BOARDS + 1)][FAV3_FW_FUNCTION_MAX];  /* control+proc version numbers */
-int faV3FwType[(FAV3_MAX_BOARDS + 1)][FAV3_FW_FUNCTION_MAX]; /* control+proc version types */
+
 
 uint16_t faV3ChanDisableMask[(FAV3_MAX_BOARDS + 1)];	/* Disabled Channel Mask for each Module */
 int faV3Inited = 0;		/* >0 if Library has been Initialized before */
@@ -199,13 +199,9 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   uint16_t sdata;
   int noBoardInit = 0;
   int useList = 0;
-  int noFirmwareCheck = 0;
-  uint16_t supported_ctrl[FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER]
-    = { FAV3_SUPPORTED_CTRL_FIRMWARE };
-  uint16_t supported_proc[FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER]
-    = { FAV3_SUPPORTED_PROC_FIRMWARE };
+  int multiBlockOnly = 0;
+  int vxsReadoutOnly = 0;
   uint16_t ctrl_version = 0, proc_version = 0;
-  int icheck = 0, ctrl_supported = 0, proc_supported = 0;
 
   /* Check if we have already Initialized boards before */
   if((faV3Inited > 0) && (faV3ID[0] != 0))
@@ -219,13 +215,16 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
     }
 
   /* Check if we are to exit when pointers are setup */
-  noBoardInit = (iFlag & FAV3_INIT_SKIP) >> 16;
+  noBoardInit = (iFlag & FAV3_INIT_SKIP) ? 1 : 0;
 
   /* Check if we're initializing using a list */
-  useList = (iFlag & FAV3_INIT_USE_ADDRLIST) >> 17;
+  useList = (iFlag & FAV3_INIT_USE_ADDRLIST) ? 1 : 0;
 
-  /* Are we skipping the firmware check? */
-  noFirmwareCheck = (iFlag & FAV3_INIT_SKIP_FIRMWARE_CHECK) >> 18;
+  /* Check if we're only using token passing for readout */
+  multiBlockOnly = (iFlag & FAV3_INIT_MULTIBLOCK_ONLY) ? 1 : 0;
+
+  /* Check if we're reading out through the VXS (VTP) */
+  vxsReadoutOnly = (iFlag & FAV3_INIT_VXS_READOUT_ONLY) ? 1 : 0;
 
   /* Check for valid address */
   if(addr == 0)
@@ -267,8 +266,13 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   faV3Source = iFlag & FAV3_SOURCE_MASK;
   faV3Inited = nfaV3 = 0;
   faV3UseSDC = 0;
-  memset((char *) faV3ChanDisableMask, 0, sizeof(faV3ChanDisableMask));
+  memset((char *) FAV3p, 0, sizeof(FAV3p));
+  memset((char *) FAV3pd, 0, sizeof(FAV3pd));
+  FAV3pmb = NULL;
   memset((char *) faV3ID, 0, sizeof(faV3ID));
+  memset((char *) faV3FwRev, 0, sizeof(faV3FwRev));
+  memset((char *) faV3ChanDisableMask, 0, sizeof(faV3ChanDisableMask));
+
 
   for(ii = 0; ii < nadc; ii++)
     {
@@ -310,9 +314,6 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	    }
 	  else
 	    {
-	      ctrl_supported = 0;
-	      proc_supported = 0;
-
 	      /* Check if this is board has a valid slot number */
 	      boardID = ((vmeRead32(&(fa->intr))) & FAV3_SLOT_ID_MASK) >> 16;
 
@@ -328,70 +329,14 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 		  /* Check Control FPGA firmware version */
 		  ctrl_version = rdata & FAV3_VERSION_MASK;
 
-		  for(icheck = 0; icheck < FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER;
-		      icheck++)
-		    {
-		      if(ctrl_version == supported_ctrl[icheck])
-			ctrl_supported = 1;
-		    }
-
-		  if(ctrl_supported == 0)
-		    {
-		      printf("%s: %s: Slot %2d: Control FPGA Firmware (0x%02x) not supported by this driver.\n",
-			     __func__, (noFirmwareCheck) ? "WARN" : "ERROR",
-			     boardID, ctrl_version);
-
-		      printf("\tSupported Control Firmware:  ");
-		      for(icheck = 0;
-			  icheck < FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER;
-			  icheck++)
-			{
-			  printf("0x%02x ", supported_ctrl[icheck]);
-			}
-		      printf("\n");
-
-		      if(!noFirmwareCheck)
-			{	/* Skip to the next fADC */
-			  continue;
-			}
-		    }
-
 		  /* Check Processing FPGA firmware version */
 		  proc_version =
 		    (uint16_t) (vmeRead32(&fa->adc.status0) &
 				FAV3_ADC_VERSION_MASK);
 
-		  for(icheck = 0; icheck < FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER;
-		      icheck++)
-		    {
-		      if(proc_version == supported_proc[icheck])
-			proc_supported = 1;
-		    }
-
-		  if(proc_supported == 0)
-		    {
-		      printf("%s: %s: Slot %2d: Proc FPGA Firmware (0x%02x) not supported by this driver.\n",
-			     __func__, (noFirmwareCheck) ? "WARN" : "ERROR",
-			     boardID, proc_version);
-
-		      printf("\tSupported Proc Firmware:  ");
-		      for(icheck = 0;
-			  icheck < FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER;
-			  icheck++)
-			{
-			  printf("0x%04x ", supported_proc[icheck]);
-			}
-		      printf("\n");
-
-		      if(!noFirmwareCheck)
-			{	/* Skip to the next fADC */
-			  continue;
-			}
-		    }
-
 		  FAV3p[boardID] = (faV3_t *) (laddr_inc);
 
-		  faV3FwRev[boardID][FAV3_FW_CTRL] = rdata & FAV3_VERSION_MASK;
+		  faV3FwRev[boardID][FAV3_FW_CTRL] = ctrl_version;
 		  faV3FwRev[boardID][FAV3_FW_PROC] = proc_version;
 
 		  faV3ID[nfaV3] = boardID;
@@ -682,7 +627,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       /* Enable Clock source - Internal Clk enabled by default */
       for(ii = 0; ii < nfaV3; ii++)
 	{
-	  vmeWrite32(&(FAV3p[faV3ID[ii]]->ctrl1),
+	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl1,
 		     (clkSrc | FAV3_ENABLE_INTERNAL_CLK));
 	}
       taskDelay(20);
@@ -691,15 +636,15 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       /* Hard Reset FPGAs and FIFOs */
       for(ii = 0; ii < nfaV3; ii++)
 	{
-	  vmeWrite32(&(FAV3p[faV3ID[ii]]->reset),
+	  vmeWrite32(&FAV3p[faV3ID[ii]]->reset,
 		     (FAV3_RESET_HARD_CNTL | FAV3_RESET_HARD_PROC |
 		      FAV3_RESET_ADC_FIFO | FAV3_RESET_HITSUM_FIFO |
 		      FAV3_RESET_DAC | FAV3_RESET_EXT_RAM_PT));
 
 	  /* Release reset on MGTs */
-	  vmeWrite32(&(FAV3p[faV3ID[ii]]->ctrl_mgt), FAV3_MGT_RESET);
-	  vmeWrite32(&(FAV3p[faV3ID[ii]]->ctrl_mgt), FAV3_RELEASE_MGT_RESET);
-	  vmeWrite32(&(FAV3p[faV3ID[ii]]->ctrl_mgt), FAV3_MGT_RESET);
+	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl_mgt, FAV3_MGT_RESET);
+	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl_mgt, FAV3_RELEASE_MGT_RESET);
+	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl_mgt, FAV3_MGT_RESET);
 
 	}
       taskDelay(5);
@@ -708,50 +653,56 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   /* Write configuration registers with default/defined Sources */
   for(ii = 0; ii < nfaV3; ii++)
     {
-
-      /* Program an A32 access address for this FADC's FIFO */
-      a32addr = faV3A32Base + ii * FAV3_MAX_A32_MEM;
+      if((!multiBlockOnly) || (!vxsReadoutOnly))
+	{
+	  /* Program an A32 access address for this FADC's FIFO */
+	  a32addr = faV3A32Base + ii * FAV3_MAX_A32_MEM;
 #ifdef VXWORKS
-      res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
-      if(res != 0)
-	{
-	  printf("faInit: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n",
-		 a32addr);
-	  return (ERROR);
-	}
+	  res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
+	  if(res != 0)
+	    {
+	      printf("faInit: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n",
+		     a32addr);
+	      return (ERROR);
+	    }
 #else
-      res =
-	vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
-      if(res != 0)
-	{
-	  printf("faInit: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n",
-		 a32addr);
-	  return (ERROR);
-	}
+	  res =
+	    vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
+	  if(res != 0)
+	    {
+	      printf("faInit: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n",
+		     a32addr);
+	      return (ERROR);
+	    }
 #endif
-      FAV3pd[faV3ID[ii]] = (uint32_t *) (laddr);	/* Set a pointer to the FIFO */
+	  FAV3pd[faV3ID[ii]] = (uint32_t *) (laddr);	/* Set a pointer to the FIFO */
+	}
+
       if(!noBoardInit)
 	{
-	  vmeWrite32(&(FAV3p[faV3ID[ii]]->adr32), (a32addr >> 16) + 1);	/* Write the register and enable */
+	  /* Write a32 address and enable */
+	  if((!multiBlockOnly) || (!vxsReadoutOnly))
+	    vmeWrite32(&FAV3p[faV3ID[ii]]->adr32, (a32addr >> 16) + 1);
 
 	  /* Set Default Block Level to 1 */
-	  vmeWrite32(&(FAV3p[faV3ID[ii]]->blocklevel), 1);
-	}
+	  vmeWrite32(&FAV3p[faV3ID[ii]]->blocklevel, 1);
 
-      /* Setup Trigger and Sync Reset sources */
-      if(!noBoardInit)
-	{
-	  vmeWrite32(&(FAV3p[faV3ID[ii]]->ctrl1),
-		     vmeRead32(&(FAV3p[faV3ID[ii]]->ctrl1)) |
-		     (srSrc | trigSrc));
+	  /* Setup Trigger and Sync Reset sources */
+	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl1,
+		     (vmeRead32(&FAV3p[faV3ID[ii]]->ctrl1) &
+		      ~(FAV3_REF_CLK_MASK | FAV3_TRIG_MASK | FAV3_SRESET_MASK)) |
+		     (clkSrc | srSrc | trigSrc) );
 	}
     }				//End loop through fadcs
 
   /* If there are more than 1 FADC in the crate then setup the Muliblock Address
      window. This must be the same on each board in the crate */
-  if(nfaV3 > 1)
+  if((nfaV3 > 1) && (!vxsReadoutOnly))
     {
-      a32addr = faV3A32Base + (nfaV3 + 1) * FAV3_MAX_A32_MEM;	/* set MB base above individual board base */
+      if(multiBlockOnly)
+	a32addr = faV3A32Base;
+      else
+	a32addr = faV3A32Base + (nfaV3 + 1) * FAV3_MAX_A32_MEM;	/* set MB base above individual board base */
 #ifdef VXWORKS
       res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
       if(res != 0)
@@ -875,86 +826,6 @@ faV3GetN()
   return (nfaV3);
 }
 
-/**
- * @brief Check the faV3 firmware type vs specified type
- * @param[in] where Where this routine is being called
- * @param[in] id faV3 slot number
- * @param[in] function The function of the firmware
- *            0 : control
- *            1 : processing
- * @param[in] type Firmware type to check against
- * @return OK if faV3 module's firmware type matches specified type
- */
-
-int
-faV3CheckFWType(char *where, int id, int function, int type)
-{
-  if (function >= FAV3_FW_FUNCTION_MAX)
-    {
-      printf("%s: ERROR: Invalid function (%d)\n",
-	     where, type);
-      return ERROR;
-    }
-
-  if(type != faV3FwType[id][function])
-    {
-      printf("%s: ERROR: Invalid V3 firmware type (%d)\n",
-	     where, type);
-      return ERROR;
-    }
-
-  return OK;
-}
-
-/**
- * @brief Return faV3 firmware type, provided it's firmware version number
- * @param[in] id faV3 slot number
- * @param[in] function The function of the firmware
- *            0 : control
- *            1 : processing
- * @param[in] version faV3 version number
- * @param[out] type Firmware type determined from firmware version
- * @return OK if faV3 firmware type version matches a supported type, otherwise ERROR
- *
- */
-
-int
-faV3GetFWType(int id, int function, int version, int *type)
-{
-  *type = -1;
-
-  /* map the version numbers to types
-     - type extensions can have extern functions for checking version numbers */
-
-  switch(function)
-    {
-    case FAV3_FW_CTRL:
-      *type = FAV3_FW_CTRL_COMMON;
-
-      break;
-
-    case FAV3_FW_PROC:
-      *type = FAV3_FW_PROC_COMMON;
-
-      if(version == 0x4100)
-	*type = FAV3_FW_PROC_HALLD_PRODUCTION;
-
-      break;
-
-    default:
-      printf("%s: ERROR: Invalid function (%d)\n",
-	     __func__, function);
-    }
-
-  if(*type == -1)
-    {
-      printf("%s: ERROR: Version (0x%x) not supported for fw function %d\n",
-	     __func__, version, function);
-      return ERROR;
-    }
-
-  return OK;
-}
 
 /**
  *  @ingroup Config
@@ -2529,13 +2400,23 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
 	  laddr = data;
 	}
 
+      if(rmode == 1)
+	{
+	  /* Check for valid A32 data pointer */
+	  if(FAV3pd[id] == NULL)
+	    {
+	      logMsg("faV3ReadBlock(id = %d): ERROR: A32 Data Pointer not initialized\n",
+		     id, 0, 0, 0, 0, 0);
+	      return ERROR;
+	    }
+	}
+
       FAV3LOCK;
       if(rmode == 2)
 	{			/* Multiblock Mode */
 	  if((vmeRead32(&(FAV3p[id]->ctrl1)) & FAV3_FIRST_BOARD) == 0)
 	    {
-	      logMsg
-		("faReadBlock: ERROR: FADC in slot %d is not First Board\n",
+	      logMsg("faV3ReadBlock: ERROR: FADC in slot %d is not First Board\n",
 		 id, 0, 0, 0, 0, 0);
 	      FAV3UNLOCK;
 	      return (ERROR);
@@ -2809,6 +2690,14 @@ faV3PrintBlock(int id)
   uint32_t data, bhead, ehead;
 
   CHECKID;
+
+  /* Check for valid A32 data pointer */
+  if(FAV3pd[id] == NULL)
+    {
+      logMsg("faV3PrintBlock(id = %d): ERROR: A32 Data Pointer not initialized\n",
+	     id, 0, 0, 0, 0, 0);
+      return ERROR;
+    }
 
   /* Check if data available */
   FAV3LOCK;

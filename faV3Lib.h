@@ -708,6 +708,8 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_INIT_SKIP                (1<<16)
 #define FAV3_INIT_USE_ADDRLIST        (1<<17)
 #define FAV3_INIT_SKIP_FIRMWARE_CHECK (1<<18)
+#define FAV3_INIT_MULTIBLOCK_ONLY     (1<<19)
+#define FAV3_INIT_VXS_READOUT_ONLY    (1<<20)
 
 /* Define Init Flag bits for Clock Source */
 #define FAV3_SOURCE_INT         FAV3_INIT_INT_CLKSRC
