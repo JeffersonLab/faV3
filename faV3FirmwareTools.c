@@ -7,12 +7,6 @@
  *        Bryan Moffit
  *        JLab Data Acquisition Group
  *
- * Revision History:
- *      Revision 1.0   2011/07/18  moffit
- *         - Initial version for FADC250 v2
- *
- * SVN: $Rev$
- *
  */
 
 #include <stdio.h>
@@ -37,20 +31,372 @@ extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];	/* pointers to FAV3 memory
       printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id); \
       return ERROR; }}
 
-#define        FAV3_FPGAID_MASK     0xFFFFF000
-#define        FAV3_FPGAID_CTRL     0xf2501000
-#define        FAV3_FPGAID_PROC     0xf2502000
-#define        FAV3_FPGAID_REV_MASK 0x00000FFF
+const uint32_t ConfigRomHostEndOfCmd = 0x0100;
+const uint32_t ConfigRomHostExec = 0x0200;
+const uint8_t ConfigRom_RDID = 0x9F;  // Read ROM Identification registers For S256 the bytes are 0x0102194D
+const uint8_t ConfigRom_RDSR1 = 0x05;  // Read status register 1
+const uint8_t ConfigRom_WRDI = 0x04;  // Disable write to ROM non-Volatile memory
+const uint8_t ConfigRom_WREN = 0x06;  // Enable write to ROM non-Volatilde memory
+const uint8_t ConfigRom_BE = 0x60;   // BULK Erase
+const uint8_t ConfigRom_PP4 = 0x12;   // Write to ROM volatalile memory. Content store to ROM on rising edge of ROM CSN
+const uint32_t ConfigRom_SR1V_WEL   = 2; // Write Enable Latch 1= Can write to memory, registers
+const uint32_t ConfigRom_SR1V_WIP   = 1; // 1 = Write in progress
 
-#define        MSC_MAX_SIZE    8000000
-uint32_t MCS_FPGAID = -1;	/* FPGA ID defined in the MCS file */
-uint32_t MSC_arraySize = 0;	/* Size of the array holding the firmware */
-unsigned char MSC_ARRAY[MSC_MAX_SIZE];	/* The array holding the firmware */
-char *MSC_filename_LX110 = "LX110_firmware.dat";	/* Default firmware for LX110 */
-char *MSC_filename_FX70T = "FX70T_firmware.dat";	/* Default firmware for FX70T */
-int MSC_loaded = 0;		/* 1(0) if firmware loaded (not loaded) */
+const uint32_t MAX_MCS_SIZE=8000000;
+
+typedef struct {
+  char filename[256];
+  int32_t loaded;
+  uint32_t size;
+  uint8_t data[MAX_MCS_SIZE];
+} firmware_t;
+
+firmware_t *file_firmware;
+firmware_t *rom_firmware;
+
 VOIDFUNCPTR faV3UpdateWatcherRoutine = NULL;
 faV3UpdateWatcherArgs_t faV3UpdateWatcherArgs;
+
+/**
+ * @brief Read ROM ID from ROM Chip
+ * @param[in] id faV3 Slot ID
+ * @return ROM ID, if successful.
+ */
+
+uint32_t
+faV3FirmwareRomID(int id)
+{
+  uint32_t rval = 0;
+  uint32_t cmd, romadr, romdata = 0;
+
+  cmd = ConfigRomHostEndOfCmd | ConfigRom_RDID;
+
+  FAV3LOCK;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Rom Command
+
+  cmd = ConfigRomHostExec | cmd;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Execute Command
+
+  cmd = cmd & ~ConfigRomHostExec;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Ready for Next Command
+
+  rval = vmeRead32(VME_STATUS5_ADR);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+/**
+ * @brief Read ROM STATUS1 register from ROM Chip
+ * @param[in] id faV3 Slot ID
+ * @return ROM STATUS1, if successful.
+ */
+
+uint32_t
+faV3FirmwareRomStatus1(int id)
+{
+  uint32_t rval;
+  uint32_t cmd, romdata = 0;
+
+  cmd = ConfigRomHostEndOfCmd | ConfigRom_RDSR1;
+
+  FAV3LOCK;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Rom Command
+
+  cmd = ConfigRomHostExec | cmd;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Execute Command
+
+  cmd = cmd & ~ConfigRomHostExec;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Ready for Next Command
+
+  rval = vmeRead32(VME_STATUS5_ADR);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+/**
+ * @brief Enable or Disable Writing to ROM
+ * @param[in] id faV3 Slot ID
+ * @param[in] enable
+ *      0: disable
+ *      1: enable
+ * @return ROM Status1
+ */
+
+uint32_t
+faV3FirmwareMemoryWrite(int id, int enable)
+{
+  uint32_t rval;
+  uint32_t cmd, romdata = 0;
+
+  if(enable)
+    cmd = ConfigRomHostEndOfCmd | ConfigRom_WREN;
+  else
+    cmd = ConfigRomHostEndOfCmd | ConfigRom_WRDI;
+
+  FAV3LOCK;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Rom Command
+
+  cmd = ConfigRomHostExec | cmd;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Execute Command
+
+  cmd = cmd & ~ConfigRomHostExec;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Ready for Next Command
+
+  if(!enable)
+    rval = vmeRead32(VME_STATUS5_ADR);
+  FAV3UNLOCK;
+
+  if(enable)
+    rval = faV3FirmwareRomStatus1(id) & ConfigRom_SR1V_WEL;
+
+  return rval;
+
+}
+
+/**
+ * @brief Erase the ROM
+ * @param[in] id faV3 Slot ID
+ * @return OK if successful, otherwise ERROR
+ */
+
+int32_t
+faV3FirmwareRomErase(int id)
+{
+  uint32_t rval;
+  uint32_t cmd, romdata = 0;
+
+  rval = faV3FirmwareWrite(id, 1);
+  if(rval == 0)
+    {
+      printf("%s: ERROR: Write not enabled\n",
+	     __func__);
+      return -1;
+    }
+
+  cmd = ConfigRomHostEndOfCmd | ConfigRom_BE;
+
+  FAV3LOCK;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Rom Command
+
+  cmd = ConfigRomHostExec | cmd;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Execute Command
+
+  cmd = cmd & ~ConfigRomHostExec;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Ready for Next Command
+
+  rval = vmeRead32(VME_STATUS5_ADR);
+  FAV3UNLOCK;
+
+  usleep(10);
+  romdata = faV3FirmwareRomStatus1(id) & ConfigRom_SR1V_WIP;
+  if(romdata == 0)
+    {
+      printf("%s: ERROR: Failed to erase Config ROM.  ROM Write-In-Progress bit not set\n",
+	     __func__);
+      return -1;
+    }
+
+  int32_t wait = 0, maxwait = 1300;
+  while(wait++ < maxwait)
+    {
+      usleep(100);
+      romdata = faV3FirmwareRomStatus1(id) & ConfigRom_SR1V_WIP;
+      if(romdata == 0)
+	break;
+    }
+
+  if(romdata != 0)
+    {
+      printf("%s: Failed to erase Config ROM.\n",
+	     __func__);
+      return -1;
+    }
+  else
+    rval = 0;
+
+  return rval;
+}
+
+/**
+ * @brief Read the contents of the ROM at specified address
+ * @param[in] id faV3 slot ID
+ * @param[in] romadr ROM Address
+ * @param[in] last Whether or not this is the end of the page
+ * @return Data from ROM, if successful
+ */
+
+int32_t
+faV3FirmwareReadRomAdr(int id, uint32_t romadr, int32_t last)
+{
+  uint32_t rval;
+  uint32_t cmd, romdata = 0;
+
+  cmd = ConfigRom_AREAD;
+  if(last)
+    cmd |= ConfigRomHostEndOfCmd;
+
+  FAV3LOCK;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Rom Command
+  vmeWrite32(VME_CONFIG7_ADR, romadr);	// Rom Address
+
+  cmd = ConfigRomHostExec | cmd;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Execute Command
+
+  cmd = cmd & ~ConfigRomHostExec;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Ready for Next Command
+
+  rval = vmeRead32(VME_STATUS5_ADR);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+int32_t
+faV3FirmwareWriteRomAdr(int id, uint32_t romadr, uint32_t romdata, int32_t last)
+{
+  uint32_t cmd, romdata = 0;
+
+  cmd = ConfigRom_PP4;
+  if(last)
+    cmd |= ConfigRomHostEndOfCmd;
+
+  FAV3LOCK;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Rom Command
+  vmeWrite32(VME_CONFIG7_ADR, romadr);	// Rom Address
+  vmeWrite32(VME_CONFIG8_ADR, romdata);	// Rom Data
+
+  cmd = ConfigRomHostExec | cmd;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Execute Command
+
+  cmd = cmd & ~ConfigRomHostExec;
+  vmeWrite32(VME_CONFIG6_ADR, cmd);	// Ready for Next Command
+
+  FAV3UNLOCK;
+
+  return 0;
+}
+
+int32_t
+faV3FirmwareDownloadRom(int id, int32_t size)
+{
+  uin32_t rval = 0;
+  int32_t idata = 0, iword = 0;
+
+  rval = faV3FirmwareWrite(id, 1);
+  if(rval == 0)
+    {
+      printf("%s: ERROR: Write not enabled\n",
+	     __func__);
+      return -1;
+    }
+
+  if(rom_firmware == NULL)
+    rom_firmware = (firmware_t *)malloc(sizeof(firmware_t));
+
+  rom_firmware->loaded = 0;
+
+  while(idata < size)
+    {
+      if((idata & (256 >> 2)) == (256 >> 2))
+	last_of_page = 1;
+      else
+	last_of_page = 0;
+
+      rom_firmware->data[idata] = faV3FirmwareReadRomAdr(id, (idata << 2), last_of_page);
+
+      idata++;
+    }
+  rom_firmware->data[idata] = 0xFFFFFFFF;
+
+  rom_firmware->size = idata;
+  rom_firmware->loaded = 1;
+
+  return OK;
+}
+
+int32_t
+faV3FirmwareProgramRom(int id)
+{
+  if(file_firmware->loaded != 1)
+    {
+      printf("%s: ERROR : Firmware was not loaded\n", __func__);
+      return ERROR;
+    }
+
+  rval = faV3FirmwareWrite(id, 1);
+  if(rval == 0)
+    {
+      printf("%s: ERROR: Write not enabled\n",
+	     __func__);
+      return -1;
+    }
+
+  uin32_t rval = 0;
+  int32_t idata = 0, iword = 0;
+
+  while(idata < file_firmware->size)
+    {
+      if((idata & (256 >> 2)) == (256 >> 2))
+	last_of_page = 1;
+      else
+	last_of_page = 0;
+
+      faV3FirmwareWriteRomAdr(id, (idata << 2), file_firmware->data[idata], last_of_page);
+
+      idata++;
+    }
+  faV3FirmwareWriteRomAdr(id, (idata << 2), 0xFFFFFFFF, 1);
+
+  return OK;
+}
+
+int32_t
+faV3FirmwareVerifyDownload()
+{
+  if(file_firmware->loaded != 1)
+    {
+      printf("%s: ERROR : File Firmware was not loaded\n", __func__);
+      return ERROR;
+    }
+  if(rom_firmware->loaded != 1)
+    {
+      printf("%s: ERROR : ROM Firmware was not loaded\n", __func__);
+      return ERROR;
+    }
+
+  if(file_firmware->size != rom_firmware->size)
+    {
+      printf("%s: ERROR: File size != Rom size (0x%x != 0x%x)\n",
+	     __func__, file_firmware->size, rom_firmware->size);
+      return ERROR;
+    }
+
+  int32_t idata = 0, errorCount = 0;
+  while(idata < file_firmware->size)
+    {
+      if(file_firmware->data[idata] != rom_firmware->data[idata])
+	{
+	  errorCount++;
+	  if(errorCount == 1)
+	    {
+	      printf("%s: ERROR: word 0x%x  File 0x%08x  ROM 0x%08x\n",
+		     __func__, idata, file_firmware->data[idata], rom_firmware->data[idata]);
+	    }
+	}
+      idata++;
+    }
+
+  if(errorCount)
+    {
+      printf("%s: errorCount = 0x%x (%d)\n", __func__, errorCount, errorCount);
+      return ERROR;
+    }
+
+  return OK;
+}
+
 
 /*************************************************************
  * faV3FirmwareLoad
@@ -62,19 +408,10 @@ faV3UpdateWatcherArgs_t faV3UpdateWatcherArgs;
  */
 
 int
-faV3FirmwareLoad(int id, int chip, int pFlag)
+faV3FirmwareLoad(int id, int pFlag)
 {
   faV3UpdateWatcherArgs_t updateArgs;
   CHECKID;
-
-  if(chip < 0 || chip > 2)
-    {
-      printf("%s: ERROR:  Invalid chip parameter %d\n", __func__, chip);
-      return ERROR;
-    }
-
-  if(chip == 2)			/* Fix for discrepancy between Linux and vxWorks implementation */
-    chip = FAV3_FIRMWARE_LX110;
 
   /* Perform a hardware and software reset */
   FAV3LOCK;
@@ -228,21 +565,12 @@ faV3FirmwarePassedMask()
  *   if not using firmware from the default
  */
 int
-faV3FirmwareGLoad(int chip, int pFlag)
+faV3FirmwareGLoad(int pFlag)
 {
   int ifadc = 0, id = 0, step = 0;
   faV3UpdateWatcherArgs_t updateArgs;
 
   /*   uint32_t passed[FAV3_MAX_BOARDS+1], stepfail[FAV3_MAX_BOARDS+1]; */
-
-  if(chip < 0 || chip > 2)
-    {
-      printf("%s: ERROR:  Invalid chip parameter %d\n", __func__, chip);
-      return ERROR;
-    }
-
-  if(chip == 2)			/* Fix for discrepancy between Linux and vxWorks implementation */
-    chip = FAV3_FIRMWARE_LX110;
 
   /* Perform a hardware and software reset */
   step = 0;
@@ -502,351 +830,10 @@ faV3FirmwareGLoad(int chip, int pFlag)
 
 }
 
-void
-faV3FirmwareDownloadConfigData(int id)
-{
-  uint32_t ArraySize;
-  uint32_t ByteCount, ByteIndex, ByteNumber;
-  uint32_t Word32Bits;
-#ifdef DEBUG
-  uint32_t value;
-#endif
-
-  if(MSC_loaded != 1)
-    {
-      printf("%s: ERROR : Firmware was not loaded\n", __func__);
-      return;
-    }
-
-  ArraySize = MSC_arraySize;
-  ByteIndex = 0;
-
-  /* write SRAM address register */
-  /* start at 0 and increment address after write to mem1 data register */
-  FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x80000000);
-#ifdef DEBUG
-  value = vmeRead32(&FAV3p[id]->mem_adr);
-#endif
-  FAV3UNLOCK;
-#ifdef DEBUG
-  printf("%s: FADC %2d memory address at start of writes = 0x%08x\n\n",
-	 __func__, id, value);
-#endif
-  taskDelay(1);			/* wait */
-
-/*   printf("Download Config Data... \n"); */
-  for(ByteCount = 0; ByteCount < ArraySize; ByteCount += 4)
-    {
-      Word32Bits = 0;
-      for(ByteNumber = 0; ByteNumber < 4; ++ByteNumber)
-	{
-	  Word32Bits =
-	    (MSC_ARRAY[ByteIndex] << (8 * ByteNumber)) | Word32Bits;
-	  ++ByteIndex;
-	  if(ByteIndex > MSC_MAX_SIZE)
-	    printf("**** TOO BIG! ****\n");
-	}
-
-      /* write 32-bit data word to  mem1 data register */
-      FAV3LOCK;
-      vmeWrite32(&FAV3p[id]->mem1_data, Word32Bits);
-      FAV3UNLOCK;
-    }
-
-#ifdef DEBUG
-  FAV3LOCK;
-  value = vmeRead32(&FAV3p[id]->mem_adr);
-  FAV3UNLOCK;
-  printf("%s: FADC %2d memory address after write = 0x%08x\n\n",
-	 __func__, id, value);
-#endif
-  taskDelay(1);			/* wait */
-
-}
-
-
-int
-faV3FirmwareVerifyDownload(int id)
-{
-  uint32_t ArraySize;
-  uint32_t ByteCount, ByteIndex, ByteNumber;
-  uint32_t ExpWord32Bits, RdWord32Bits;
-  int ErrorCount = 0, stopPrint = 0;
-#ifdef DEBUG
-  uint32_t value;
-#endif
-
-  CHECKID;
-
-  if(MSC_loaded != 1)
-    {
-      printf("%s: ERROR : Firmware was not loaded\n", __func__);
-      return ERROR;
-    }
-
-  ArraySize = MSC_arraySize;
-  ByteIndex = 0;
-
-  /* write SRAM address register */
-  /* start at 0 and increment address after read from mem1 data register */
-  FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FAV3_MEM_ADR_INCR_MEM1);
-#ifdef DEBUG
-  value = vmeRead32(&FAV3p[id]->mem_adr);
-#endif
-  FAV3UNLOCK;
-#ifdef DEBUG
-  printf("%s: FADC %2d memory address at start of read = 0x%08x\n\n",
-	 __func__, id, value);
-#endif
-  taskDelay(1);			/* wait */
-
-  for(ByteCount = 0; ByteCount < ArraySize; ByteCount += 4)
-    {
-      /* get expected value */
-      ExpWord32Bits = 0;
-      for(ByteNumber = 0; ByteNumber < 4; ++ByteNumber)
-	{
-	  ExpWord32Bits =
-	    (MSC_ARRAY[ByteIndex] << (8 * ByteNumber)) | ExpWord32Bits;
-	  ++ByteIndex;
-	}
-
-      /* read 32-bit data word from mem1 data register */
-      FAV3LOCK;
-      RdWord32Bits = (uint32_t) vmeRead32(&FAV3p[id]->mem1_data);
-      FAV3UNLOCK;
-
-#ifdef DEBUG
-      if(ByteCount < 40)
-	printf("RdWord32Bits = 0x%08x\n", RdWord32Bits);
-#endif
-
-      /* test if read value = expected value */
-      if(RdWord32Bits != ExpWord32Bits)
-	{
-	  ErrorCount++;
-	  if(!stopPrint)
-	    printf("%s: ERROR: FADC %2d ByteCount %8d  Expect %08X  Read %08X\n",
-		   __func__, id, ByteCount, ExpWord32Bits, RdWord32Bits);
-	  if(ErrorCount == 2)
-	    {
-	      printf("%s: Further errors for FADC %2d will not be displayed\n",
-		     __func__, id);
-/* 	      getchar(); */
-	      stopPrint = 1;
-	    }
-/* 	  if( ErrorCount>1000 ) */
-/* 	    stopPrint=1; */
-	}
-    }
-
-#ifdef DEBUG
-  FAV3LOCK;
-  value = vmeRead32(&FAV3p[id]->mem_adr);
-  FAV3UNLOCK;
-  printf("%s: memory address after read = 0x%08x\n\n", __func__, value);
-#endif
-  if(ErrorCount)
-    printf("%s: ErrorCount = %d\n", __func__, ErrorCount);
-  taskDelay(1);			/* wait */
-
-  if(ErrorCount)
-    return ERROR;
-
-  return OK;
-}
-
-int
-faV3FirmwareTestReady(int id, int n_try, int pFlag)
-{
-  int ii;
-  int result;
-  faV3UpdateWatcherArgs_t updateArgs;
-  uint32_t value = 0;
-
-  CHECKID;
-
-  result = ERROR;
-
-  updateArgs.step = FAV3_ARGS_SHOW_ID;
-  updateArgs.id = id;
-  faV3FirmwareUpdateWatcher(updateArgs);
-
-  for(ii = 0; ii < n_try; ii++)	/* poll for ready bit */
-    {
-      updateArgs.step = FAV3_ARGS_SHOW_PROGRESS;
-      faV3FirmwareUpdateWatcher(updateArgs);
-
-      taskDelay(1);		/* wait */
-      FAV3LOCK;
-      value = vmeRead32(&FAV3p[id]->prom_reg1);
-      FAV3UNLOCK;
-
-      if(value == 0xFFFFFFFF)
-	continue;
-
-      if(value & FAV3_PROMREG1_READY)
-	{
-	  result = OK;
-	  break;
-	}
-    }
-  updateArgs.step = FAV3_ARGS_SHOW_DONE;
-  faV3FirmwareUpdateWatcher(updateArgs);
-
-  if(pFlag)
-    {
-      if(ii == n_try)		/* failed to detect ready asserted */
-	printf("%s: FADC %2d NOT READY after %d wait cycles (1/60 sec)\n",
-	       __func__, id, n_try);
-      else
-	printf("%s: FADC %2d READY after %d wait cycles (1/60 sec)\n",
-	       __func__, id, (ii + 1));
-    }
-
-  return result;
-}
-
-int
-faV3FirmwareZeroSRAM(int id)
-{
-  int ii, value = 0, value_1 = 0, value_2 = 0;
-  int ErrorCount = 0, stopPrint = 0;
-
-  CHECKID;
-
-  /* set address = 0; allow increment on mem2 access */
-  FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FAV3_MEM_ADR_INCR_MEM2);
-
-  for(ii = 0; ii < 0x80000; ii++)	/* write ZERO to entire memory */
-    {
-      vmeWrite32(&FAV3p[id]->mem1_data, 0);
-      vmeWrite32(&FAV3p[id]->mem2_data, 0);
-    }
-
-  /* reset address = 0; allow increment on mem2 access */
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FAV3_MEM_ADR_INCR_MEM2);
-
-  FAV3UNLOCK;
-
-  /* read and test expected memory data */
-  for(ii = 0; ii < 0x80000; ii++)
-    {
-      FAV3LOCK;
-      value_1 = vmeRead32(&FAV3p[id]->mem1_data);
-      value_2 = vmeRead32(&FAV3p[id]->mem2_data);
-      FAV3UNLOCK;
-
-      if((value_1 != 0) || (value_2 != 0))
-	{
-	  ErrorCount++;
-	  FAV3LOCK;
-	  value = vmeRead32(&FAV3p[id]->mem_adr) & 0xFFFFF;
-	  FAV3UNLOCK;
-	  if(!stopPrint)
-	    {
-	      printf("%s: ERROR: FADC %2d  address = %8X    mem1 read = %8X    mem2 read = %8X\n",
-		     __func__, id, value, value_1, value_2);
-	      taskDelay(1);	/* wait */
-	    }
-	  if(ErrorCount == 1)
-	    {
-	      printf("%s: Further errors for FADC %2d will not be displayed\n",
-		     __func__, id);
-	      stopPrint = 1;
-	    }
-	}
-    }
-
-  if(ErrorCount)
-    return ERROR;
-
-  return OK;
-}
-
-int
-faV3FirmwareCheckSRAM(int id)
-{
-  int NonZeroCount = 0;
-  uint32_t ByteCount;
-  uint32_t RdWord32Bits;
-#ifdef DEBUG
-  uint32_t value;
-#endif
-  CHECKID;
-
-  faV3FirmwareZeroSRAM(id);
-
-  FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM2_TO_SRAM);
-  FAV3UNLOCK;
-  taskDelay(1);
-
-  if(faV3FirmwareTestReady(id, 60000, 0) != OK)	/* Wait til it's done */
-    {
-      printf("%s: ERROR: FADC %2d ready timeout PROM -> SRAM\n",
-	     __func__, id);
-      return ERROR;
-    }
-
-  FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->mem_adr, 0x0000 | FAV3_MEM_ADR_INCR_MEM1);
-#ifdef DEBUG
-  value = vmeRead32(&FAV3p[id]->mem_adr);
-#endif
-  FAV3UNLOCK;
-#ifdef DEBUG
-  printf("%s: FADC %2d memory address at start of read = 0x%08x\n\n",
-	 __func__, id, value);
-#endif
-  taskDelay(1);			/* wait */
-
-  for(ByteCount = 0; ByteCount < MSC_arraySize; ByteCount += 4)
-    {
-      FAV3LOCK;
-      RdWord32Bits = (uint32_t) vmeRead32(&FAV3p[id]->mem1_data);
-      FAV3UNLOCK;
-
-      if(RdWord32Bits != 0)
-	{
-	  NonZeroCount++;
-	  break;
-	}
-    }
-
-  if(NonZeroCount == 0)
-    {
-      return ERROR;
-    }
-
-  return OK;
-}
-
-void
-faV3FirmwareSetFilename(char *filename, int chip)
-{
-  if(chip == FAV3_FIRMWARE_LX110)
-    MSC_filename_LX110 = filename;
-  else if(chip == FAV3_FIRMWARE_FX70T)
-    MSC_filename_FX70T = filename;
-
-}
-
-
 int
 faV3FirmwareReadFile(char *filename)
 {
-  uint32_t arraySize;
-
-/* #define DEBUGFILE */
-#ifdef DEBUGFILE
-  int ichar = 0;
-#endif
-  FILE *arrayFile = NULL;
-  arrayFile = fopen(filename, "r");
+  File *firmwareFile = fopen(filename, "r");
 
   if(arrayFile == NULL)
     {
@@ -854,44 +841,48 @@ faV3FirmwareReadFile(char *filename)
       return ERROR;
     }
 
-  /* First 32bits is the size of the array */
-  fread(&arraySize, sizeof(uint32_t), 1, arrayFile);
+  file_firmware = (firmware_t *)malloc(sizeof(firmware_t));
 
-#ifdef VXWORKS
-  /* Made this file in Linux... so byte swap it for VXWORKS */
-  MSC_arraySize = LONGSWAP(arraySize);
-#else
-  MSC_arraySize = arraySize;
-#endif
+  strcpy(file_firmware->filename, filename);
 
-  if(MSC_arraySize > MSC_MAX_SIZE)
+  uint32_t idata = 0, data = 0;
+  while(!feof(firmwareFile))
     {
-      printf("%s: ERROR: Firmware size (%d) from %s greater than MAX allowed (%d)\n",
-	     __func__, MSC_arraySize, filename, MSC_MAX_SIZE);
+      fread(&data, sizeof(uint32_t), 1, firmwarefile);
+      file_firmware->data[idata++];
+    }
+  fclose(arrayFile);
+
+  file_firmware->size = idata;
+  file_firmware->loaded = 1;
+
+  printf("%s: Read Firmware from %s\n", __func__, file_firmware->filename);
+
+  return OK;
+}
+
+int
+faV3FirmwareWriteFile(char *filename)
+{
+  File *firmwareFile = fopen(filename, "w");
+
+  if(arrayFile == NULL)
+    {
+      printf("%s: ERROR opening file (%s) for writing\n", __func__, filename);
       return ERROR;
     }
 
-
-#ifdef DEBUGFILE
-  printf("MSC_arraySize = %d\n", MSC_arraySize);
-#endif
-
-  fread(&MSC_ARRAY, MSC_arraySize, 1, arrayFile);
-
-  fclose(arrayFile);
-
-#ifdef DEBUGFILE
-  for(ichar = 0; ichar < 16 * 10; ichar++)
+  uint32_t idata = 0, data = 0;
+  while(idata < rom_firmware->size)
     {
-      if((ichar % 16) == 0)
-	printf("\n");
-      printf("0x%02x ", MSC_ARRAY[ichar]);
+      data = rom_firmware->data[idata++];
+      fwrite(&data, sizeof(uint32_t), 1, firmwarefile);
     }
-  printf("\n\n");
-#endif
-  MSC_loaded = 1;
+  data = 0xffffffff;
+  fwrite(&data, sizeof(uint32_t), 1, firmwarefile);
+  fclose(firmwareFile);
 
-  printf("%s: Reading Firmware from %s\n", __func__, filename);
+  printf("%s: Wrote Firmware to %s\n", __func__, filename);
 
   return OK;
 }
@@ -913,88 +904,27 @@ hex2num(char c)
   return c - '0';
 }
 
-int
-faV3FirmwareGetFpgaID(int pflag)
-{
-  if(pflag)
-    {
-      printf("%s: FPGA ID = 0x%x (%d)\n", __func__, MCS_FPGAID, MCS_FPGAID);
-    }
-
-  return MCS_FPGAID;
-}
-
-int
-faV3FirmwareChipFromFpgaID(int pflag)
-{
-  int rval = 0;
-  uint32_t id;
-
-  id = MCS_FPGAID & FAV3_FPGAID_MASK;
-
-  switch (id)
-    {
-    case FAV3_FPGAID_PROC:
-      rval = FAV3_FIRMWARE_LX110;
-      break;
-    case FAV3_FPGAID_CTRL:
-      rval = FAV3_FIRMWARE_FX70T;
-      break;
-    case -1:
-    default:
-      rval = ERROR;
-    }
-
-  if(pflag)
-    {
-      if(rval != ERROR)
-	{
-	  printf("%s: ID = 0x%08x FPGA Chip = %d\n",
-		 __func__, MCS_FPGAID, rval);
-	}
-      else
-	{
-	  printf("%s: ID (0x%08x) does not match any available FPGAs for this program\n",
-		 __func__, MCS_FPGAID);
-	}
-    }
-
-  return rval;
-}
-
-int
-faV3FirmwareRevFromFpgaID(int pflag)
-{
-  int rval = 0;
-
-  rval = MCS_FPGAID & FAV3_FPGAID_REV_MASK;
-
-  if(pflag)
-    {
-      printf("%s: Rev = 0x%x\n", __func__, rval);
-    }
-  return rval;
-}
 
 int
 faV3FirmwareReadMcsFile(char *filename)
 {
-  FILE *mscFile = NULL;
+  FILE *mcsFile = NULL;
   char ihexLine[200], *pData;
   int len = 0, datalen = 0, byte_shift;
   uint32_t nbytes = 0, line = 0, hiChar = 0, loChar = 0;
-  uint32_t readMSC = 0;
-#ifdef DEBUGFILE
-  int ichar, thisChar[0];
-#endif
+  uint32_t readMCS = 0;
 
-  mscFile = fopen(filename, "r");
-  if(mscFile == NULL)
+  mcsFile = fopen(filename, "r");
+  if(mcsFile == NULL)
     {
       perror("fopen");
       printf("%s: ERROR opening file (%s) for reading\n", __func__, filename);
       return ERROR;
     }
+
+  file_firmware = (firmware_t *)malloc(sizeof(firmware_t));
+
+  strcpy(file_firmware->filename, filename);
 
   while(!feof(mscFile))
     {
@@ -1026,8 +956,8 @@ faV3FirmwareReadMcsFile(char *filename)
 		{
 		  hiChar = hex2num(*pData++);
 		  loChar = hex2num(*pData++);
-		  MSC_ARRAY[readMSC] = ((hiChar) << 4) | (loChar);
-		  if(readMSC >= MSC_MAX_SIZE)
+		  file_firmware->data[readMSC] = ((hiChar) << 4) | (loChar);
+		  if(readMSC >= MAX_MCS_SIZE)
 		    {
 		      printf("%s: ERROR: TOO BIG!\n", __func__);
 		      return ERROR;
@@ -1061,23 +991,11 @@ faV3FirmwareReadMcsFile(char *filename)
 	}
       line++;
     }
+  fclose(mcsFile);
 
-  MSC_arraySize = readMSC;
+  file_firmware.size = readMSC;
+  file_firmware.loaded = 1;
 
-#ifdef DEBUGFILE
-  printf("MSC_arraySize = %d\n", MSC_arraySize);
-
-  for(ichar = 0; ichar < 16 * 10; ichar++)
-    {
-      if((ichar % 16) == 0)
-	printf("\n");
-      printf("0x%02x ", MSC_ARRAY[ichar]);
-    }
-  printf("\n\n");
-#endif
-  MSC_loaded = 1;
-
-  fclose(mscFile);
   return OK;
 }
 
