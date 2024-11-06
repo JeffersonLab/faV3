@@ -4,19 +4,24 @@
 #include "jvme.h"
 
 /* FAV3DC Firmware Tools Prototypes */
-int faV3FirmwareLoad(int id, int chip, int pFlag);
-int faV3FirmwareGLoad(int chip, int pFlag);
-void faV3FirmwareDownloadConfigData(int id);
-int faV3FirmwareVerifyDownload(int id);
-int faV3FirmwareTestReady(int id, int n_try, int pFlag);
-int faV3FirmwareZeroSRAM(int id);
-int faV3FirmwareCheckSRAM(int id);
-void faV3FirmwareSetFilename(char *filename, int chip);
-int faV3FirmwareReadFile(char *filename);
-int faV3FirmwareGetFpgaID(int pflag);
-int faV3FirmwareChipFromFpgaID(int pflag);
-int faV3FirmwareRevFromFpgaID(int pflag);
-int faV3FirmwareReadMcsFile(char *filename);
+int32_t faV3FirmwareWaitForReady(int32_t id, int32_t nwait);
+uint32_t faV3FirmwareRomID(int32_t id);
+uint32_t faV3FirmwareRomStatus1(int32_t id);
+uint32_t faV3FirmwareSetMemoryWrite(int32_t id, int32_t enable);
+int32_t  faV3FirmwareRomErase(int32_t id);
+int32_t  faV3FirmwareReadRomAdr(int32_t id, uint32_t romadr, int32_t last);
+int32_t  faV3FirmwareWriteRomAdr(int32_t id, uint32_t romadr, uint32_t romdata, int32_t last);
+int32_t  faV3FirmwareDownloadRom(int32_t id, int32_t size);
+int32_t  faV3FirmwareProgramRom(int32_t id);
+int32_t  faV3FirmwareVerifyDownload();
+
+int32_t faV3FirmwareLoad(int32_t id, int32_t pFlag);
+int32_t faV3FirmwarePassedMask();
+
+int32_t faV3FirmwareReadFile(char *filename);
+int32_t faV3FirmwareWriteFile(char *filename);
+int32_t faV3FirmwareReadMcsFile(char *filename);
+
 enum faV3Args_enum
   {
     FAV3_ARGS_SHOW_ID,
@@ -28,10 +33,10 @@ enum faV3Args_enum
 
 typedef struct faV3UpdateWatcherArgs_struct
 {
-  int step;			/* 0: show id, 1: show progress, 2: show complete */
-  int id;			/* slot id */
+  int32_t step;			/* 0: show id, 1: show progress, 2: show complete */
+  int32_t id;			/* slot id */
   char title[80];
 } faV3UpdateWatcherArgs_t;
-int faV3FirmwareAttachUpdateWatcher(VOIDFUNCPTR routine,
+int32_t faV3FirmwareAttachUpdateWatcher(VOIDFUNCPTR routine,
 				    faV3UpdateWatcherArgs_t arg);
 void faV3FirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg);

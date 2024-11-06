@@ -134,7 +134,12 @@ typedef struct
   /* 0x004C */ volatile uint32_t flow_status;
   /* 0x0050 */ volatile uint32_t dac_csr;
   /* 0x0054 */ volatile uint32_t dac_data;
-  /* 0x0058 */ BLANK[(0x70 - 0x58) >> 2];
+  /* 0x0058 */ volatile uint32_t config_rom_control0;
+  /* 0x005C */ volatile uint32_t config_rom_control1;
+  /* 0x0060 */ volatile uint32_t config_rom_control2;
+  /* 0x0064 */ volatile uint32_t config_rom_status0;
+  /* 0x0068 */ volatile uint32_t config_rom_status1;
+  /* 0x006C */ BLANK[(0x70 - 0x6C) >> 2];
   /* 0x0070 */ volatile uint32_t status1;
   /* 0x0074 */ volatile uint32_t status2;
   /* 0x0078 */ volatile uint32_t status3;
