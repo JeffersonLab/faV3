@@ -4,7 +4,7 @@
 #include "jvme.h"
 
 /* FAV3DC Firmware Tools Prototypes */
-int32_t faV3FirmwareWaitForReady(int32_t id, int32_t nwait);
+int32_t faV3FirmwareWaitForReady(int32_t id, int32_t nwait, int32_t pflag);
 uint32_t faV3FirmwareRomID(int32_t id);
 uint32_t faV3FirmwareRomStatus1(int32_t id);
 uint32_t faV3FirmwareSetMemoryWrite(int32_t id, int32_t enable);
@@ -15,8 +15,11 @@ int32_t  faV3FirmwareDownloadRom(int32_t id, int32_t size);
 int32_t  faV3FirmwareProgramRom(int32_t id);
 int32_t  faV3FirmwareVerifyDownload();
 
-int32_t faV3FirmwareLoad(int32_t id, int32_t pFlag);
 int32_t faV3FirmwarePassedMask();
+int32_t faV3FirmwareLoad(int32_t id, int32_t pFlag);
+int32_t faV3FirmwareDownload(int32_t id, int32_t pFlag);
+int32_t faV3FirmwareVerify(int32_t id, int32_t pFlag);
+int32_t faV3FirmwareDone(int32_t pFlag);
 
 int32_t faV3FirmwareReadFile(char *filename);
 int32_t faV3FirmwareWriteFile(char *filename);

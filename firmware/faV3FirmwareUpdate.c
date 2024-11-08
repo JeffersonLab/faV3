@@ -12,170 +12,225 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <getopt.h>
 #include "jvme.h"
 #include "faV3Lib.h"
 #include "faV3FirmwareTools.h"
 
 char *progName;
 
-void Usage();
+void
+usage()
+{
+  printf("\n");
+  printf("%s <option> <firmware file> <FAV3 VME ADDRESS>\n", progName);
+  printf("\n");
+  printf("\n");
+  printf(" options:\n");
+  printf("     -p                  program <firmware file> to ROM (-v included)\n");
+  printf("     -s                  save ROM to <firmware file> (not compatible with -p, -v)\n");
+  printf("     -v                  verify/compare ROM with <firmware file>\n");
+  printf("     -y                  assume 'yes' to all prompts\n");
+  printf("\n");
+
+}
+
+int32_t
+filecheck(char *filename)
+{
+  int32_t rval = 0;
+  struct stat file_stat;
+  int32_t status;
+
+  status = stat(filename, &file_stat);
+  if(status < 0)
+    {
+      rval = 0;
+    }
+  else if(file_stat.st_size > 0)
+    {
+      rval = 1;
+    }
+
+  return rval;
+}
 
 int
 main(int argc, char *argv[])
 {
 
-  int status;
-  int stat = 0;
-  int fpga_choice, firmware_choice = 0;
-  char *mcs_filename;
-  char inputchar[16];
+  int32_t stat = 0;
+  char *fw_filename;
   uint32_t fadc_address = 0;
+  char inputchar[16];
 
-  printf("\nJLAB fadc firmware update\n");
+  printf("\nJLAB fav3 firmware update\n");
   printf("----------------------------\n");
 
   progName = argv[0];
 
-  if(argc < 3)
-    {
-      printf(" ERROR: Must specify two arguments\n");
-      Usage();
-      exit(-1);
+  int32_t program = 0, save = 0, verify = 0, force = 0, opt;
+
+  while ((opt = getopt(argc, argv, "psvy")) != -1) {
+    switch (opt) {
+    case 'p':
+      program = 1;
+      verify = 1;
+      save = 0;
+      break;
+    case 's':
+      program = 0;
+      verify = 0;
+      save = 1;
+      break;
+    case 'v':
+      verify = 1;
+      save = 0;
+      break;
+    case 'y':
+      force = 1;
+      break;
+    default: /* '?' */
+      usage();
+      exit(EXIT_FAILURE);
     }
-  else
-    {
-      mcs_filename = argv[1];
-      fadc_address = (uint32_t) strtoll(argv[2], NULL, 16) & 0xffffffff;
-    }
+  }
 
-  if(faV3FirmwareReadMcsFile(mcs_filename) != OK)
-    {
-      exit(-1);
-    }
+  if ((optind + 2) != argc) {
+    usage();
+    exit(EXIT_FAILURE);
+  }
 
-  fpga_choice = faV3FirmwareChipFromFpgaID(0);
-  if(fpga_choice == ERROR)
-    {
-      printf(" ERROR: Did not obtain FPGA type from firmware file.\n");
-      printf("        Please specific FPGA type\n");
-      printf("          1 for FX70T (Control FPGA)\n");
-      printf("          2 for LX110 (Processing FPGA)\n");
-      printf("    or q and <ENTER> to quit without update\n");
-      printf("\n");
-
-    REPEAT:
-      printf(" (y/n): ");
-      scanf("%s", (char *) &inputchar);
-
-      if((strcmp(inputchar, "q") == 0) || (strcmp(inputchar, "Q") == 0))
-	{
-	  printf("--- Exiting without update ---\n");
-	  exit(0);
-	}
-      else if(strcmp(inputchar, "1") == 0)
-	{
-	  fpga_choice = 1;
-	}
-      else if(strcmp(inputchar, "2") == 0)
-	{
-	  fpga_choice = 2;
-	}
-      else
-	{
-	  goto REPEAT;
-	}
-
-    }
+  fw_filename = argv[optind++];
+  fadc_address = (uint32_t) strtoll(argv[optind++], NULL, 16) & 0xffffffff;
 
   vmeSetQuietFlag(1);
-  status = vmeOpenDefaultWindows();
+  stat = vmeOpenDefaultWindows();
+
+  if(stat < 0)
+    {
+      printf(" Unable to initialize VME driver\n");
+      exit(-1);
+    }
 
   vmeCheckMutexHealth(10);
   vmeBusLock();
-
-  if(status < 0)
-    {
-      printf(" Unable to initialize VME driver\n");
-      vmeBusUnlock();
-      exit(-1);
-    }
 
   int iFlag = (1 << 18);	/* Do not perform firmware check */
   stat = faV3Init(fadc_address, 0x0, 1, iFlag);
   if(stat < 0)
     {
-      printf(" Unable to initialize FADC.\n");
+      printf(" Unable to initialize faV3.\n");
       goto CLOSE;
     }
 
-  uint32_t cfw = faV3GetFirmwareVersions(faV3Slot(0), 0);
-  printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
-	 faV3Slot(0), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
-
-  printf(" Will update firmware for ");
-  if(fpga_choice == 1)
+  if(program)
     {
-      firmware_choice = FAV3_FIRMWARE_FX70T;
-      printf("FX70T (Control FPGA) ");
-    }
-  else if((fpga_choice == 2) || (fpga_choice == 0))
-    {
-      firmware_choice = FAV3_FIRMWARE_LX110;
-      printf("LX110 (Processing FPGA) ");
+      printf("Update ROM with file:  %s\n", fw_filename);
+      printf(" for FADC250 V3 with VME address = 0x%08x\n", fadc_address);
+      if(filecheck(fw_filename) != 1)
+	{
+	  printf("ERROR: %s file not found\n", fw_filename);
+	  goto CLOSE;
+	}
     }
 
-  printf(" with file: \n   %s", mcs_filename);
-  if(faV3FirmwareRevFromFpgaID(0))
+  if(save)
     {
-      printf(" (rev = 0x%x)\n", faV3FirmwareRevFromFpgaID(0));
+      printf("Save ROM to file:  %s\n", fw_filename);
+      printf(" for FADC250 V3 with VME address = 0x%08x\n", fadc_address);
+      if(filecheck(fw_filename) == 1)
+	{
+	  printf("WARNING: File exists.\n");
+	  if(!force)
+	    {
+	    REPEAT1:
+	      printf(" Press y and <ENTER> to overwrite... n or q and <ENTER> to quit\n");
+
+	      scanf("%s", (char *) inputchar);
+
+	      if((strcmp(inputchar, "q") == 0) || (strcmp(inputchar, "Q") == 0) ||
+		 (strcmp(inputchar, "n") == 0) || (strcmp(inputchar, "N") == 0))
+		{
+		  goto CLOSE;
+		}
+	      else if((strcmp(inputchar, "y") == 0) || (strcmp(inputchar, "Y") == 0))
+		{
+		}
+	      else
+		goto REPEAT1;
+	    }
+	}
     }
-  else
+
+  if(verify && !program)
     {
-      printf("\n");
+      printf("Verify ROM with file:  %s\n", fw_filename);
+      printf(" for FADC250 V3 with VME address = 0x%08x\n", fadc_address);
+      if(filecheck(fw_filename) != 1)
+	{
+	  printf("ERROR: %s file not found\n", fw_filename);
+	  goto CLOSE;
+	}
     }
-  printf(" for FADC250 V2 with VME address = 0x%08x\n", fadc_address);
 
  REPEAT2:
-  printf(" Press y and <ENTER> to continue... n or q and <ENTER> to quit without update\n");
-
-  scanf("%s", (char *) inputchar);
-
-  if((strcmp(inputchar, "q") == 0) || (strcmp(inputchar, "Q") == 0) ||
-     (strcmp(inputchar, "n") == 0) || (strcmp(inputchar, "N") == 0))
+  if(!force)
     {
-      printf(" Exiting without update\n");
-      goto CLOSE;
+      printf(" Press y and <ENTER> to continue... n or q and <ENTER> to quit\n");
+
+      scanf("%s", (char *) inputchar);
+
+      if((strcmp(inputchar, "q") == 0) || (strcmp(inputchar, "Q") == 0) ||
+	 (strcmp(inputchar, "n") == 0) || (strcmp(inputchar, "N") == 0))
+	{
+	  printf(" Exiting without update\n");
+	  goto CLOSE;
+	}
+      else if((strcmp(inputchar, "y") == 0) || (strcmp(inputchar, "Y") == 0))
+	{
+	}
+      else
+	goto REPEAT2;
     }
-  else if((strcmp(inputchar, "y") == 0) || (strcmp(inputchar, "Y") == 0))
+
+  if(program || verify)
     {
+      if(faV3FirmwareReadFile(fw_filename) != OK)
+	goto CLOSE;
     }
-  else
-    goto REPEAT2;
 
-  faV3FirmwareLoad(0, firmware_choice, 0);
+  if(save || verify)
+    {
+      if(faV3FirmwareDownload(0, 1) != OK)
+	goto CLOSE;
+    }
 
-  goto CLOSE;
+  if(program || verify)
+    {
+      if(faV3FirmwareVerify(0, 1) != OK)
+	goto CLOSE;
+    }
+
+  if(save)
+    {
+      if(faV3FirmwareWriteFile(fw_filename) != OK)
+	goto CLOSE;
+    }
 
  CLOSE:
 
+  faV3FirmwareDone(0);
+
   vmeBusUnlock();
 
-  status = vmeCloseDefaultWindows();
-  if(status != OK)
+  stat = vmeCloseDefaultWindows();
+  if(stat != OK)
     {
-      printf("vmeCloseDefaultWindows failed: code 0x%08x\n", status);
-      return -1;
+      printf("vmeCloseDefaultWindows failed: code 0x%08x\n", stat);
+      exit(-1);
     }
 
   exit(0);
-}
-
-
-void
-Usage()
-{
-  printf("\n");
-  printf("%s <firmware MCS file> <FADC VME ADDRESS>\n", progName);
-  printf("\n");
-
 }

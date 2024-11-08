@@ -32,7 +32,7 @@ LINUXVME_LIB		?= ../../lib
 LINUXVME_INC		?= ../../include
 LINUXVME_BIN		?= ../../bin
 
-CFLAGS			= -L. -L.. -L${LINUXVME_LIB} ${LIB_CODA} -ljvme -lfaV3
+CFLAGS			= -L. -L.. -L${LINUXVME_LIB} ${LIB_CODA} -lrt -ljvme -lfaV3
 INCS			= -I. -I.. -I${LINUXVME_INC} ${INC_CODA}
 
 ifdef DEBUG
@@ -48,14 +48,12 @@ DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 DEPFILES := $(SRC:%.c=$(DEPDIR)/%.d)
 
-COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) $(CPPFLAGS) $(TARGET_ARCH)
-
 all: $(PROGS)
 
 %: %.c
 %: %.c  $(DEPDIR)/%.d | $(DEPDIR)
 	@echo " CC     $@"
-	${Q}$(COMPILE.c) $(CFLAGS) $(INCS) -o $@ $<
+	${Q}$(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) -o $@ $<
 
 install: $(PROGS)
 	@echo " CP     ${PROGS}"
