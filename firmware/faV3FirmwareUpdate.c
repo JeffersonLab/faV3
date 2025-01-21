@@ -76,17 +76,12 @@ main(int argc, char *argv[])
     switch (opt) {
     case 'p':
       program = 1;
-      verify = 1;
-      save = 0;
       break;
     case 's':
-      program = 0;
-      verify = 0;
       save = 1;
       break;
     case 'v':
       verify = 1;
-      save = 0;
       break;
     case 'y':
       force = 1;
@@ -164,7 +159,7 @@ main(int argc, char *argv[])
 	}
     }
 
-  if(verify && !program)
+  if(verify)
     {
       printf("Verify ROM with file:  %s\n", fw_filename);
       printf(" for FADC250 V3 with VME address = 0x%08x\n", fadc_address);
@@ -195,26 +190,43 @@ main(int argc, char *argv[])
 	goto REPEAT2;
     }
 
-  if(program || verify)
+  if(program)
     {
       if(faV3FirmwareReadFile(fw_filename) != OK)
 	goto CLOSE;
-    }
 
-  if(save || verify)
-    {
+      printf("Start ROM Erase\n");
+      if(faV3FirmwareRomErase(0) != OK)
+	goto CLOSE;
+
+      printf("Start ROM Program\n");
+      if(faV3FirmwareProgramRom(0) != OK)
+	goto CLOSE;
+
+      printf("Start ROM Download\n");
       if(faV3FirmwareDownload(0, 1) != OK)
 	goto CLOSE;
-    }
 
-  if(program || verify)
-    {
+      printf("Verify ROM with File\n");
       if(faV3FirmwareVerify(0, 1) != OK)
 	goto CLOSE;
     }
-
-  if(save)
+  else if(verify)
     {
+      if(faV3FirmwareReadFile(fw_filename) != OK)
+	goto CLOSE;
+
+      if(faV3FirmwareDownload(0, 1) != OK)
+	goto CLOSE;
+
+      if(faV3FirmwareVerify(0, 1) != OK)
+	goto CLOSE;
+    }
+  else if(save)
+    {
+      if(faV3FirmwareDownload(0, 1) != OK)
+	goto CLOSE;
+
       if(faV3FirmwareWriteFile(fw_filename) != OK)
 	goto CLOSE;
     }

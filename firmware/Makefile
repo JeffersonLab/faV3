@@ -41,7 +41,7 @@ else
 CFLAGS	+= -O2
 endif
 
-SRC			= $(wildcard *.c)
+SRC			= faV3FirmwareUpdate.c
 PROGS			= $(SRC:.c=)
 
 DEPDIR := .deps
