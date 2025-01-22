@@ -41,7 +41,7 @@ else
 CFLAGS	+= -O2
 endif
 
-SRC			= faV3FirmwareUpdate.c
+SRC			= faV3FirmwareUpdate.c faV3GFirmwareUpdate.c
 PROGS			= $(SRC:.c=)
 
 DEPDIR := .deps
