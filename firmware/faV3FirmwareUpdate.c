@@ -195,20 +195,7 @@ main(int argc, char *argv[])
       if(faV3FirmwareReadFile(fw_filename) != OK)
 	goto CLOSE;
 
-      printf("Start ROM Erase\n");
-      if(faV3FirmwareRomErase(0) != OK)
-	goto CLOSE;
-
-      printf("Start ROM Program\n");
-      if(faV3FirmwareProgramRom(0) != OK)
-	goto CLOSE;
-
-      printf("Start ROM Download\n");
-      if(faV3FirmwareDownload(0, 1) != OK)
-	goto CLOSE;
-
-      printf("Verify ROM with File\n");
-      if(faV3FirmwareVerify(0, 1) != OK)
+      if(faV3FirmwareLoad(0, 1) != OK)
 	goto CLOSE;
     }
   else if(verify)

@@ -8,12 +8,13 @@
  *        JLab Data Acquisition Group
  *
  */
-
 #include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
 #include <ctype.h>
+#include <byteswap.h>
 #include "faV3Lib.h"
 #include "faV3FirmwareTools.h"
 
@@ -125,12 +126,21 @@ faV3FirmwareWaitForWIP(int32_t id, int32_t nwait, int32_t pflag)
 {
   int32_t rval = OK;
   uint32_t wipval = 0, iwait = 0;
+  faV3UpdateWatcherArgs_t updateArgs;
+
   CHECKID;
 
   wipval = faV3FirmwareRomStatus1(id) & ConfigRom_SR1V_WIP;
 
   while((iwait++ < nwait) && (wipval != 0))
     {
+      if(nwait > 1000)
+	{
+	  updateArgs.step = FAV3_UPDATE_STEP_ERASE;
+	  updateArgs.show = FAV3_ARGS_SHOW_PROGRESS;
+	  faV3FirmwareUpdateWatcher(updateArgs);
+	}
+
       usleep(1000);
       wipval = faV3FirmwareRomStatus1(id) & ConfigRom_SR1V_WIP;
     }
@@ -144,6 +154,13 @@ faV3FirmwareWaitForWIP(int32_t id, int32_t nwait, int32_t pflag)
       printf("%s: ERROR:  timeout after %d tries\n",
 	     __func__, iwait);
       rval = ERROR;
+    }
+
+  if(nwait > 1000)
+    {
+      updateArgs.step = FAV3_UPDATE_STEP_ERASE;
+      updateArgs.show = FAV3_ARGS_SHOW_DONE;
+      faV3FirmwareUpdateWatcher(updateArgs);
     }
 
   if(pflag)
@@ -278,7 +295,7 @@ faV3FirmwareSetMemoryWrite(int32_t id, int32_t enable)
  */
 
 int32_t
-faV3FirmwareRomErase(int32_t id)
+faV3FirmwareRomErase(int32_t id, int32_t waitforWIP)
 {
   int32_t rval;
   uint32_t cmd;
@@ -305,12 +322,17 @@ faV3FirmwareRomErase(int32_t id)
   vmeWrite32(VME_CONFIG6_ADR, cmd);	// Ready for Next Command
   FAV3UNLOCK;
 
-  rval = faV3FirmwareWaitForWIP(id, 200000, 1);
-  if(rval < 0)
+  if(waitforWIP)
     {
-      printf("%s: Failed to erase Config ROM.  romstatus1 = 0x%08x\n",
-	     __func__, faV3FirmwareRomStatus1(id));
-      return -1;
+      rval = faV3FirmwareWaitForWIP(id, 200000, 0);
+      if(rval < 0)
+	{
+	  printf("%s: Failed to erase Config ROM.  romstatus1 = 0x%08x\n",
+		 __func__, faV3FirmwareRomStatus1(id));
+	  return -1;
+	}
+      else
+	rval = 0;
     }
   else
     rval = 0;
@@ -424,18 +446,8 @@ faV3FirmwareDownloadRom(int32_t id, int32_t size)
 {
   uint32_t rval = 0;
   int32_t idata = 0, iword = 0, last_of_page = 0;
+  faV3UpdateWatcherArgs_t updateArgs;
   CHECKID;
-
-#ifdef SKIPMEMWRITE
-  // FIXME: Not sure write enable is needed here
-  rval = faV3FirmwareSetMemoryWrite(id, 1);
-  if(rval == 0)
-    {
-      printf("%s: ERROR: Write not enabled\n",
-	     __func__);
-      return -1;
-    }
-#endif
 
   if(rom_firmware == NULL)
     rom_firmware = (faV3fw_t *)malloc(sizeof(faV3fw_t));
@@ -444,6 +456,8 @@ faV3FirmwareDownloadRom(int32_t id, int32_t size)
 
   rom_firmware->loaded = 0;
 
+  updateArgs.step = FAV3_UPDATE_STEP_DOWNLOAD;
+  updateArgs.show = FAV3_ARGS_SHOW_PROGRESS;
   while(idata < (size>>2))
     {
       if((idata & (256 >> 2)) == (256 >> 2))
@@ -454,10 +468,13 @@ faV3FirmwareDownloadRom(int32_t id, int32_t size)
       rom_firmware->data[idata] = faV3FirmwareReadRomAdr(id, (idata << 2), last_of_page);
 
       idata++;
-      if((idata % 0x100000) == 0)
-	printf("0x%x\n", idata);
+
+      faV3FirmwareUpdateWatcher(updateArgs);
+
     }
-  printf("\n");
+
+  updateArgs.show = FAV3_ARGS_SHOW_DONE;
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   rom_firmware->size = idata;
   rom_firmware->loaded = 1;
@@ -475,6 +492,7 @@ faV3FirmwareProgramRom(int32_t id)
 {
   uint32_t rval = 0, romadr = 0;
   int32_t idata = 0, iword = 0, last_of_page = 0;
+  faV3UpdateWatcherArgs_t updateArgs;
   CHECKID;
   if(file_firmware->loaded != 1)
     {
@@ -482,6 +500,8 @@ faV3FirmwareProgramRom(int32_t id)
       return ERROR;
     }
 
+  updateArgs.step = FAV3_UPDATE_STEP_PROGRAM;
+  updateArgs.show = FAV3_ARGS_SHOW_PROGRESS;
   while(idata < file_firmware->size)
     {
       romadr = idata << 2;
@@ -493,9 +513,15 @@ faV3FirmwareProgramRom(int32_t id)
       faV3FirmwareWriteRomAdr(id, romadr, file_firmware->data[idata], last_of_page);
 
       idata++;
+
+      faV3FirmwareUpdateWatcher(updateArgs);
+
     }
   romadr = idata << 2;
   faV3FirmwareWriteRomAdr(id, romadr, 0xFFFFFFFF, 1);
+
+  updateArgs.show = FAV3_ARGS_SHOW_DONE;
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   return OK;
 }
@@ -508,6 +534,8 @@ faV3FirmwareProgramRom(int32_t id)
 int32_t
 faV3FirmwareCompare()
 {
+  faV3UpdateWatcherArgs_t updateArgs;
+
   if((file_firmware == NULL) || (file_firmware->loaded != 1))
     {
       printf("%s: ERROR : File Firmware was not loaded\n", __func__);
@@ -527,6 +555,8 @@ faV3FirmwareCompare()
     }
 
   int32_t idata = 0, errorCount = 0;
+  updateArgs.step = FAV3_UPDATE_STEP_VERIFY;
+  updateArgs.show = FAV3_ARGS_SHOW_PROGRESS;
   while(idata < file_firmware->size)
     {
       if(file_firmware->data[idata] != rom_firmware->data[idata])
@@ -539,6 +569,8 @@ faV3FirmwareCompare()
 	    }
 	}
       idata++;
+      faV3FirmwareUpdateWatcher(updateArgs);
+
     }
 
   if(errorCount)
@@ -546,6 +578,9 @@ faV3FirmwareCompare()
       printf("%s: errorCount = 0x%x (%d)\n", __func__, errorCount, errorCount);
       return ERROR;
     }
+
+  updateArgs.show = FAV3_ARGS_SHOW_DONE;
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   return OK;
 }
@@ -585,50 +620,118 @@ faV3FirmwareLoad(int32_t id, int32_t pFlag)
   faV3UpdateWatcherArgs_t updateArgs;
   CHECKID;
 
+  if(id==0) id = faV3Slot(id);
+  updateArgs.id = id;
+  updateArgs.step = FAV3_UPDATE_STEP_INIT;
+
   /* Perform a hardware and software reset */
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->reset, 0xFFFF);
   FAV3UNLOCK;
   taskDelay(60);
 
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Check if ready \n");
   faV3FirmwareUpdateWatcher(updateArgs);
 
+  updateArgs.show = FAV3_ARGS_SHOW_ID;
+  faV3FirmwareUpdateWatcher(updateArgs);
+
   /* Check for ROM Ready after reset */
-  if(faV3FirmwareWaitForReady(id, 60, pFlag) != OK)
+  if(faV3FirmwareWaitForReady(id, 60, 0) < OK)
     {
-      printf("%s: ERROR: FADC %2d not ready after reset\n", __func__, id);
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+      sprintf(updateArgs.title,
+	      "ERROR: FAV3 %2d not ready after reset\n", id);
+      faV3FirmwareUpdateWatcher(updateArgs);
       return ERROR;
     }
 
-  /* Clear ROM */
-  if(faV3FirmwareRomErase(id) != OK)
+  updateArgs.show = FAV3_ARGS_SHOW_DONE;
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  /* ERASE ROM */
+  updateArgs.step = FAV3_UPDATE_STEP_ERASE;
+
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+  sprintf(updateArgs.title, "ERASE ROM \n");
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  updateArgs.show = FAV3_ARGS_SHOW_ID;
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  if(faV3FirmwareRomErase(id, 1) != OK)
     {
       printf("%s: ERROR: faV3 %2d Failed to erase ROM\n",
 	     __func__, id);
-      updateArgs.step = FAV3_ARGS_SHOW_STRING;
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
       sprintf(updateArgs.title,
 	      "ERROR: FAV3 %2d FAILED ROM ERASE\n", id);
       faV3FirmwareUpdateWatcher(updateArgs);
       return ERROR;
     }
 
-  /* Data to ROM */
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
+  /* Program ROM */
+  updateArgs.step = FAV3_UPDATE_STEP_PROGRAM;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Program ROM\n");
   faV3FirmwareUpdateWatcher(updateArgs);
 
+  updateArgs.show = FAV3_ARGS_SHOW_ID;
+  faV3FirmwareUpdateWatcher(updateArgs);
   if(faV3FirmwareProgramRom(id) != OK)
     {
       printf("%s: ERROR: faV3 %2d Failed to program ROM\n",
 	     __func__, id);
-      updateArgs.step = FAV3_ARGS_SHOW_STRING;
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
       sprintf(updateArgs.title,
 	      "ERROR: FAV3 %2d FAILED ROM PROGRAM\n", id);
       faV3FirmwareUpdateWatcher(updateArgs);
       return ERROR;
     }
+
+  /* Download ROM data */
+  updateArgs.step = FAV3_UPDATE_STEP_DOWNLOAD;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+  sprintf(updateArgs.title, "Download ROM data\n");
+  faV3FirmwareUpdateWatcher(updateArgs);
+  updateArgs.show = FAV3_ARGS_SHOW_ID;
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  if(faV3FirmwareDownload(id, 1) != OK)
+    {
+      printf("%s: ERROR: faV3 %2d Failed to download ROM data\n",
+	     __func__, id);
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+      sprintf(updateArgs.title,
+	      "ERROR: FAV3 %2d FAILED ROM DATA DOWNLOAD\n", id);
+      faV3FirmwareUpdateWatcher(updateArgs);
+      return ERROR;
+    }
+
+  /* Verify ROM data with file */
+  updateArgs.step = FAV3_UPDATE_STEP_VERIFY;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+  sprintf(updateArgs.title, "Verify ROM data\n");
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  updateArgs.show = FAV3_ARGS_SHOW_ID;
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  if(faV3FirmwareVerify(id, 1) != OK)
+    {
+      printf("%s: ERROR: faV3 %2d ROM Data not verified\n",
+	     __func__, id);
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+      sprintf(updateArgs.title,
+	      "ERROR: FAV3 %2d FAILED ROM DATA VERIFICATION\n", id);
+      faV3FirmwareUpdateWatcher(updateArgs);
+      return ERROR;
+    }
+
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+  sprintf(updateArgs.title, "Done programming FADC %2d\n", id);
+  faV3FirmwareUpdateWatcher(updateArgs);
 
   return OK;
 }
@@ -641,15 +744,12 @@ faV3FirmwareDownload(int32_t id, int32_t pFlag)
 
   /* PROM to data */
   taskDelay(1);
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
-  sprintf(updateArgs.title, "Downloading ROM \n");
-  faV3FirmwareUpdateWatcher(updateArgs);
 
   if(faV3FirmwareDownloadRom(id, FAV3_FW_SIZE) != OK)
     {
       printf("%s: ERROR: faV3 %2d Failed to download ROM\n",
 	     __func__, id);
-      updateArgs.step = FAV3_ARGS_SHOW_STRING;
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
       sprintf(updateArgs.title,
 	      "ERROR: FAV3 %2d FAILED ROM DOWNLOAD\n", id);
       faV3FirmwareUpdateWatcher(updateArgs);
@@ -666,14 +766,11 @@ faV3FirmwareVerify(int32_t id, int32_t pFlag)
   CHECKID;
 
   /* Verify ROM */
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
-  sprintf(updateArgs.title, "Verifying ROM \n");
-  faV3FirmwareUpdateWatcher(updateArgs);
 
   if(faV3FirmwareCompare() != OK)
     {
       printf("%s: ERROR: faV3 %d PROM data not verified\n", __func__, id);
-      updateArgs.step = FAV3_ARGS_SHOW_STRING;
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
       sprintf(updateArgs.title,
 	      "ERROR: FAV3 %2d FAILED ROM VERIFICATION\n", id);
       faV3FirmwareUpdateWatcher(updateArgs);
@@ -686,12 +783,6 @@ faV3FirmwareVerify(int32_t id, int32_t pFlag)
 int32_t
 faV3FirmwareDone(int32_t pFlag)
 {
-  faV3UpdateWatcherArgs_t updateArgs;
-
-  /* Verify ROM */
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
-  sprintf(updateArgs.title, "Done \n");
-  faV3FirmwareUpdateWatcher(updateArgs);
 
   if(rom_firmware)
     free(rom_firmware);
@@ -702,7 +793,6 @@ faV3FirmwareDone(int32_t pFlag)
   return OK;
 }
 
-#ifdef OLDCODE
 /*************************************************************
  * faV3FirmwareGLoad
  *   - load up firmware for all initialized modules
@@ -711,26 +801,26 @@ faV3FirmwareDone(int32_t pFlag)
  *     faV3FirmwareSetFilename(...);
  *   if not using firmware from the default
  */
-int
+int32_t
 faV3FirmwareGLoad(int32_t pFlag)
 {
-  int32_t ifadc = 0, id = 0, step = 0;
+  int32_t ifadc = 0, id = 0;
   faV3UpdateWatcherArgs_t updateArgs;
 
   /*   uint32_t passed[FAV3_MAX_BOARDS+1], stepfail[FAV3_MAX_BOARDS+1]; */
 
   /* Perform a hardware and software reset */
-  step = 0;
+  updateArgs.step = FAV3_UPDATE_STEP_INIT;
   FAV3LOCK;
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = faV3ID[ifadc];
+      id = faV3Slot(ifadc);
       if((id <= 0) || (id > 21) || (FAV3p[id] == NULL))
 	{
 	  printf("%s: ERROR : ADC in slot %d is not initialized \n",
 		 __func__, id);
 	  passed[id] = 0;
-	  stepfail[id] = step;
+	  stepfail[id] = updateArgs.step;
 	}
       else
 	{
@@ -742,188 +832,156 @@ faV3FirmwareGLoad(int32_t pFlag)
   taskDelay(60);
 
   /* Check if FADC is Ready */
-  step = 1;
 
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Check if ready \n");
   faV3FirmwareUpdateWatcher(updateArgs);
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = faV3ID[ifadc];
-      if(faV3FirmwareTestReady(id, 60, pFlag) != OK)
-	{
-	  printf("%s: ERROR: FADC %2d not ready after reset\n", __func__, id);
-	  passed[id] = 0;
-	  stepfail[id] = step;
-	}
-    }
+      id = faV3Slot(ifadc);
+      updateArgs.id = id;
+      updateArgs.show = FAV3_ARGS_SHOW_ID;
+      faV3FirmwareUpdateWatcher(updateArgs);
 
-  /* Check if FADC has write access to SRAM from U90 JTAG DIP-switches */
-  for(ifadc = 0; ifadc < nfaV3; ifadc++)
-    {
-      id = faV3ID[ifadc];
-      if(faV3FirmwareCheckSRAM(id) != OK)
+      if(faV3FirmwareWaitForReady(id, 60, pFlag) < OK)
 	{
-	  printf("%s: ERROR: FADC %2d not configured to read/write PROM.\n\tCheck U90 DIP Switches.\n",
-		 __func__, id);
-	  passed[id] = 0;
-	  stepfail[id] = step;
-	  updateArgs.step = FAV3_ARGS_SHOW_STRING;
+	  updateArgs.show = FAV3_ARGS_SHOW_STRING;
 	  sprintf(updateArgs.title,
-		  "ERROR: FADC %2d FAILED PROM READ/WRITE TEST\n", id);
+		  "ERROR: FAV3 %2d not ready after reset\n", id);
+	  faV3FirmwareUpdateWatcher(updateArgs);
+	  passed[id] = 0;
+	  stepfail[id] = updateArgs.step;
+	}
+      else
+	{
+	  updateArgs.show = FAV3_ARGS_SHOW_DONE;
 	  faV3FirmwareUpdateWatcher(updateArgs);
 	}
     }
 
+  /* ERASE ROM */
+  updateArgs.step = FAV3_UPDATE_STEP_ERASE;
 
-  /* Data to SRAM */
-  step = 2;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+  sprintf(updateArgs.title, "ERASE ROM \n");
+  faV3FirmwareUpdateWatcher(updateArgs);
 
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
-  sprintf(updateArgs.title, "Loading SRAM with data \n");
+  /* Execute erase command */
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
+    {
+      id = faV3Slot(ifadc);
+      if(passed[id])		/* Skip the ones that have previously failed */
+	{
+	  if(faV3FirmwareRomErase(id, 0) != OK)
+	    {
+	      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+	      sprintf(updateArgs.title,
+		      "ERROR: FAV3 %2d FAILED TO EXEC ROM ERASE\n", id);
+	      faV3FirmwareUpdateWatcher(updateArgs);
+	      passed[id] = 0;
+	      stepfail[id] = updateArgs.step;
+	    }
+	}
+    }
+  /* Wait for Erase to Complete */
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
+    {
+      id = faV3Slot(ifadc);
+
+      if(passed[id])		/* Skip the ones that have previously failed */
+	{
+	  updateArgs.id = id;
+	  updateArgs.show = FAV3_ARGS_SHOW_ID;
+	  faV3FirmwareUpdateWatcher(updateArgs);
+
+	  if(faV3FirmwareWaitForWIP(id, 200000, 0) < OK)
+	    {
+	      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+	      sprintf(updateArgs.title,
+		      "ERROR: FAV3 %2d FAILED ROM ERASE\n", id);
+	      faV3FirmwareUpdateWatcher(updateArgs);
+	      passed[id] = 0;
+	      stepfail[id] = updateArgs.step;
+	    }
+	}
+    }
+
+  /* Program ROM */
+  updateArgs.step = FAV3_UPDATE_STEP_PROGRAM;
+
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+  sprintf(updateArgs.title, "Program ROM\n");
   faV3FirmwareUpdateWatcher(updateArgs);
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = faV3ID[ifadc];
-
-      updateArgs.step = FAV3_ARGS_SHOW_ID;
-      updateArgs.id = id;
-      faV3FirmwareUpdateWatcher(updateArgs);
-
+      id = faV3Slot(ifadc);
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  faV3FirmwareDownloadConfigData(id);
-
-	  if(faV3FirmwareVerifyDownload(id) != OK)
+	  updateArgs.id = id;
+	  updateArgs.show = FAV3_ARGS_SHOW_ID;
+	  faV3FirmwareUpdateWatcher(updateArgs);
+	  if(faV3FirmwareProgramRom(id) != OK)
 	    {
-	      printf("%s: ERROR: FADC %2d Failed data verification at SRAM\n",
-		     __func__, id);
+	      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+	      sprintf(updateArgs.title,
+		      "ERROR: FAV3 %2d FAILED ROM PROGRAM\n", id);
+	      faV3FirmwareUpdateWatcher(updateArgs);
 	      passed[id] = 0;
-	      stepfail[id] = step;
+	      stepfail[id] = updateArgs.step;
+	    }
+	}
+    }
+
+  /* Download and Verify ROM data */
+  updateArgs.step = FAV3_UPDATE_STEP_DOWNLOAD;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+  sprintf(updateArgs.title, "Download and Verify ROM data\n");
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
+    {
+      id = faV3Slot(ifadc);
+      if(passed[id])		/* Skip the ones that have previously failed */
+	{
+	  updateArgs.id = id;
+	  updateArgs.show = FAV3_ARGS_SHOW_ID;
+	  faV3FirmwareUpdateWatcher(updateArgs);
+
+	  if(faV3FirmwareDownload(id, 1) != OK)
+	    {
+	      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+	      sprintf(updateArgs.title,
+		      "ERROR: FAV3 %2d FAILED ROM DATA DOWNLOAD\n", id);
+	      faV3FirmwareUpdateWatcher(updateArgs);
+	      passed[id] = 0;
+	      stepfail[id] = updateArgs.step;
 	    }
 	  else
 	    {
-	      updateArgs.step = FAV3_ARGS_SHOW_DONE;
+	      /* Verify ROM data */
+	      updateArgs.step = FAV3_UPDATE_STEP_VERIFY;
+	      updateArgs.show = FAV3_ARGS_SHOW_ID;
 	      faV3FirmwareUpdateWatcher(updateArgs);
-	    }
-	}
-    }
 
-  /* SRAM TO PROM */
-  step = 3;
-  taskDelay(1);
+	      if(faV3FirmwareVerify(id, 1) != OK)
+		{
+		  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+		  sprintf(updateArgs.title,
+			  "ERROR: FAV3 %2d FAILED ROM DATA VERIFICATION\n", id);
+		  faV3FirmwareUpdateWatcher(updateArgs);
+		  passed[id] = 0;
+		  stepfail[id] = updateArgs.step;
 
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
-  sprintf(updateArgs.title, "Loading PROM with SRAM data \n");
-  faV3FirmwareUpdateWatcher(updateArgs);
-
-  FAV3LOCK;
-  for(ifadc = 0; ifadc < nfaV3; ifadc++)
-    {
-      id = faV3ID[ifadc];
-      if(passed[id])		/* Skip the ones that have previously failed */
-	{
-	  if(chip == FAV3_FIRMWARE_LX110)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_SRAM_TO_PROM1);
-	  else if(chip == FAV3_FIRMWARE_FX70T)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_SRAM_TO_PROM2);
-	}
-    }
-  FAV3UNLOCK;
-  taskDelay(1);
-
-  for(ifadc = 0; ifadc < nfaV3; ifadc++)
-    {
-      id = faV3ID[ifadc];
-      if(passed[id])		/* Skip the ones that have previously failed */
-	{
-	  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
-	    {
-	      printf("%s: ERROR: FADC %2d ready timeout SRAM -> PROM\n",
-		     __func__, id);
-	      passed[id] = 0;
-	      stepfail[id] = step;
-	    }
-	}
-    }
-
-  /* PROM TO SRAM (For verification) */
-  step = 4;
-
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
-  faV3FirmwareUpdateWatcher(updateArgs);
-  sprintf(updateArgs.title, "Loading SRAM with PROM data \n");
-
-  for(ifadc = 0; ifadc < nfaV3; ifadc++)
-    {
-      id = faV3ID[ifadc];
-      if(passed[id])		/* Skip the ones that have previously failed */
-	{
-	  faV3FirmwareZeroSRAM(id);
-	  FAV3LOCK;
-	  if(chip == FAV3_FIRMWARE_LX110)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM1_TO_SRAM);
-	  else if(chip == FAV3_FIRMWARE_FX70T)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_PROM2_TO_SRAM);
-	  FAV3UNLOCK;
-	}
-    }
-
-  taskDelay(1);
-
-  for(ifadc = 0; ifadc < nfaV3; ifadc++)
-    {
-      id = faV3ID[ifadc];
-      if(passed[id])		/* Skip the ones that have previously failed */
-	{
-	  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
-	    {
-	      printf("%s: ERROR: FADC %2d ready timeout PROM -> SRAM\n",
-		     __func__, id);
-	      passed[id] = 0;
-	      stepfail[id] = step;
-	    }
-	}
-    }
-
-  /* Compare SRAM to Data Array */
-  step = 5;
-
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
-  sprintf(updateArgs.title, "Verifying data \n");
-  faV3FirmwareUpdateWatcher(updateArgs);
-
-  for(ifadc = 0; ifadc < nfaV3; ifadc++)
-    {
-      id = faV3ID[ifadc];
-
-      updateArgs.step = FAV3_ARGS_SHOW_ID;
-      updateArgs.id = id;
-      faV3FirmwareUpdateWatcher(updateArgs);
-
-      if(passed[id])		/* Skip the ones that have previously failed */
-	{
-	  if(faV3FirmwareVerifyDownload(id) != OK)
-	    {
-	      printf("%s: ERROR: FADC %d PROM data not verified\n",
-		     __func__, id);
-	      passed[id] = 0;
-	      stepfail[id] = step;
-	    }
-	  else
-	    {
-	      updateArgs.step = FAV3_ARGS_SHOW_DONE;
-	      faV3FirmwareUpdateWatcher(updateArgs);
+		}
 	    }
 	}
     }
 
   /* PROM to FPGA (Reboot FPGA) */
-  step = 6;
 
-  updateArgs.step = FAV3_ARGS_SHOW_STRING;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
   sprintf(updateArgs.title, "Rebooting FPGA \n");
   faV3FirmwareUpdateWatcher(updateArgs);
 
@@ -932,37 +990,32 @@ faV3FirmwareGLoad(int32_t pFlag)
       id = faV3ID[ifadc];
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  FAV3LOCK;
-	  if(chip == FAV3_FIRMWARE_LX110)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_REBOOT_FPGA1);
-	  else if(chip == FAV3_FIRMWARE_FX70T)
-	    vmeWrite32(&FAV3p[id]->prom_reg1, FAV3_PROMREG1_REBOOT_FPGA2);
-	  FAV3UNLOCK;
+	  /* Reboot method here */
 	}
     }
   taskDelay(1);
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = faV3ID[ifadc];
+      id = faV3Slot(ifadc);
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  if(faV3FirmwareTestReady(id, 60000, pFlag) != OK)	/* Wait til it's done */
+	  if(faV3FirmwareWaitForReady(id, 60000, 0) < OK)	/* Wait til it's done */
 	    {
 	      printf("%s: ERROR: FADC %2d ready timeout PROM -> FPGA\n",
 		     __func__, id);
 	      passed[id] = 0;
-	      stepfail[id] = step;
+	      stepfail[id] = updateArgs.step;
 	    }
 	}
     }
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = faV3ID[ifadc];
+      id = faV3Slot(ifadc);
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  updateArgs.step = FAV3_ARGS_SHOW_STRING;
+	  updateArgs.show = FAV3_ARGS_SHOW_STRING;
 	  sprintf(updateArgs.title, "Done programming FADC %2d\n", id);
 	  faV3FirmwareUpdateWatcher(updateArgs);
 	}
@@ -976,7 +1029,6 @@ faV3FirmwareGLoad(int32_t pFlag)
   return OK;
 
 }
-#endif
 
 int
 faV3FirmwareReadFile(char *filename)
@@ -1056,9 +1108,13 @@ void
 faV3FirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg)
 {
   faV3UpdateWatcherArgs_t rArg;
-  static int32_t step1_ticks = 0;
+  static int32_t progress_ticks = 0;
+  /* prescale to normalize to show max 20 +'s */
+  int32_t erase_prescale = 1000 * 100 / 20; /* erase is about 100 seconds, each tick is 1 ms*/
+  int32_t rw_prescale = (0x1701DEC / 4) / 20; /* Firmware is 0x1701DEC bytes, each tick is 4 bytes */
+  int32_t progress_prescale = 20;
 
-  if((arg.step >= FAV3_ARGS_SHOW_ID) && (arg.step < FAV3_ARGS_LAST))
+  if((arg.show >= FAV3_ARGS_SHOW_ID) && (arg.show < FAV3_ARGS_LAST))
     rArg = arg;
   else
     rArg = faV3UpdateWatcherArgs;
@@ -1069,17 +1125,32 @@ faV3FirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg)
     }
   else
     {
-      switch (rArg.step)
+      switch(rArg.step)
+	{
+	case FAV3_UPDATE_STEP_ERASE:
+	  progress_prescale = erase_prescale;
+	  break;
+
+	case FAV3_UPDATE_STEP_PROGRAM:
+	case FAV3_UPDATE_STEP_DOWNLOAD:
+	case FAV3_UPDATE_STEP_VERIFY:
+	  progress_prescale = rw_prescale;
+	  break;
+
+	}
+
+
+      switch (rArg.show)
 	{
 	case FAV3_ARGS_SHOW_ID:
-	  step1_ticks = 0;
+	  progress_ticks = 0;
 	  printf("%2d: ", arg.id);
 	  fflush(stdout);
 	  break;
 
 	case FAV3_ARGS_SHOW_PROGRESS:
-	  step1_ticks++;
-	  if((step1_ticks % 180) == 0)
+	  progress_ticks++;
+	  if((progress_ticks % progress_prescale) == 0)
 	    {
 	      printf("+");
 	      fflush(stdout);
@@ -1087,7 +1158,7 @@ faV3FirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg)
 	  break;
 
 	case FAV3_ARGS_SHOW_DONE:
-	  step1_ticks = 0;
+	  progress_ticks = 0;
 	  printf(" Done\n");
 	  fflush(stdout);
 	  break;
