@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include "jvme.h"
 #include "faV3Lib.h"
 #include "faV3-HallD.h"

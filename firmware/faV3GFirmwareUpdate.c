@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include "jvme.h"
 #include "faV3Lib.h"
 #include "faV3FirmwareTools.h"
@@ -25,18 +26,37 @@ char *progName;
 
 void Usage();
 
+int32_t
+filecheck(char *filename)
+{
+  int32_t rval = 0;
+  struct stat file_stat;
+  int32_t status;
+
+  status = stat(filename, &file_stat);
+  if(status < 0)
+    {
+      rval = 0;
+    }
+  else if(file_stat.st_size > 0)
+    {
+      rval = 1;
+    }
+
+  return rval;
+}
+
 int
 main(int argc, char *argv[])
 {
 
   int32_t status;
-  int fpga_choice, firmware_choice = 0;
-  char *mcs_filename;
+  char *fw_filename;
   char inputchar[16];
   int ifa = 0;
   uint32_t cfw = 0;
 
-  printf("\nJLAB fadc firmware update\n");
+  printf("\nJLAB fav3 firmware update\n");
   printf("----------------------------\n");
 
   progName = argv[0];
@@ -49,47 +69,7 @@ main(int argc, char *argv[])
     }
   else
     {
-      mcs_filename = argv[1];
-    }
-
-  if(faV3FirmwareReadMcsFile(mcs_filename) != OK)
-    {
-      exit(-1);
-    }
-
-
-  fpga_choice = faV3FirmwareChipFromFpgaID(0);
-  if(fpga_choice == ERROR)
-    {
-      printf(" ERROR: Did not obtain FPGA type from firmware file.\n");
-      printf("        Please specific FPGA type\n");
-      printf("          1 for FX70T (Control FPGA)\n");
-      printf("          2 for LX110 (Processing FPGA)\n");
-      printf("    or q and <ENTER> to quit without update\n");
-      printf("\n");
-
-    REPEAT:
-      printf(" (y/n): ");
-      scanf("%s", (char *) &inputchar);
-
-      if((strcmp(inputchar, "q") == 0) || (strcmp(inputchar, "Q") == 0))
-	{
-	  printf("--- Exiting without update ---\n");
-	  exit(0);
-	}
-      else if(strcmp(inputchar, "1") == 0)
-	{
-	  fpga_choice = 1;
-	}
-      else if(strcmp(inputchar, "2") == 0)
-	{
-	  fpga_choice = 2;
-	}
-      else
-	{
-	  goto REPEAT;
-	}
-
+      fw_filename = argv[1];
     }
 
   vmeSetQuietFlag(1);
@@ -118,27 +98,7 @@ main(int argc, char *argv[])
 	     faV3Slot(ifa), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
     }
 
-  printf(" Will update firmware for ");
-  if(fpga_choice == 1)
-    {
-      firmware_choice = FAV3_FIRMWARE_FX70T;
-      printf("FX70T (Control FPGA) ");
-    }
-  else if((fpga_choice == 2) || (fpga_choice == 0))
-    {
-      firmware_choice = FAV3_FIRMWARE_LX110;
-      printf("LX110 (Processing FPGA) ");
-    }
-
-  printf(" with file: \n   %s", mcs_filename);
-  if(faV3FirmwareRevFromFpgaID(0))
-    {
-      printf(" (rev = 0x%x)\n", faV3FirmwareRevFromFpgaID(0));
-    }
-  else
-    {
-      printf("\n");
-    }
+  printf(" Will update firmware with file: \n   %s\n", fw_filename);
 
  REPEAT2:
   printf(" Press y and <ENTER> to continue... n or q and <ENTER> to quit without update\n");
@@ -157,9 +117,10 @@ main(int argc, char *argv[])
   else
     goto REPEAT2;
 
-  faV3FirmwareGLoad(firmware_choice, 0);
+  if(faV3FirmwareReadFile(fw_filename) != OK)
+    goto CLOSE;
 
-  goto CLOSE;
+  faV3FirmwareGLoad(0);
 
  CLOSE:
 
@@ -179,7 +140,7 @@ void
 Usage()
 {
   printf("\n");
-  printf("%s <firmware MCS file>\n", progName);
+  printf("%s <firmware file>\n", progName);
   printf("\n");
 
 }
