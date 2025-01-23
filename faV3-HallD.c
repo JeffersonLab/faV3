@@ -721,3 +721,166 @@ faV3HallDGetRoguePTWFallBack(int id, uint16_t *enablemask)
 
   return(rval);
 }
+
+
+/**
+ *  @ingroup Config
+ *  @brief Insert ADC parameter word into datastream.
+ *     The data word appears as a block header continuation word.
+ *  @param id Slot number
+ *  @param enable Enable flag
+ *      -  0: Disable
+ *      - !0: Enable
+ *  @return OK if successful, otherwise ERROR.
+ */
+int
+faV3HallDDataInsertAdcParameters(int id, int enable)
+{
+  CHECKID;
+
+  FAV3LOCK;
+  if(enable)
+    vmeWrite32(&FAV3p[id]->ctrl1,
+	       vmeRead32(&FAV3p[id]->ctrl1) | FAV3_ENABLE_ADC_PARAMETERS_DATA);
+  else
+    vmeWrite32(&FAV3p[id]->ctrl1,
+	       vmeRead32(&FAV3p[id]->ctrl1) & ~FAV3_ENABLE_ADC_PARAMETERS_DATA);
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Insert ADC parameter word into datastream. For all initialized modules.
+ *     The data word appears as a block header continuation word.
+ *  @param enable Enable flag
+ *      -  0: Disable
+ *      - !0: Enable
+ */
+void
+faV3HallDGDataInsertAdcParameters(int enable)
+{
+  int ifadc;
+
+  for(ifadc=0;ifadc<nfaV3;ifadc++)
+    faV3HallDDataInsertAdcParameters(faV3Slot(ifadc), enable);
+
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable suppression of one or both of the trigger time words
+ *    in the data stream.
+ *  @param id Slot number
+ *  @param suppress Suppression Flag
+ *      -  0: Trigger time words are enabled in datastream
+ *      -  1: Suppress BOTH trigger time words
+ *      -  2: Suppress trigger time word 2 (that with most significant bytes)
+ *  @return OK if successful, otherwise ERROR.
+ */
+int
+faV3HallDDataSuppressTriggerTime(int id, int suppress)
+{
+  unsigned int suppress_bits=0;
+  CHECKID;
+
+  switch(suppress)
+    {
+    case 0: /* Enable trigger time words */
+      suppress_bits = FAV3_SUPPRESS_TRIGGER_TIME_DATA;
+      break;
+
+    case 1: /* Suppress both trigger time words */
+      suppress_bits = FAV3_SUPPRESS_TRIGGER_TIME_DATA;
+      break;
+
+    case 2: /* Suppress trigger time word 2 */
+      suppress_bits = FAV3_SUPPRESS_TRIGGER_TIME_WORD2_DATA;
+      break;
+
+    default:
+      printf("%s(%d): ERROR: Invalid suppress (%d)\n",
+	     __func__,id,suppress);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  if(suppress)
+    vmeWrite32(&FAV3p[id]->ctrl1,
+	       vmeRead32(&FAV3p[id]->ctrl1) | suppress_bits);
+  else
+    vmeWrite32(&FAV3p[id]->ctrl1,
+	       vmeRead32(&FAV3p[id]->ctrl1) & ~suppress_bits);
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable suppression of one or both of the trigger time words
+ *    in the data stream for all initialized modules.
+ *  @param suppress Suppression Flag
+ *      -  0: Trigger time words are enabled in datastream
+ *      -  1: Suppress BOTH trigger time words
+ *      -  2: Suppress trigger time word 2 (that with most significant bytes)
+ */
+void
+faV3HallDGDataSuppressTriggerTime(int suppress)
+{
+  int ifadc;
+
+  for(ifadc=0;ifadc<nfaV3;ifadc++)
+    faV3HallDDataSuppressTriggerTime(faV3Slot(ifadc), suppress);
+
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Set the readout data form which allows for suppression of
+ *         repetitious data words
+ *  @param id Slot number
+ *  @param format Data Format
+ *      -  0: Standard Format - No data words suppressed
+ *      -  1: Intermediate compression - Event headers suppressed if no data
+ *      -  2: Full compression - Only first event header in the block.
+ *  @return OK if successful, otherwise ERROR.
+ */
+int
+faV3HallDSetDataFormat(int id, int format)
+{
+  CHECKID;
+
+  if((format < 0) || (format > 2))
+    {
+      printf("%s: ERROR: Invalid format (%d) \n",
+	     __func__, format);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->ctrl1,
+	     (vmeRead32(&FAV3p[id]->ctrl1) & ~FAV3_CTRL1_DATAFORMAT_MASK)
+	     | format);
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Set the readout data form for all initialized modules.
+ *  @param format Data Format
+ *      -  0: Standard Format - No data words suppressed
+ *      -  1: Intermediate compression - Event headers suppressed if no data
+ *      -  2: Full compression - Only first event header in the block.
+ */
+void
+faV3HallDGSetDataFormat(int format)
+{
+  int ifadc;
+
+  for(ifadc=0;ifadc<nfaV3;ifadc++)
+    faV3HallDSetDataFormat(faV3Slot(ifadc), format);
+}

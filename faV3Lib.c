@@ -6966,6 +6966,186 @@ faV3GetTriggersProcessedCount(int id)
   return rval;
 }
 
+int32_t
+faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
+{
+  //  The time delay of Idelay component in Ultra Scale Xilinx FPGA is
+  //  determined by the setting of the Idelay Count Value 512
+  //  taps. Each tap delays input by 17.857 pS.
+  //  The purpose of this routine is to take into VTC feature of the Idelay.
+  //  It does the following:
+  //    1) Read the desired delays (in pSec from serial ROM on the FADCV3 board => IdelayValInRom
+  //    2) Read the present Idely Count Values  (position of 512 taps) => InitIdelyCountValue
+  //    3) Tap delay resoultion; TapRes = 500 pS/InitIdelyCountValue
+  //    4) NewTapVal =  TapRes *  IdelayValInRom
+  //    5) Program NewTapVal into Idelay
+
+  uint32_t ADC_Chan;
+  uint32_t IdelayValInRom[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t InitIdelyCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t InitOdelyCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t DiffInitCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t NewIdelCntValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t IdelayAssignedInVHDLCode[16] = // Numbers that are in VHDL code
+    { 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000 };
+  uint32_t IDELAY_CONTROL_1_VAL;
+  uint32_t AdcCh;
+  uint32_t IdelayCtrlRdy, DoneLdIdelayCntVal;
+  float IdelayCountPerPsec;
+  uint32_t CountLoop;
+  const uint32_t HostSelIdelCntValueBitShift = 9;
+  const uint32_t IDECntValOutCh0_7_Mask = 0xFF800;
+  const uint32_t IDECntValOutCh15_8_Mask = 0x1FF00000;
+  const uint32_t SelCntValOutShift = 13;
+  const uint32_t IDE_CntValOutCH0_7_Shift = 11;
+  const uint32_t IDE_CntValOutCH16_8_Shift = 20;
+  const uint32_t ConfigIdelayBit = 0x10000;
+  const uint32_t HostIdelayTuneEnBit = 0x20000;
+  const uint32_t IdelayCtrlReset = 0x100000;
+  const uint32_t LdIdelayValueArray = 0x10;
+  const uint32_t LdIdelayCntValueArray = 0x80000;
+  const uint32_t DoneLdIdelayCntValMask = 0x20000000;
+  const int32_t IdelayCtrlRdyMask = 1;
+  int32_t jj;
+
+  CHECKID;
+
+  FAV3LOCK;
+  IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+
+  IDELAY_CONTROL_1_VAL = HostIdelayTuneEnBit;
+  vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
+
+  /// ****** Read IdelayValInRom  from FPGA
+  AdcCh = 0;
+  for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
+    {
+      vmeWrite32(&FAV3p[id]->aux.idelay_control_2, ADC_Chan | LdIdelayValueArray);
+
+      IdelayValInRom[ADC_Chan] = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & 0x7FF;
+
+      AdcCh = AdcCh + 1;
+    }
+  /// Read current IdelAy count from FPGA to InitIdelyCountValue
+  AdcCh = 0;
+  for(ADC_Chan = 0; ADC_Chan < 8; ++ADC_Chan)
+    {
+      IDELAY_CONTROL_1_VAL = ADC_Chan << SelCntValOutShift;
+      vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
+
+      InitIdelyCountValue[ADC_Chan] =
+	(vmeRead32(&FAV3p[id]->aux.idelay_status_1) & IDECntValOutCh0_7_Mask) >>
+	IDE_CntValOutCH0_7_Shift;
+
+      InitIdelyCountValue[ADC_Chan + 8] =
+	(vmeRead32(&FAV3p[id]->aux.idelay_status_1) & IDECntValOutCh15_8_Mask) >>
+	IDE_CntValOutCH16_8_Shift;
+
+      InitOdelyCountValue[ADC_Chan] =
+	(vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IDECntValOutCh0_7_Mask) >>
+	IDE_CntValOutCH0_7_Shift;
+
+      InitOdelyCountValue[ADC_Chan + 8] =
+	(vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IDECntValOutCh15_8_Mask) >>
+	IDE_CntValOutCH16_8_Shift;
+
+    }
+  /// Calculate New Idelay Count Value
+  for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
+    {
+      DiffInitCountValue[ADC_Chan] =
+	InitIdelyCountValue[ADC_Chan] - InitOdelyCountValue[ADC_Chan];
+      IdelayCountPerPsec =
+	(float) (InitIdelyCountValue[ADC_Chan]) /
+	(float) (IdelayAssignedInVHDLCode[ADC_Chan]);
+      NewIdelCntValue[ADC_Chan] =
+	(int) (IdelayCountPerPsec * (float) (IdelayValInRom[ADC_Chan]));
+      NewIdelCntValue[ADC_Chan] =
+	NewIdelCntValue[ADC_Chan] - (DiffInitCountValue[ADC_Chan] / 2);
+    }
+
+  /// ****** Write NewIdelCntValue to Idelay in  FPGA
+  AdcCh = 0;
+  for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
+    {
+      IDELAY_CONTROL_1_VAL =
+	(AdcCh << HostSelIdelCntValueBitShift) | LdIdelayCntValueArray |
+	NewIdelCntValue[ADC_Chan];
+      vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
+
+      AdcCh = AdcCh + 1;
+    }
+  IDELAY_CONTROL_1_VAL = HostIdelayTuneEnBit;
+  vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
+
+  IDELAY_CONTROL_1_VAL = IDELAY_CONTROL_1_VAL | ConfigIdelayBit;
+  vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);	/// Load NewIdelCntValue to IdelayE3
+
+  DoneLdIdelayCntVal = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayCntValMask;
+
+  IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+
+  CountLoop = 0;
+  while(CountLoop < 300)
+    {
+      DoneLdIdelayCntVal = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayCntValMask;
+
+      IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+
+      if(DoneLdIdelayCntVal && IdelayCtrlRdy)
+	{
+	  CountLoop = 302;
+	}
+      else
+	++CountLoop;
+    }
+  vmeWrite32(&FAV3p[id]->aux.idelay_control_1, 0);	// Enable VTC
+  FAV3UNLOCK;
+
+  if(pflag)
+    {
+      // print arrays
+      // ----------------------------------------------------------
+      printf("\n--- NewIdelCntValue: ");
+      for(jj = 0; jj < 16; jj++)
+	printf("%d ", NewIdelCntValue[jj]);
+      printf("\n\n");
+
+      printf("\n--- IdelayValInRom: ");
+      for(jj = 0; jj < 16; jj++)
+	printf("%d ", IdelayValInRom[jj]);
+      printf("\n\n");
+
+      printf("\n--- InitIdelyCountValue: ");
+      for(jj = 0; jj < 16; jj++)
+	printf("%d ", InitIdelyCountValue[jj]);
+      printf("\n\n");
+
+      printf("\n--- InitOdelyCountValue: ");
+      for(jj = 0; jj < 16; jj++)
+	printf("%d ", InitOdelyCountValue[jj]);
+      printf("\n\n");
+
+      printf("\n--- DiffInitCountValue: ");
+      for(jj = 0; jj < 16; jj++)
+	printf("%d ", DiffInitCountValue[jj]);
+      printf("\n\n");
+
+      printf("\n--- IdelayAssignedInVHDLCode: ");
+      for(jj = 0; jj < 16; jj++)
+	printf("%d ", IdelayAssignedInVHDLCode[jj]);
+      printf("\n\n");
+      // ----------------------------------------------------------
+    }
+  return (0);
+}
+
+
 /***************************************************************************************
    JLAB FADC Signal Distribution Card (SDC) Routines
 ***************************************************************************************/

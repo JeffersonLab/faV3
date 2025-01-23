@@ -108,6 +108,12 @@ typedef struct
   /* 0x0528 */ volatile uint32_t first_trigger_mismatch;
   /* 0x052C */ volatile uint32_t trigger_mismatch_counter;
   /* 0x0530 */ volatile uint32_t triggers_processed;
+  /* 0x0534 */ BLANK[(0x540 - 0x534) >> 2];
+  /* 0x0540 */ volatile uint32_t idelay_control_1;
+  /* 0x0544 */ volatile uint32_t idelay_control_2;
+  /* 0x0548 */ volatile uint32_t idelay_status_1;
+  /* 0x054C */ volatile uint32_t idelay_status_2;
+
 } faV3_aux_t;
 
 typedef struct
@@ -306,6 +312,10 @@ typedef struct faV3_sdc_struct
 #define FAV3_ENABLE_TRIG_OUT_P0    0x4000
 #define FAV3_TRIGOUT_MASK          0x7000
 
+#define FAV3_ENABLE_ADC_PARAMETERS_DATA        0x8000
+#define FAV3_SUPPRESS_TRIGGER_TIME_DATA       0x10000
+#define FAV3_SUPPRESS_TRIGGER_TIME_WORD2_DATA 0x20000
+
 #define FAV3_ENABLE_BLKLVL_INT      0x40000
 #define FAV3_ENABLE_BERR           0x100000
 #define FAV3_ENABLE_MULTIBLOCK     0x200000
@@ -314,6 +324,11 @@ typedef struct faV3_sdc_struct
 #define FAV3_ENABLE_DEBUG         0x2000000
 #define FAV3_MB_TOKEN_VIA_P0     0x10000000
 #define FAV3_MB_TOKEN_VIA_P2     0x20000000
+
+#define FAV3_CTRL1_DATAFORMAT_MASK   0x0C000000
+#define FAV3_CTRL1_DATAFORMAT_STD             0
+#define FAV3_CTRL1_DATAFORMAT_INTERM_SUPPRESS 1
+#define FAV3_CTRL1_DATAFORMAT_FULL_SUPPRESS   2
 
 /* Define ctrl2 Bits */
 #define FAV3_CTRL_GO               (1 << 0)
@@ -926,8 +941,9 @@ int faV3SetScalerBlockInterval(int id, uint32_t nblock);
 int faV3GetScalerBlockInterval(int id);
 int faV3ForceEndOfBlock(int id, int scalers);
 void faV3GForceEndOfBlock(int scalers);
+int32_t faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag);
 
-/* FLASH SDC prototypes */
+/* SDC prototypes */
 int faV3SDC_Config(uint16_t cFlag, uint16_t bMask);
 void faV3SDC_Status(int sFlag);
 void faV3SDC_Enable(int nsync);

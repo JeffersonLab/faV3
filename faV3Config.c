@@ -133,7 +133,7 @@ faV3Config(char *fname)
 
   /* faInit() must be called by now; get the number of boards from there */
   nfadc = faV3GetN();
-  printf("fadc250Config: nfadc=%d\n",nfadc);
+  printf("%s: nfadc=%d\n", __func__, nfadc);
 
   if(strlen(fname) > 0) /* filename specified  - upload initial settings from the hardware */
     {
@@ -227,7 +227,7 @@ faV3ReadConfigFile(char *filename_in)
     }
   else
     {
-      printf("%s: FADC250 Config Environment Variable:\n"
+      printf("%s: FADC250-V3 Config Environment Variable:\n"
 	     " %s = %s\n",
 	     __func__,
 	     FAV3_CONFIG_GET_ENV, envDir);
@@ -260,7 +260,7 @@ faV3ReadConfigFile(char *filename_in)
 	    }
 	  else
 	    {
-	      sprintf(fname, "%s/fadc250/%s", envDir, filename);
+	      sprintf(fname, "%s/fav3/%s", envDir, filename);
 	    }
 
 	  if((fd=fopen(fname,"r")) == NULL)
@@ -271,10 +271,10 @@ faV3ReadConfigFile(char *filename_in)
 	}
       else if(do_parsing<2) /* filename does not specified */
 	{
-	  sprintf(fname, "%s/fadc250/%s.cnf", envDir, host);
+	  sprintf(fname, "%s/fav3/%s.cnf", envDir, host);
 	  if((fd=fopen(fname,"r")) == NULL)
 	    {
-	      sprintf(fname, "%s/fadc250/%s.cnf", envDir, expid);
+	      sprintf(fname, "%s/fav3/%s.cnf", envDir, expid);
 	      if((fd=fopen(fname,"r")) == NULL)
 		{
 		  printf("\nReadConfigFile: Can't open config file >%s<\n",fname);
