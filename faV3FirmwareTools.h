@@ -15,6 +15,9 @@ int32_t  faV3FirmwareDownloadRom(int32_t id, int32_t size);
 int32_t  faV3FirmwareProgramRom(int32_t id);
 int32_t  faV3FirmwareVerifyDownload();
 
+int32_t faV3FirmwareReboot(int32_t id);
+int32_t faV3FirmwareWaitForReboot(int32_t id, int32_t nwait, int32_t pflag);
+
 int32_t faV3FirmwarePassedMask();
 int32_t faV3FirmwareLoad(int32_t id, int32_t pFlag);
 int32_t faV3FirmwareDownload(int32_t id, int32_t pFlag);
@@ -41,6 +44,7 @@ enum faV3UpdateSteps_enum
     FAV3_UPDATE_STEP_PROGRAM,
     FAV3_UPDATE_STEP_DOWNLOAD,
     FAV3_UPDATE_STEP_VERIFY,
+    FAV3_UPDATE_STEP_REBOOT,
     FAV3_UPDATE_STEP_LAST
   };
 

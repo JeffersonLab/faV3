@@ -229,12 +229,12 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   /* Check for valid address */
   if(addr == 0)
     {
-      printf("faInit: ERROR: Must specify a Bus (VME-based A24) address for FADC 0\n");
+      printf("%s: ERROR: Must specify a Bus (VME-based A24) address for FADC 0\n", __func__);
       return (ERROR);
     }
   else if(addr > 0x00ffffff)
     {				/* A24 Addressing */
-      printf("faInit: ERROR: A32 Addressing not allowed for FADC configuration space\n");
+      printf("%s: ERROR: A32 Addressing not allowed for FADC configuration space\n", __func__);
       return (ERROR);
     }
   else
@@ -251,10 +251,10 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       if(res != 0)
 	{
 #ifdef VXWORKS
-	  printf("faInit: ERROR in sysBusToLocalAdrs(0x39,0x%x,&laddr) \n",
+	  printf("%s: ERROR in sysBusToLocalAdrs(0x39,0x%x,&laddr) \n", __func__,
 		 addr);
 #else
-	  printf("faInit: ERROR in vmeBusToLocalAdrs(0x39,0x%x,&laddr) \n",
+	  printf("%s: ERROR in vmeBusToLocalAdrs(0x39,0x%x,&laddr) \n", __func__,
 		 addr);
 #endif
 	  return (ERROR);
@@ -294,10 +294,10 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       if(res < 0)
 	{
 #ifdef VXWORKS
-	  printf("faInit: WARN: No addressable board at addr=0x%x\n",
+	  printf("%s: WARN: No addressable board at addr=0x%x\n", __func__,
 		 (uint32_t) fa);
 #else
-	  printf("faInit: WARN: No addressable board at VME (Local) addr=0x%x (0x%lx)\n",
+	  printf("%s: WARN: No addressable board at VME (Local) addr=0x%x (0x%lx)\n", __func__,
 		 (uint32_t) (laddr_inc - faV3A24Offset), (u_long) fa);
 #endif
 	  errFlag = 1;
@@ -368,7 +368,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       res = sysBusToLocalAdrs(0x29, (char *) a16addr, (char **) &laddr);
       if(res != 0)
 	{
-	  printf("faInit: ERROR in sysBusToLocalAdrs(0x29,0x%x,&laddr) \n",
+	  printf("%s: ERROR in sysBusToLocalAdrs(0x29,0x%x,&laddr) \n", __func__,
 		 a16addr);
 	  return (ERROR);
 	}
@@ -379,7 +379,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	vmeBusToLocalAdrs(0x29, (char *) (u_long) a16addr, (char **) &laddr);
       if(res != 0)
 	{
-	  printf("faInit: ERROR in vmeBusToLocalAdrs(0x29,0x%x,&laddr) \n",
+	  printf("%s: ERROR in vmeBusToLocalAdrs(0x29,0x%x,&laddr) \n", __func__,
 		 a16addr);
 	  return (ERROR);
 	}
@@ -387,7 +387,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 #endif
       if(res < 0)
 	{
-	  printf("faInit: ERROR: No addressable SDC board at addr=0x%x\n",
+	  printf("%s: ERROR: No addressable SDC board at addr=0x%x\n", __func__,
 		 (uint32_t) laddr);
 	}
       else
@@ -415,13 +415,13 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       if(faV3Source == FAV3_SOURCE_SDC)
 	{			/* Check if SDC will be used */
 	  faV3UseSDC = 1;
-	  printf("faInit: JLAB FADC Signal Distribution Card is Assumed in Use\n");
-	  printf("faInit: Front Panel Inputs will be enabled. \n");
+	  printf("%s: JLAB FADC Signal Distribution Card is Assumed in Use\n", __func__);
+	  printf("%s: Front Panel Inputs will be enabled. \n", __func__);
 	}
       else
 	{
 	  faV3UseSDC = 0;
-	  printf("faInit: JLAB FADC Signal Distribution Card will not be Used\n");
+	  printf("%s: JLAB FADC Signal Distribution Card will not be Used\n", __func__);
 	}
     }				// end if a16addr
 
@@ -448,7 +448,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   res = sysBusToLocalAdrs(0x09, (char *) faV3A32Base, (char **) &laddr);
   if(res != 0)
     {
-      printf("faInit: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n",
+      printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
 	     faV3A32Base);
       return (ERROR);
     }
@@ -461,7 +461,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
     vmeBusToLocalAdrs(0x09, (char *) (u_long) faV3A32Base, (char **) &laddr);
   if(res != 0)
     {
-      printf("faInit: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n",
+      printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
 	     faV3A32Base);
       return (ERROR);
     }
@@ -476,7 +476,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       /* what are the Trigger Sync Reset and Clock sources */
       if(faV3Source == FAV3_SOURCE_VXS)
 	{
-	  printf("faInit: Enabling FADC for VXS Clock ");
+	  printf("%s: Enabling FADC for VXS Clock ", __func__);
 	  clkSrc = FAV3_REF_CLK_P0;
 	  switch (iFlag & 0xf)
 	    {
@@ -528,7 +528,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	}
       else if(faV3Source == FAV3_SOURCE_SDC)
 	{
-	  printf("faInit: Enabling FADC for SDC Clock (Front Panel) ");
+	  printf("%s: Enabling FADC for SDC Clock (Front Panel) ", __func__);
 	  clkSrc = FAV3_REF_CLK_FP;
 	  switch (iFlag & 0xf)
 	    {
@@ -573,7 +573,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	}
       else
 	{			/* Use internal Clk */
-	  printf("faInit: Enabling FADC Internal Clock, ");
+	  printf("%s: Enabling FADC Internal Clock, ", __func__);
 	  clkSrc = FAV3_REF_CLK_INTERNAL;
 	  switch (iFlag & 0xf)
 	    {
@@ -661,7 +661,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	  res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
 	  if(res != 0)
 	    {
-	      printf("faInit: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n",
+	      printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
 		     a32addr);
 	      return (ERROR);
 	    }
@@ -670,7 +670,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	    vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
 	  if(res != 0)
 	    {
-	      printf("faInit: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n",
+	      printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
 		     a32addr);
 	      return (ERROR);
 	    }
@@ -707,7 +707,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
       if(res != 0)
 	{
-	  printf("faInit: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n",
+	  printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
 		 a32addr);
 	  return (ERROR);
 	}
@@ -716,7 +716,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
       if(res != 0)
 	{
-	  printf("faInit: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n",
+	  printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
 		 a32addr);
 	  return (ERROR);
 	}
@@ -6987,14 +6987,13 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   uint32_t InitOdelyCountValue[16] =
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  uint32_t DiffInitCountValue[16] =
+  int32_t DiffInitCountValue[16] =
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  uint32_t NewIdelCntValue[16] =
+  int32_t NewIdelCntValue[16] =
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   uint32_t IdelayAssignedInVHDLCode[16] = // Numbers that are in VHDL code
     { 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000 };
   uint32_t IDELAY_CONTROL_1_VAL;
-  uint32_t AdcCh;
   uint32_t IdelayCtrlRdy, DoneLdIdelayCntVal;
   float IdelayCountPerPsec;
   uint32_t CountLoop;
@@ -7011,7 +7010,6 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
   const uint32_t LdIdelayCntValueArray = 0x80000;
   const uint32_t DoneLdIdelayCntValMask = 0x20000000;
   const int32_t IdelayCtrlRdyMask = 1;
-  int32_t jj;
 
   CHECKID;
 
@@ -7022,63 +7020,52 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
   vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
 
   /// ****** Read IdelayValInRom  from FPGA
-  AdcCh = 0;
   for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
     {
       vmeWrite32(&FAV3p[id]->aux.idelay_control_2, ADC_Chan | LdIdelayValueArray);
 
       IdelayValInRom[ADC_Chan] = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & 0x7FF;
 
-      AdcCh = AdcCh + 1;
     }
   /// Read current IdelAy count from FPGA to InitIdelyCountValue
-  AdcCh = 0;
   for(ADC_Chan = 0; ADC_Chan < 8; ++ADC_Chan)
     {
+      uint32_t status1 = 0, status2 = 0;
       IDELAY_CONTROL_1_VAL = ADC_Chan << SelCntValOutShift;
       vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
 
+      status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
+      status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
       InitIdelyCountValue[ADC_Chan] =
-	(vmeRead32(&FAV3p[id]->aux.idelay_status_1) & IDECntValOutCh0_7_Mask) >>
-	IDE_CntValOutCH0_7_Shift;
+	(status1 & IDECntValOutCh0_7_Mask) >> IDE_CntValOutCH0_7_Shift;
 
       InitIdelyCountValue[ADC_Chan + 8] =
-	(vmeRead32(&FAV3p[id]->aux.idelay_status_1) & IDECntValOutCh15_8_Mask) >>
-	IDE_CntValOutCH16_8_Shift;
+	(status1 & IDECntValOutCh15_8_Mask) >> IDE_CntValOutCH16_8_Shift;
 
       InitOdelyCountValue[ADC_Chan] =
-	(vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IDECntValOutCh0_7_Mask) >>
-	IDE_CntValOutCH0_7_Shift;
+	(status2 & IDECntValOutCh0_7_Mask) >> IDE_CntValOutCH0_7_Shift;
 
       InitOdelyCountValue[ADC_Chan + 8] =
-	(vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IDECntValOutCh15_8_Mask) >>
-	IDE_CntValOutCH16_8_Shift;
+	(status2 & IDECntValOutCh15_8_Mask) >> IDE_CntValOutCH16_8_Shift;
 
     }
   /// Calculate New Idelay Count Value
   for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
     {
-      DiffInitCountValue[ADC_Chan] =
-	InitIdelyCountValue[ADC_Chan] - InitOdelyCountValue[ADC_Chan];
-      IdelayCountPerPsec =
-	(float) (InitIdelyCountValue[ADC_Chan]) /
-	(float) (IdelayAssignedInVHDLCode[ADC_Chan]);
-      NewIdelCntValue[ADC_Chan] =
-	(int) (IdelayCountPerPsec * (float) (IdelayValInRom[ADC_Chan]));
-      NewIdelCntValue[ADC_Chan] =
-	NewIdelCntValue[ADC_Chan] - (DiffInitCountValue[ADC_Chan] / 2);
+      DiffInitCountValue[ADC_Chan] = InitIdelyCountValue[ADC_Chan] - InitOdelyCountValue[ADC_Chan];
+      IdelayCountPerPsec = (float) (InitIdelyCountValue[ADC_Chan]) / (float) (IdelayAssignedInVHDLCode[ADC_Chan]);
+      NewIdelCntValue[ADC_Chan] = (int) (IdelayCountPerPsec * (float) (IdelayValInRom[ADC_Chan]));
+      NewIdelCntValue[ADC_Chan] = NewIdelCntValue[ADC_Chan] - (DiffInitCountValue[ADC_Chan] / 2);
     }
 
   /// ****** Write NewIdelCntValue to Idelay in  FPGA
-  AdcCh = 0;
   for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
     {
       IDELAY_CONTROL_1_VAL =
-	(AdcCh << HostSelIdelCntValueBitShift) | LdIdelayCntValueArray |
-	NewIdelCntValue[ADC_Chan];
+	(ADC_Chan << HostSelIdelCntValueBitShift) |
+	LdIdelayCntValueArray | NewIdelCntValue[ADC_Chan];
       vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
 
-      AdcCh = AdcCh + 1;
     }
   IDELAY_CONTROL_1_VAL = HostIdelayTuneEnBit;
   vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
@@ -7093,10 +7080,16 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
   CountLoop = 0;
   while(CountLoop < 300)
     {
-      DoneLdIdelayCntVal = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayCntValMask;
+      uint32_t status1 = 0, status2 = 0;
 
-      IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+      status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
+      status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
 
+      DoneLdIdelayCntVal = status1 & DoneLdIdelayCntValMask;
+      IdelayCtrlRdy = status2 & IdelayCtrlRdyMask;
+
+      printf("%s: loop = %3d   status1 = 0x%08x   status2 = 0x%08x\n",
+	     __func__, CountLoop, status1, status2);
       if(DoneLdIdelayCntVal && IdelayCtrlRdy)
 	{
 	  CountLoop = 302;
@@ -7109,42 +7102,48 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
 
   if(pflag)
     {
+      int jj;
       // print arrays
       // ----------------------------------------------------------
-      printf("\n--- NewIdelCntValue: ");
-      for(jj = 0; jj < 16; jj++)
-	printf("%d ", NewIdelCntValue[jj]);
-      printf("\n\n");
+      printf("  Ch  New       InRom     Init      Init0     Diff      AssignedInVHDLCode \n");
+      printf("------|---------|---------|---------|---------|---------|---------|\n");
 
-      printf("\n--- IdelayValInRom: ");
       for(jj = 0; jj < 16; jj++)
-	printf("%d ", IdelayValInRom[jj]);
-      printf("\n\n");
+	{
+	  printf(" %2d   ", jj);
 
-      printf("\n--- InitIdelyCountValue: ");
-      for(jj = 0; jj < 16; jj++)
-	printf("%d ", InitIdelyCountValue[jj]);
-      printf("\n\n");
+	  printf("%4d      ", NewIdelCntValue[jj]);
+	  printf("%4d      ", IdelayValInRom[jj]);
+	  printf("%4d      ", InitIdelyCountValue[jj]);
+	  printf("%4d      ", InitOdelyCountValue[jj]);
+	  printf("%4d      ", DiffInitCountValue[jj]);
+	  printf("%4d", IdelayAssignedInVHDLCode[jj]);
+	  printf("\n");
 
-      printf("\n--- InitOdelyCountValue: ");
-      for(jj = 0; jj < 16; jj++)
-	printf("%d ", InitOdelyCountValue[jj]);
-      printf("\n\n");
-
-      printf("\n--- DiffInitCountValue: ");
-      for(jj = 0; jj < 16; jj++)
-	printf("%d ", DiffInitCountValue[jj]);
-      printf("\n\n");
-
-      printf("\n--- IdelayAssignedInVHDLCode: ");
-      for(jj = 0; jj < 16; jj++)
-	printf("%d ", IdelayAssignedInVHDLCode[jj]);
+	}
       printf("\n\n");
       // ----------------------------------------------------------
     }
   return (0);
 }
 
+int32_t
+faV3IDelayStatus(int32_t id)
+{
+  int32_t rval = OK;
+  uint32_t status1 = 0, status2 = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
+  status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
+  FAV3UNLOCK;
+
+  printf("%s: status1 = 0x%08x  status2 = 0x%08x\n",
+	 __func__, status1, status2);
+
+  return rval;
+}
 
 /***************************************************************************************
    JLAB FADC Signal Distribution Card (SDC) Routines

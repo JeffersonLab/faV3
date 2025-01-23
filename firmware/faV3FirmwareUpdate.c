@@ -120,6 +120,10 @@ main(int argc, char *argv[])
       goto CLOSE;
     }
 
+  uint32_t cfw = faV3GetFirmwareVersions(faV3Slot(0), 0);
+  printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
+	 faV3Slot(0), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
+
   if(program)
     {
       printf("Update ROM with file:  %s\n", fw_filename);

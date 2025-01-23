@@ -115,6 +115,12 @@ faV3HallDCheckAddresses()
     printf("%s: ERROR: status0 not at expected offset 0x%lx (@ 0x%lx)\n",
 	   __func__,expected,offset);
 
+  offset = ((u_long) &v3p->aux.idelay_control_1) - base;
+  expected = 0x540;
+  if(offset != expected)
+    printf("%s: ERROR: status0 not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
   return 0;
 }
 

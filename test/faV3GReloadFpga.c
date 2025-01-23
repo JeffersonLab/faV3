@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include "jvme.h"
 #include "faV3Lib.h"
+#include "faV3FirmwareTools.h"
 
 char *progName;
 extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];
@@ -25,11 +26,7 @@ void
 Usage()
 {
   printf("\n");
-  printf("%s <FPGA Number>\n", progName);
-  printf("\n");
-  printf("     FPGA Number = 0 for both FPGAs\n");
-  printf("                   1 for Control FPGA\n");
-  printf("                   2 for Processing FPGA\n");
+  printf("%s\n", progName);
   printf("\n");
 }
 
@@ -50,42 +47,12 @@ main(int argc, char *argv[])
   stat = vmeOpenDefaultWindows();
 
 
-  if (argc != 2)
+  if (argc != 1)
     {
-      printf(" ERROR: Must specify one argument\n");
+      printf(" ERROR: Must specify no arguments\n");
       Usage();
       goto CLOSE;
     }
-  else
-    {
-      user_choice = (int) strtol(argv[1], NULL, 10);
-    }
-
-  if((user_choice < 0) || (user_choice > 2))
-    {
-      printf(" ERROR: Invalid FPGA Number (%d)\n",
-	     fpga_choice);
-      Usage();
-      goto CLOSE;
-    }
-
-  switch(user_choice)
-    {
-    case 0:
-      doBoth = 1;
-      fpga_choice = FAV3_FIRMWARE_FX70T;
-      break;
-
-    case 1:
-      fpga_choice = FAV3_FIRMWARE_FX70T;
-      break;
-
-    case 2:
-      fpga_choice = FAV3_FIRMWARE_LX110;
-      break;
-
-    }
-
 
   vmeCheckMutexHealth(10);
   vmeBusLock();
@@ -101,38 +68,20 @@ main(int argc, char *argv[])
       goto CLOSE;
     }
 
-  const char *fpga_names[2] =
-    {
-      "LX110 (Processing FPGA)",
-      "FX70T (Control FPGA)"
-    };
-
- RELOAD:
-  printf("Reloading %s: ", fpga_names[fpga_choice]);
-
+  printf("REBOOT FPGA\n");
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faV3Slot(ifadc);
-      printf(" %2d ", id);
-      fflush(stdout);
-
-      if(fpga_choice == FAV3_FIRMWARE_LX110)
-	{
-	  vmeWrite32(&FAV3p[id]->prom_reg1,FAV3_PROMREG1_REBOOT_FPGA1);
-	  if(doBoth)
-	    doBoth = 0;
-	}
-      else if (fpga_choice == FAV3_FIRMWARE_FX70T)
-	{
-	  vmeWrite32(&FAV3p[id]->prom_reg1,FAV3_PROMREG1_REBOOT_FPGA2);
-	}
+      faV3FirmwareReboot(id);
     }
 
-  taskDelay(1);
+  sleep(1);
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faV3Slot(ifadc);
-      if(TestReady(id, 60000, pFlag) != OK) /* Wait til it's done */
+      printf(" %2d: ", id);
+      fflush(stdout);
+      if(faV3FirmwareWaitForReboot(id, 60000, pFlag) < OK) /* Wait til it's done */
 	{
 	  printf("%2d: ERROR: Timeout after FPGA %d Reboot\n",
 		 id, fpga_choice);
@@ -141,12 +90,6 @@ main(int argc, char *argv[])
     }
 
   printf("\n");
-
-  if(doBoth)
-    {
-      fpga_choice = FAV3_FIRMWARE_LX110;
-      goto RELOAD;
-    }
 
   vmeBusUnlock();
 

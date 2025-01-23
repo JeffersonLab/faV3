@@ -52,6 +52,7 @@ const uint8_t ConfigRom_AREAD = 0X13;   // Read FLASH Array Low memory then high
 const uint32_t ConfigRom_SR1V_WEL   = 2; // Write Enable Latch 1= Can write to memory, registers
 const uint32_t ConfigRom_SR1V_WIP   = 1; // 1 = Write in progress
 const uint32_t ConfigRomReadyForCommand = 0x2;
+const uint32_t ConfigRomRebootFPGA = (1 << 11);
 
 #define MAX_FW_SIZE 0x1800000
 #define FAV3_FW_SIZE 0x1701DEC
@@ -585,6 +586,68 @@ faV3FirmwareCompare()
   return OK;
 }
 
+int32_t
+faV3FirmwareReboot(int32_t id)
+{
+  int32_t rval = OK;
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite32(VME_CONFIG6_ADR, ConfigRomRebootFPGA);
+  FAV3UNLOCK;
+  return rval;
+}
+
+/**
+ * @brief Wait for fav3 to reload firmware after reboot
+ * @param[in] id faV3 slot ID
+ * @param[in] nwait Max number of tries
+ * @return If ready, number of tries before ready, otherwise ERROR.
+ */
+int32_t
+faV3FirmwareWaitForReboot(int32_t id, int32_t nwait, int32_t pflag)
+{
+  int32_t rval = OK, res = 0;
+  uint32_t rdata = -1, iwait = 0;
+  faV3UpdateWatcherArgs_t updateArgs;
+  CHECKID;
+
+  updateArgs.step = FAV3_UPDATE_STEP_REBOOT;
+  updateArgs.show = FAV3_ARGS_SHOW_PROGRESS;
+
+  res = vmeMemProbe((char *) &FAV3p[id]->version, 4, (char *) &rdata);
+  while( (res < 0) && (iwait++ < nwait) )
+    {
+      FAV3LOCK;
+      res = vmeMemProbe((char *) &FAV3p[id]->version, 4, (char *) &rdata);
+      FAV3UNLOCK;
+      if(res >= 0)
+	if(rdata == -1) res = -1;
+      faV3FirmwareUpdateWatcher(updateArgs);
+      usleep(1000);
+    }
+
+  if(res >= 0)
+    {
+      rval = iwait;
+      updateArgs.show = FAV3_ARGS_SHOW_DONE;
+      faV3FirmwareUpdateWatcher(updateArgs);
+    }
+  else
+    {
+      printf("%s: ERROR:  timeout after %d tries\n",
+	     __func__, iwait);
+      rval = ERROR;
+    }
+
+  if(pflag)
+    {
+      printf("%s: INFO: Ready after %d tries\n",
+	     __func__, iwait);
+    }
+
+  return rval;
+}
 
 
 static uint32_t passed[FAV3_MAX_BOARDS + 1], stepfail[FAV3_MAX_BOARDS + 1];
@@ -725,6 +788,34 @@ faV3FirmwareLoad(int32_t id, int32_t pFlag)
       updateArgs.show = FAV3_ARGS_SHOW_STRING;
       sprintf(updateArgs.title,
 	      "ERROR: FAV3 %2d FAILED ROM DATA VERIFICATION\n", id);
+      faV3FirmwareUpdateWatcher(updateArgs);
+      return ERROR;
+    }
+
+  /* Reboot */
+  updateArgs.step = FAV3_UPDATE_STEP_REBOOT;
+  updateArgs.show = FAV3_ARGS_SHOW_STRING;
+  sprintf(updateArgs.title, "Reboot FPGA\n");
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  updateArgs.show = FAV3_ARGS_SHOW_ID;
+  faV3FirmwareUpdateWatcher(updateArgs);
+
+  if(faV3FirmwareReboot(id) != OK)
+    {
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+      sprintf(updateArgs.title,
+	      "ERROR: FAV3 %2d FAILED TO REBOOT FPGA\n", id);
+      faV3FirmwareUpdateWatcher(updateArgs);
+      return ERROR;
+    }
+  sleep(1);
+
+  if(faV3FirmwareWaitForReboot(id, 60000, 0) < OK)	/* Wait til it's done */
+    {
+      updateArgs.show = FAV3_ARGS_SHOW_STRING;
+      sprintf(updateArgs.title,
+	      "ERROR: FAV3 %2d TIMEOUT AFTER REBOOT FPGA\n", id);
       faV3FirmwareUpdateWatcher(updateArgs);
       return ERROR;
     }
@@ -987,22 +1078,22 @@ faV3FirmwareGLoad(int32_t pFlag)
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
-      id = faV3ID[ifadc];
+      id = faV3Slot(ifadc);
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  /* Reboot method here */
+	  faV3FirmwareReboot(id);
 	}
     }
-  taskDelay(1);
+  sleep(1);
 
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faV3Slot(ifadc);
       if(passed[id])		/* Skip the ones that have previously failed */
 	{
-	  if(faV3FirmwareWaitForReady(id, 60000, 0) < OK)	/* Wait til it's done */
+	  if(faV3FirmwareWaitForReboot(id, 60000, 0) < OK)	/* Wait til it's done */
 	    {
-	      printf("%s: ERROR: FADC %2d ready timeout PROM -> FPGA\n",
+	      printf("%s: ERROR: FADC %2d ready timeout after reboot\n",
 		     __func__, id);
 	      passed[id] = 0;
 	      stepfail[id] = updateArgs.step;
@@ -1128,6 +1219,7 @@ faV3FirmwareUpdateWatcher(faV3UpdateWatcherArgs_t arg)
       switch(rArg.step)
 	{
 	case FAV3_UPDATE_STEP_ERASE:
+	case FAV3_UPDATE_STEP_REBOOT:
 	  progress_prescale = erase_prescale;
 	  break;
 
