@@ -433,6 +433,12 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	  vmeWrite32(&(FAV3p[faV3ID[ii]]->reset), FAV3_RESET_ALL);
 	}
       taskDelay(60);
+      for(ii = 0; ii < nfaV3; ii++)
+	{
+	  faV3DACInit(faV3ID[ii]);
+	  faV3DACClear(faV3ID[ii]);
+	  faV3LoadIdelay(faV3ID[ii],1);
+	}
     }
 
   /* Initialize Interrupt variables */
@@ -5993,25 +5999,14 @@ faV3TestSystemClock(int id, int pflag)
 
 /**
  *  @ingroup Status
- *  @brief Fills 'rval' with a character array containing the fa250 serial number.
+ *  @brief Fills 'rval' with a character array containing the fa250-v3 serial number.
  *  @param id Slot number
  *  @param rval Where to return Serial number string
- *  @param snfix
- *<pre>
- *      If snfix >= 1, will attempt to format the serial number to maintain
- *        consistency between serials made by the same vendor.
- *        e.g. Advanced Assembly:
- *          snfix=0: B21595-02R  B2159515R1
- *          snfix=1: B21595-02R  B21595-15R1
- *        e.g. ACDI
- *          snfix=0: ACDI002
- *          snfix=1: ACDI-002
- *</pre>
  *  @return length of character array 'rval' if successful, otherwise ERROR
  */
 
 int
-faV3GetSerialNumber(int id, char **rval, int snfix)
+faV3GetSerialNumber(int id, char **rval)
 {
   uint32_t sn[3];
   int i = 0, ivme = 0, ibyte = 0;
@@ -6020,112 +6015,39 @@ faV3GetSerialNumber(int id, char **rval, int snfix)
   uint32_t boardID;
   char boardID_c[4];
   char byte_c[2];
-  char adv_str[12], acdi_str[12];
+  char sn_str[12];
   char ret[12];
   int ret_len;
 
   CHECKID;
 
   FAV3LOCK;
-  for(i = 0; i < 3; i++)
+  for(i = 0; i < 2; i++)
     sn[i] = vmeRead32(&FAV3p[id]->serial_reg[i]);
   FAV3UNLOCK;
 
-  if(sn[0] == FAV3_SERIAL_NUMBER_ACDI)
-    {				/* ACDI */
-      strcpy(acdi_str, "");
-      for(ibyte = 3; ibyte >= 0; ibyte--)
-	{
-	  shift = (ibyte * 8);
-	  mask = (0xFF) << shift;
-	  byte = (sn[ivme] & mask) >> shift;
-	  sprintf(byte_c, "%c", byte);
-	  strcat(acdi_str, byte_c);
-	}
-      boardID = (sn[1] & FAV3_SERIAL_NUMBER_ACDI_BOARDID_MASK);
-      if(boardID > 999)
-	{
-	  printf("%s: WARN: Invalid Board ACDI Board ID (%d)\n",
-		 __func__, boardID);
-	}
-
-      if(snfix > 0)		/* If needed, Add '-' after the ACDI */
-	sprintf(boardID_c, "-%03d", boardID);
-      else
-	sprintf(boardID_c, "%03d", boardID);
-
-      strcat(acdi_str, boardID_c);
-#ifdef DEBUGSN
-      printf("acdi_str = %s\n", acdi_str);
-#endif
-      strcpy(ret, acdi_str);
-
-    }
-
-  else if((sn[0] & FAV3_SERIAL_NUMBER_ADV_ASSEM_MASK) ==
-	  FAV3_SERIAL_NUMBER_ADV_ASSEM)
-
-    {				/* ADV ASSEM */
-      /* Make sure manufacture's ID is correct */
-      if((sn[0] == FAV3_SERIAL_NUMBER_ADV_MNFID1) &&
-	 ((sn[1] & FAV3_SERIAL_NUMBER_ADV_MNFID2_MASK) ==
-	  FAV3_SERIAL_NUMBER_ADV_MNFID2))
-	{
-	  strcpy(adv_str, "");
-	  for(ivme = 0; ivme < 3; ivme++)
-	    {
-	      for(ibyte = 3; ibyte >= 0; ibyte--)
-		{
-		  shift = (ibyte * 8);
-		  mask = (0xFF) << shift;
-		  byte = (sn[ivme] & mask) >> shift;
-		  if(byte == 0xFF)
-		    {
-		      break;
-		    }
-		  if(snfix > 0)
-		    {		/* If needed, Add '-' after the B21595 */
-		      if(ivme == 1 && ibyte == 1)
-			{
-			  if(byte != 0x2D)	/* 2D = - */
-			    {
-			      strcat(adv_str, "-");
-			    }
-			}
-		    }
-
-		  sprintf(byte_c, "%c", byte);
-		  strcat(adv_str, byte_c);
-		}
-	    }
-#ifdef DEBUGSN
-	  printf("adv_str = %s\n", adv_str);
-#endif
-	  strcpy(ret, adv_str);
-	}
-      else
-	{
-	  printf("%s: ERROR: Unable to determine manufacture's ID.  SN regs:\n",
-		 __func__);
-	  for(i = 0; i < 3; i++)
-	    printf("\t%d: 0x%08x\n", i, sn[i]);
-	  return -1;
-	}
-    }
-  else
+  strcpy(sn_str, "");
+  for(ibyte = 3; ibyte >= 0; ibyte--)
     {
-      printf("%s: ERROR: Unable to determine manufacture's ID. SN regs:\n",
-	     __func__);
-      for(i = 0; i < 3; i++)
-	printf("\t%d: 0x%08x\n", i, sn[i]);
-      return -1;
+      shift = (ibyte * 8);
+      mask = (0xFF) << shift;
+      byte = (sn[ivme] & mask) >> shift;
+      sprintf(byte_c, "%c", byte);
+      strcat(sn_str, byte_c);
+    }
+  boardID = (sn[1] & FAV3_SERIAL_NUMBER_BOARDID_MASK);
+  if(boardID > 999)
+    {
+      printf("%s: WARN: Invalid Board ID (%d)\n",
+	     __func__, boardID);
     }
 
-#ifdef DEBUGSN
-  printf("ret = %s\n", ret);
-#endif
-  strcpy((char *) rval, ret);
+  sprintf(boardID_c, "-%04d", boardID);
 
+  strcat(sn_str, boardID_c);
+  strcpy(ret, sn_str);
+
+  strcpy((char *) rval, ret);
   ret_len = (int) strlen(ret);
 
   return (ret_len);
@@ -6967,7 +6889,40 @@ faV3GetTriggersProcessedCount(int id)
 }
 
 int32_t
-faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
+faV3IdelayStatus(int32_t id, int32_t pflag)
+{
+  int32_t rval = OK;
+  uint32_t status1 = 0, status2 = 0;
+  uint32_t IdelayCtrlRdy = 0, DoneLdIdelay = 0;
+  const uint32_t DoneLdIdelayMask = 0x80000000;
+  const int32_t IdelayCtrlRdyMask = 1;
+
+  CHECKID;
+
+  FAV3LOCK;
+  status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
+  status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
+  FAV3UNLOCK;
+
+  DoneLdIdelay = status1 & DoneLdIdelayMask;
+  IdelayCtrlRdy = status2 & IdelayCtrlRdyMask;
+
+  if(DoneLdIdelay && IdelayCtrlRdy)
+    rval = OK;
+  else
+    rval = ERROR;
+
+  if(pflag)
+    {
+      printf("%s(id = %d): Done = %d  Ready = %d  status1 = 0x%08x  status2 = 0x%08x\n",
+	     __func__, id, DoneLdIdelay, IdelayCtrlRdy, status1, status2);
+    }
+
+  return rval;
+}
+
+int32_t
+faV3LoadIdelay(int32_t id, int32_t pflag)
 {
   //  The time delay of Idelay component in Ultra Scale Xilinx FPGA is
   //  determined by the setting of the Idelay Count Value 512
@@ -6979,7 +6934,7 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
   //    3) Tap delay resoultion; TapRes = 500 pS/InitIdelyCountValue
   //    4) NewTapVal =  TapRes *  IdelayValInRom
   //    5) Program NewTapVal into Idelay
-
+  int32_t rval = OK;
   uint32_t ADC_Chan;
   uint32_t IdelayValInRom[16] =
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -6987,14 +6942,14 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   uint32_t InitOdelyCountValue[16] =
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  int32_t DiffInitCountValue[16] =
+  uint32_t DiffInitCountValue[16] =
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   int32_t NewIdelCntValue[16] =
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   uint32_t IdelayAssignedInVHDLCode[16] = // Numbers that are in VHDL code
     { 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000 };
   uint32_t IDELAY_CONTROL_1_VAL;
-  uint32_t IdelayCtrlRdy, DoneLdIdelayCntVal;
+  uint32_t IdelayCtrlRdy, DoneLdIdelayCntVal, DoneLdIdelay;
   float IdelayCountPerPsec;
   uint32_t CountLoop;
   const uint32_t HostSelIdelCntValueBitShift = 9;
@@ -7009,12 +6964,25 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
   const uint32_t LdIdelayValueArray = 0x10;
   const uint32_t LdIdelayCntValueArray = 0x80000;
   const uint32_t DoneLdIdelayCntValMask = 0x20000000;
+  const uint32_t DoneLdIdelayMask = 0x80000000;
   const int32_t IdelayCtrlRdyMask = 1;
+  int32_t invalid_diff = 0;
 
   CHECKID;
 
   FAV3LOCK;
+
+  DoneLdIdelay = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask;
   IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+  if(DoneLdIdelay && IdelayCtrlRdy)
+    {
+      FAV3UNLOCK;
+      if(pflag)
+	{
+	  printf("%s(%d): Idelay Already loaded\n", __func__, id);
+	}
+      return OK;
+    }
 
   IDELAY_CONTROL_1_VAL = HostIdelayTuneEnBit;
   vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
@@ -7052,10 +7020,40 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
   /// Calculate New Idelay Count Value
   for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
     {
+      if(InitOdelyCountValue[ADC_Chan] > InitIdelyCountValue[ADC_Chan])
+	invalid_diff = 1;
+
       DiffInitCountValue[ADC_Chan] = InitIdelyCountValue[ADC_Chan] - InitOdelyCountValue[ADC_Chan];
       IdelayCountPerPsec = (float) (InitIdelyCountValue[ADC_Chan]) / (float) (IdelayAssignedInVHDLCode[ADC_Chan]);
       NewIdelCntValue[ADC_Chan] = (int) (IdelayCountPerPsec * (float) (IdelayValInRom[ADC_Chan]));
       NewIdelCntValue[ADC_Chan] = NewIdelCntValue[ADC_Chan] - (DiffInitCountValue[ADC_Chan] / 2);
+    }
+
+  if(invalid_diff)
+    {
+      FAV3UNLOCK;
+      printf("%s(%d): Invalid calculated IDelay values\n", __func__, id);
+      int jj;
+      // print arrays
+      // ----------------------------------------------------------
+      printf("  Ch  New       InRom     Init      Init0     Diff      AssignedInVHDLCode \n");
+      printf("--------------------------------------------------------------------------\n");
+
+      for(jj = 0; jj < 16; jj++)
+	{
+	  printf(" %2d   ", jj);
+
+	  printf("%4d      ", NewIdelCntValue[jj]);
+	  printf("%4d      ", IdelayValInRom[jj]);
+	  printf("%4d      ", InitIdelyCountValue[jj]);
+	  printf("%4d      ", InitOdelyCountValue[jj]);
+	  printf("%4d      ", DiffInitCountValue[jj]);
+	  printf("%4d", IdelayAssignedInVHDLCode[jj]);
+	  printf("\n");
+
+	}
+      printf("\n\n");
+      return ERROR;
     }
 
   /// ****** Write NewIdelCntValue to Idelay in  FPGA
@@ -7078,35 +7076,38 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
   IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
 
   CountLoop = 0;
-  while(CountLoop < 300)
+  uint32_t status1 = 0, status2 = 0;
+  while(CountLoop++ < 300)
     {
-      uint32_t status1 = 0, status2 = 0;
-
+      usleep(1000);
       status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
       status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
 
       DoneLdIdelayCntVal = status1 & DoneLdIdelayCntValMask;
       IdelayCtrlRdy = status2 & IdelayCtrlRdyMask;
 
-      printf("%s: loop = %3d   status1 = 0x%08x   status2 = 0x%08x\n",
-	     __func__, CountLoop, status1, status2);
       if(DoneLdIdelayCntVal && IdelayCtrlRdy)
-	{
-	  CountLoop = 302;
-	}
-      else
-	++CountLoop;
+	break;
     }
   vmeWrite32(&FAV3p[id]->aux.idelay_control_1, 0);	// Enable VTC
   FAV3UNLOCK;
 
+  if(DoneLdIdelayCntVal && IdelayCtrlRdy)
+    rval = OK;
+  else
+    {
+      printf("%s(%d): Failed to program IDelay.  Status1 = 0x%08x  Status2 = 0x%08x \n",
+	     __func__, id, status1, status2);
+      rval = ERROR;
+    }
   if(pflag)
     {
       int jj;
       // print arrays
       // ----------------------------------------------------------
+      printf("  faV3 slot %d IDELAY\n", id);
       printf("  Ch  New       InRom     Init      Init0     Diff      AssignedInVHDLCode \n");
-      printf("------|---------|---------|---------|---------|---------|---------|\n");
+      printf("--------------------------------------------------------------------------\n");
 
       for(jj = 0; jj < 16; jj++)
 	{
@@ -7124,7 +7125,9 @@ faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag)
       printf("\n\n");
       // ----------------------------------------------------------
     }
-  return (0);
+
+
+  return (rval);
 }
 
 int32_t

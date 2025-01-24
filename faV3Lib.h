@@ -651,14 +651,7 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_SUM_DATA_SAMPLE_MASK        0x0000FFFF
 
 /* Define Serial Number bits and masks */
-#define FAV3_SERIAL_NUMBER_ACDI               0x41434449
-#define FAV3_SERIAL_NUMBER_ADV_ASSEM_MASK     0xFF000000
-#define FAV3_SERIAL_NUMBER_ADV_ASSEM          0x42000000
-#define FAV3_SERIAL_NUMBER_ACDI_BOARDID_MASK  0x0000FFFF
-#define FAV3_SERIAL_NUMBER_ADV_MNFID1         0x42323135
-#define FAV3_SERIAL_NUMBER_ADV_MNFID2_MASK    0xFFFF0000
-#define FAV3_SERIAL_NUMBER_ADV_MNFID2         0x39350000
-#define FAV3_SERIAL_NUMBER_ADV_BOARDID2_MASK  0x000000FF
+#define FAV3_SERIAL_NUMBER_BOARDID_MASK  0x0000FFFF
 
 
 /* Define FADC Signal Distribution card bits */
@@ -936,12 +929,13 @@ int faV3TestResetTrig2Counter(int id);
 uint32_t faV3TestGetTestBitReg(int id);
 int faV3TestSystemClock(int id, int pflag);
 
-int faV3GetSerialNumber(int id, char **rval, int snfix);
+int faV3GetSerialNumber(int id, char **rval);
 int faV3SetScalerBlockInterval(int id, uint32_t nblock);
 int faV3GetScalerBlockInterval(int id);
 int faV3ForceEndOfBlock(int id, int scalers);
 void faV3GForceEndOfBlock(int scalers);
-int32_t faV3Calc_Load_IdelayCntVal(int32_t id, int32_t pflag);
+int32_t faV3IdelayStatus(int32_t id, int32_t pflag);
+int32_t faV3LoadIdelay(int32_t id, int32_t pflag);
 
 /* SDC prototypes */
 int faV3SDC_Config(uint16_t cFlag, uint16_t bMask);
