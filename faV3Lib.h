@@ -617,21 +617,6 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_DATA_WRDCNT_MASK       0x003fffff
 #define FAV3_DATA_TRIGNUM_MASK      0x07ffffff
 
-/* Define Firmware registers Data types and Masks */
-#define FAV3_PROMREG1_SRAM_TO_PROM1    0x0
-#define FAV3_PROMREG1_SRAM_TO_PROM2    0x1
-#define FAV3_PROMREG1_PROM1_TO_SRAM    0x3
-#define FAV3_PROMREG1_PROM2_TO_SRAM    0x4
-#define FAV3_PROMREG1_GET_ID1          0x6
-#define FAV3_PROMREG1_GET_ID2          0x7
-#define FAV3_PROMREG1_ERASE_PROM1      0x9
-#define FAV3_PROMREG1_ERASE_PROM2      0xA
-#define FAV3_PROMREG1_REBOOT_FPGA1     0xC
-#define FAV3_PROMREG1_REBOOT_FPGA2     0xD
-#define FAV3_PROMREG1_READY            (1<<31)
-
-#define FAV3_MEM_ADR_INCR_MEM1      (1<<31)
-#define FAV3_MEM_ADR_INCR_MEM2      (1<<30)
 
 /* Define Scaler Control bits */
 #define FAV3_SCALER_CTRL_ENABLE     (1<<0)

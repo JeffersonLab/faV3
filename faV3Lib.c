@@ -832,26 +832,6 @@ faV3GetN()
   return (nfaV3);
 }
 
-
-/**
- *  @ingroup Config
- *  @brief Set all sram registers to zero
- *
- *  @param id Slot Number
- *
- *  @return OK if successful, otherwise ERROR.
- */
-
-int
-faV3ZeroSram(int id)
-{
-  int rval = OK;
-
-  CHECKID;
-
-  return rval;
-}
-
 /**
  *  @ingroup Config
  *  @brief Set the clock source
