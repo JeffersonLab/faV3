@@ -13,28 +13,15 @@
  */
 
 
-#define ADD_TO_STRING				\
-  len1 = strlen(str);				\
-  len2 = strlen(sss);				\
-  if((len1+len2) < length) strcat(str,sss);	\
-  else return(len1)
-
-#define CLOSE_STRING				\
-  len1 = strlen(str);				\
-  return(len1)
-
-#define FNLEN     128       /* length of config. file name */
-#define STRLEN    250       /* length of str_tmp */
-#define ROCLEN     80       /* length of ROC_name */
-#define NCHAN      16
-
 #include <stdint.h>
+
+#define MAX_FAV3_CH 16
 
 /** FADC250 configuration parameters **/
 typedef struct {
-  int          mode;
-  int          compression;
-  int          vxsReadout;
+  int32_t  mode;
+  int32_t  compression;
+  int32_t  vxsReadout;
   uint32_t winOffset;
   uint32_t winWidth;
   uint32_t nsb;
@@ -42,20 +29,18 @@ typedef struct {
   uint32_t npeak;
 
   uint32_t chDisMask;
-  uint32_t thr[NCHAN];
-  uint32_t dac[NCHAN];
-  float        ped[NCHAN];
+  uint32_t dac[MAX_FAV3_CH];
 
   uint32_t trigMask;
 
-  uint32_t read_thr[NCHAN];
+  uint32_t read_thr[MAX_FAV3_CH];
 
   uint32_t nsat;
 
   uint32_t nped;
   uint32_t max_ped;
 
-  uint32_t trig_bl[NCHAN];
+  uint32_t trig_bl[MAX_FAV3_CH];
 
   uint32_t trig_thr;
   uint32_t trig_nsb;

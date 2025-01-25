@@ -1,6 +1,23 @@
 #pragma once
 
-#define MAX_FAV3_CH 16
+#define CONFIG_STRING_VARS			\
+  int len1, len2;				\
+  char *str, sss[1024];
+
+#define ADD_TO_STRING				\
+  len1 = strlen(str);				\
+  len2 = strlen(sss);				\
+  if((len1+len2) < length) strcat(str,sss);	\
+  else return(len1)
+
+#define CLOSE_STRING				\
+  len1 = strlen(str);				\
+  return(len1)
+
+#define FNLEN     128       /* length of config. file name */
+#define STRLEN    250       /* length of str_tmp */
+#define ROCLEN     80       /* length of ROC_name */
+#define NCHAN      16
 
 #define SCAN_VARS						\
   int    slot, slot_min, slot_max, chan;			\
