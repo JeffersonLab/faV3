@@ -102,24 +102,38 @@ faV3Config(char *fname)
 void
 faV3InitGlobals()
 {
-  int ii, jj;
+  int chan, slot;
 
-  for(jj=0; jj<NBOARD; jj++)
+  for(slot = 0; slot < NBOARD; slot++)
     {
-      faV3[jj].mode      = 1;
-      faV3[jj].compression = 0;
-      faV3[jj].vxsReadout = 0;
-      faV3[jj].winOffset = 300;
-      faV3[jj].winWidth  = 100;
-      faV3[jj].nsa       = 6;
-      faV3[jj].nsb       = 3;
-      faV3[jj].npeak     = 1;
-      faV3[jj].chDisMask = 0x0;
+      faV3[slot].mode = FAV3_ADC_DEFAULT_MODE;
+      faV3[slot].compression = 0;
+      faV3[slot].vxsReadout = 0;
+      faV3[slot].winOffset = FAV3_ADC_DEFAULT_PL * FAV3_ADC_NS_PER_CLK;
+      faV3[slot].winWidth = FAV3_ADC_DEFAULT_PTW * FAV3_ADC_NS_PER_CLK;
+      faV3[slot].nsa = FAV3_ADC_DEFAULT_NSA * FAV3_ADC_NS_PER_CLK;
+      faV3[slot].nsb = FAV3_ADC_DEFAULT_NSB * FAV3_ADC_NS_PER_CLK;
+      faV3[slot].npeak = FAV3_ADC_DEFAULT_NP;
+      faV3[slot].chDisMask = 0x0;
+      faV3[slot].trigMask = 0xffff;
+      faV3[slot].ptw_fallback_mask = 0;
 
-      for(ii=0; ii<NCHAN; ii++)
+      faV3[slot].nsat = FAV3_ADC_DEFAULT_NSAT * FAV3_ADC_NS_PER_CLK;
+      faV3[slot].nped = FAV3_ADC_DEFAULT_NPED;
+      faV3[slot].max_ped = FAV3_ADC_DEFAULT_MAXPED;
+
+      faV3[slot].trig_thr = FAV3_ADC_DEFAULT_TPT;
+      faV3[slot].trig_nsa = FAV3_ADC_DEFAULT_TNSA;
+      faV3[slot].trig_nsat = FAV3_ADC_DEFAULT_TNSAT;
+
+      faV3[slot].busy = 8;
+      faV3[slot].stop = 9;
+
+      for(chan = 0; chan < NCHAN; chan++)
 	{
-	  faV3[jj].read_thr[ii] = 110;
-	  faV3[jj].dac[ii] = 3300;
+	  faV3[slot].pedestal[chan] = 300.;
+	  faV3[slot].read_thr[chan] = FAV3_ADC_DEFAULT_TET;
+	  faV3[slot].dac[chan] = FAV3_ADC_DEFAULT_DAC;
 	}
     }
 }
@@ -225,6 +239,8 @@ faV3ReadConfigFile(char *filename_in)
       SCAN_INT("FAV3_BUSY",  faV3[slot].busy, slot_min, slot_max);
       SCAN_INT("FAV3_STOP",  faV3[slot].stop, slot_min, slot_max);
 
+      SCAN_MASK("FAV3_PTW_FALLBACK_MASK", faV3[slot].ptw_fallback_mask, slot_min, slot_max);
+
       if(active)
 	{
 	  printf("%s: ERROR: Unknown keyword: %s\n", __func__, keyword);
@@ -243,7 +259,7 @@ faV3ReadConfigFile(char *filename_in)
 int
 faV3DownloadAll()
 {
-  int slot, ii, ifa, nfadc;
+  int slot, ichan, ifa, nfadc;
   float ped;
 
     /* faInit() must be called by now; get the number of boards from there */
@@ -269,10 +285,17 @@ faV3DownloadAll()
       faV3SetVXSReadout(slot,faV3[slot].vxsReadout);
 
 
-      for(ii=0; ii<NCHAN; ii++)
+      for(ichan=0; ichan<NCHAN; ichan++)
 	{
-	  faV3DACSet(slot, ii, faV3[slot].dac[ii]);
-	  faV3SetThreshold(slot, ii, faV3[slot].read_thr[ii]);
+	  faV3DACSet(slot, ichan, faV3[slot].dac[ichan]);
+
+	  float ped = faV3[slot].pedestal[ichan] * ((float) (faV3[slot].nsb + faV3[slot].nsa));
+	  faV3SetPedestal(slot, ichan, (int) ped);
+
+	  if(faV3[slot].read_thr[ichan] > 0)
+	    faV3SetThreshold(slot, ichan, faV3[slot].read_thr[ichan] + faV3[slot].pedestal[ichan]);
+	  else
+	    faV3SetThreshold(slot, ichan, 0);
 	}
     }
 
@@ -283,6 +306,9 @@ int32_t
 faV3GetModulesConfig()
 {
   int slot, ichan, ifa, nfadc;
+  float ped = 0.;
+  int thres = 0;
+
   nfadc = faV3GetN();
 
   for(ifa = 0; ifa < nfadc; ifa++)
@@ -306,7 +332,15 @@ faV3GetModulesConfig()
       for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
 	{
 	  faV3DACGet(slot, ichan, &faV3[slot].dac[ichan]);
-	  faV3[slot].read_thr[ichan] = faV3GetThreshold(slot, ichan);
+
+	  ped = (float) faV3GetPedestal(slot, ichan);
+	  faV3[slot].pedestal[ichan] = ped / ((float) (faV3[slot].nsb + faV3[slot].nsa));
+
+	  thres = faV3GetThreshold(slot, ichan);
+	  if(thres > 0)
+	    faV3[slot].read_thr[ichan] = thres - (int)faV3[slot].pedestal[ichan];
+	  else
+	    faV3[slot].read_thr[ichan] = 0;
 	}
     }
   return 0;
@@ -365,9 +399,6 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_TRIG_NSA %d\n", faV3[slot].trig_nsa);
-      ADD_TO_STRING;
-
-      sprintf(sss,"FAV3_TRIG_NSB %d\n", faV3[slot].trig_nsb);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_TRIG_NSAT %d\n", faV3[slot].trig_nsat);

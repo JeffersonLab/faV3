@@ -493,6 +493,7 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_PEAK_MASK     0x0070
 #define FAV3_ADC_CHAN_MASK     0xffff
 
+#define FAV3_ADC_DEFAULT_MODE   10
 #define FAV3_ADC_DEFAULT_PL     50
 #define FAV3_ADC_DEFAULT_PTW    50
 #define FAV3_ADC_DEFAULT_NSB     5
@@ -506,6 +507,9 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_DEFAULT_TNSA   10
 #define FAV3_ADC_DEFAULT_TNSAT   1
 #define FAV3_ADC_DEFAULT_TPT     0
+#define FAV3_ADC_DEFAULT_TET    10
+#define FAV3_ADC_DEFAULT_DAC  3200
+
 
 #define FAV3_ADC_MAX_PL       2000
 #define FAV3_ADC_MAX_PTW       512
