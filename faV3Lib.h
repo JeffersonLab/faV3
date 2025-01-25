@@ -504,7 +504,6 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_DEFAULT_NSAT    1
 #define FAV3_ADC_DEFAULT_MNPED   4
 #define FAV3_ADC_DEFAULT_TNSA   10
-#define FAV3_ADC_DEFAULT_TNSB   10
 #define FAV3_ADC_DEFAULT_TNSAT   1
 #define FAV3_ADC_DEFAULT_TPT     0
 
@@ -519,7 +518,6 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_MAX_NSAT        4
 #define FAV3_ADC_MAX_MNPED      15
 #define FAV3_ADC_MAX_TNSA       63
-#define FAV3_ADC_MAX_TNSB       15
 #define FAV3_ADC_MAX_TNSAT       4
 #define FAV3_ADC_MAX_TPT      4095
 
@@ -534,13 +532,11 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_MIN_NSAT        1
 #define FAV3_ADC_MIN_MNPED       4
 #define FAV3_ADC_MIN_TNSA        2
-#define FAV3_ADC_MIN_TNSB        2
 #define FAV3_ADC_MIN_TNSAT       2
 #define FAV3_ADC_MIN_TPT         0
 
 #define FAV3_ADC_NSB_READBACK_MASK    0x0000000F
 #define FAV3_ADC_NSB_NEGATIVE         (1<<3)
-#define FAV3_ADC_TNSB_MASK            0x00001E00
 
 #define FAV3_ADC_NSA_READBACK_MASK    0x000001FF
 #define FAV3_ADC_TNSA_MASK            0x00007E00
@@ -772,7 +768,7 @@ int faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 
 int faV3SetTriggerStopCondition(int id, int trigger_max);
 int faV3SetTriggerBusyCondition(int id, int trigger_max);
-int faV3SetTriggerPathSamples(int id, uint32_t TNSB, uint32_t TNSA);
+int faV3SetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT);
 void faV3GSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT);
 int faV3SetTriggerPathThreshold(int id, uint32_t TPT);
 void faV3GSetTriggerPathThreshold(uint32_t TPT);
@@ -860,9 +856,8 @@ int faV3SetTrigOut(int id, int trigout);
 uint32_t faV3GetTriggerCount(int id);
 int faV3ResetTriggerCount(int id);
 
-int faV3SetChannelThreshold(int id, int chan, uint16_t tvalue);
-int faV3SetThresholdAll(int id, uint16_t tvalue[16]);
-int faV3GetChannelThreshold(int id, int chan);
+int faV3SetThreshold(int id, int chan, uint16_t tvalue);
+int faV3GetThreshold(int id, int chan);
 int faV3PrintThreshold(int id);
 
 
@@ -872,9 +867,8 @@ int32_t faV3DACStatus(int id);
 int32_t faV3DACSet(int id, int chan, uint32_t dac_value);
 int32_t faV3DACGet(int id, int chan, uint32_t *dac_value);
 
-int faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped);
-int faV3GetChannelPedestal(int id, uint32_t chan);
-int faV3SetPedestal(int id, uint32_t wvalue);
+int faV3SetPedestal(int id, uint32_t chan, uint32_t ped);
+int faV3GetPedestal(int id, uint32_t chan);
 int faV3PrintPedestal(int id);
 
 /* scaler routine prototypes */

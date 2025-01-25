@@ -1946,18 +1946,17 @@ faV3SetTriggerBusyCondition(int id, int trigger_max)
  *  @brief Set the number of samples that are included before and after
  *    threshold crossing that are sent through the trigger path
  *  @param id Slot number
- *  @param TNSB Number of samples before threshold crossing
- *  @param TNSA Number of samples after threshold crossing
+ *  @param TNSA Number of samples after threshold
+ *  @param TNSAT Number of samples above threshold
  *  @return OK if successful, otherwise ERROR.
  */
 int
-faV3SetTriggerPathSamples(int id, uint32_t TNSB, uint32_t TNSA)
+faV3SetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT)
 {
-  uint32_t readback_nsb = 0, readback_nsa = 0;
+  uint32_t readback_nsa = 0, readback_config1 = 0;
 
   CHECKID;
 
-  // FIXME: Check for updated v3 values
   if((TNSA < FAV3_ADC_MIN_TNSA) || (TNSA > FAV3_ADC_MAX_TNSA))
     {
       printf("%s: WARN: TNSA (%d) out of range. Setting to %d\n",
@@ -1965,20 +1964,20 @@ faV3SetTriggerPathSamples(int id, uint32_t TNSB, uint32_t TNSA)
       TNSA = FAV3_ADC_DEFAULT_TNSA;
     }
 
-  if((TNSB < FAV3_ADC_MIN_TNSB) || (TNSB > FAV3_ADC_MAX_TNSB))
+  if((TNSAT < FAV3_ADC_MIN_TNSAT) || (TNSAT > FAV3_ADC_MAX_TNSAT))
     {
-      printf("%s: WARN: TNSB (%d) out of range. Setting to %d\n",
-	     __func__, TNSB, FAV3_ADC_DEFAULT_TNSB);
-      TNSB = FAV3_ADC_DEFAULT_TNSB;
+      printf("%s: WARN: TNSAT (%d) out of range. Setting to %d\n",
+	     __func__, TNSAT, FAV3_ADC_DEFAULT_TNSAT);
+      TNSAT = FAV3_ADC_DEFAULT_TNSAT;
     }
 
   FAV3LOCK;
 
-  readback_nsb = vmeRead32(&FAV3p[id]->adc.nsb) & FAV3_ADC_NSB_READBACK_MASK;
   readback_nsa = vmeRead32(&FAV3p[id]->adc.nsa) & FAV3_ADC_NSA_READBACK_MASK;
+  readback_config1 = vmeRead32(&FAV3p[id]->adc.config1) & ~FAV3_ADC_CONFIG1_TNSAT_MASK;
 
-  vmeWrite32(&FAV3p[id]->adc.nsb, (TNSB << 9) | readback_nsb);
   vmeWrite32(&FAV3p[id]->adc.nsa, (TNSA << 9) | readback_nsa);
+  vmeWrite32(&FAV3p[id]->adc.config1, ((TNSAT - 1) << 12) | readback_config1);
 
   FAV3UNLOCK;
 
@@ -2414,17 +2413,10 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
 	  vmeAdr = (uint32_t) ((u_long) (FAV3pd[id]) - faV3A32Offset);
 	}
 
-#ifdef HALLB
-      /*
-	printf("faReadBlock: faV3A32Offset=0x%08x vmeAdr=0x%08x laddr=0x%08x nwrds=%d\n",faV3A32Offset,vmeAdr,laddr,nwrds);fflush(stdout);
-      */
-      retVal = usrVme2MemDmaStart(vmeAdr, (uint32_t) laddr, (nwrds << 2));
-#else
 #ifdef VXWORKS
       retVal = sysVmeDmaSend((uint32_t) laddr, vmeAdr, (nwrds << 2), 0);
 #else
       retVal = vmeDmaSend((u_long) laddr, vmeAdr, (nwrds << 2));
-#endif
 #endif
       if(retVal != 0)
 	{
@@ -2435,14 +2427,10 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
 	}
 
       /* Wait until Done or Error */
-#ifdef HALLB
-      retVal = usrVme2MemDmaDone();
-#else
 #ifdef VXWORKS
       retVal = sysVmeDmaDone(10000, 1);
 #else
       retVal = vmeDmaDone();
-#endif
 #endif
 
       if(retVal > 0)
@@ -2460,21 +2448,17 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
 
 	  if((retVal > 0) && (stat))
 	    {
-#ifdef HALLB
-	      xferCount = ((retVal >> 2) + dummy);	/* Number of Longwords transfered */
-#else
 #ifdef VXWORKS
 	      xferCount = (nwrds - (retVal >> 2) + dummy);	/* Number of Longwords transfered */
 #else
 	      xferCount = ((retVal >> 2) + dummy);	/* Number of Longwords transfered */
-#endif
 #endif
 	      FAV3UNLOCK;
 	      return (xferCount);	/* Return number of data words transfered */
 	    }
 	  else
 	    {
-#if defined(VXWORKS) && !defined(HALLB)
+#ifdef VXWORKS
 	      xferCount = (nwrds - (retVal >> 2) + dummy);	/* Number of Longwords transfered */
 	      logMsg
 		("faReadBlock: DMA transfer terminated by unknown BUS Error (csr=0x%x xferCount=%d id=%d)\n",
@@ -2506,7 +2490,7 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
 	}
       else if(retVal == 0)
 	{			/* Block Error finished without Bus Error */
-#if defined(VXWORKS) && !defined(HALLB)
+#ifdef VXWORKS
 	  logMsg
 	    ("faReadBlock: WARN: DMA transfer terminated by word count 0x%x\n",
 	     nwrds, 0, 0, 0, 0, 0);
@@ -2525,7 +2509,7 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
 	}
       else
 	{			/* Error in DMA */
-#if defined(VXWORKS) && !defined(HALLB)
+#ifdef VXWORKS
 	  logMsg("faV3ReadBlock: ERROR: sysVmeDmaDone returned an Error\n", 0,
 		 0, 0, 0, 0, 0);
 #else
@@ -4381,7 +4365,7 @@ faV3ResetTriggerCount(int id)
  */
 
 int
-faV3SetChannelThreshold(int id, int chan, uint16_t tvalue)
+faV3SetThreshold(int id, int chan, uint16_t tvalue)
 {
   CHECKID;
 
@@ -4404,22 +4388,7 @@ faV3SetChannelThreshold(int id, int chan, uint16_t tvalue)
 }
 
 int
-faV3SetThresholdAll(int id, uint16_t tvalue[16])
-{
-  int ii;
-
-  CHECKID;
-
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-      faV3SetChannelThreshold(id, ii, tvalue[ii]);
-    }
-
-  return (OK);
-}
-
-int
-faV3GetChannelThreshold(int id, int chan)
+faV3GetThreshold(int id, int chan)
 {
   int rval = 0;
 
@@ -4452,6 +4421,7 @@ int
 faV3PrintThreshold(int id)
 {
   int ii;
+  uint32_t reg = 0;
   uint16_t tval[FAV3_MAX_ADC_CHANNELS];
 
   CHECKID;
@@ -4459,8 +4429,9 @@ faV3PrintThreshold(int id)
   FAV3LOCK;
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS/2; ii++)
     {
-      tval[2*ii] = vmeRead32(&(FAV3p[id]->adc.thres[ii])) & 0xFFFF;
-      tval[2*ii + 1] = (vmeRead32(&(FAV3p[id]->adc.thres[ii])) & 0xFFFF0000) >> 16;
+      reg = vmeRead32(&FAV3p[id]->adc.thres[ii]);
+      tval[2*ii] = reg & 0xFFFF;
+      tval[2*ii + 1] = (reg & 0xFFFF0000) >> 16;
     }
   FAV3UNLOCK;
 
@@ -4670,22 +4641,22 @@ faV3DACGet(int id, int chan, uint32_t *dac_value)
  */
 
 int
-faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped)
+faV3SetPedestal(int id, uint32_t chan, uint32_t ped)
 {
   uint32_t lovalue = 0, hivalue = 0;
   CHECKID;
 
   if(chan > 16)
     {
-      logMsg("faV3SetChannelPedestal: ERROR : Channel (%d) out of range (0-15) \n",
-	     chan, 0, 0, 0, 0, 0);
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
       return (ERROR);
     }
 
   if(ped > 0xffff)
     {
-      logMsg("faV3SetChannelPedestal: ERROR : PED value (%d) out of range (0-65535) \n",
-	     ped, 0, 0, 0, 0, 0);
+      printf("%s: ERROR : PED value (%d) out of range (0-65535) \n",
+	     __func__, ped);
       return (ERROR);
     }
 
@@ -4705,7 +4676,7 @@ faV3SetChannelPedestal(int id, uint32_t chan, uint32_t ped)
  */
 
 int
-faV3GetChannelPedestal(int id, uint32_t chan)
+faV3GetPedestal(int id, uint32_t chan)
 {
   uint32_t rval = 0;
 
@@ -4713,8 +4684,8 @@ faV3GetChannelPedestal(int id, uint32_t chan)
 
   if(chan > 16)
     {
-      logMsg("faV3SetChannelPedestal: ERROR : Channel (%d) out of range (0-15) \n",
-	     chan, 0, 0, 0, 0, 0);
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
       return (ERROR);
     }
 
@@ -4723,26 +4694,6 @@ faV3GetChannelPedestal(int id, uint32_t chan)
   FAV3UNLOCK;
 
   return (rval);
-}
-
-
-int
-faV3SetPedestal(int id, uint32_t wvalue)
-{
-  int ii;
-
-  CHECKID;
-
-  FAV3LOCK;
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-    {
-      if(!(ii & 0x1))
-	vmeWrite32((uint32_t *) & (FAV3p[id]->adc.pedestal[ii]),
-		   wvalue | (wvalue << 16));
-    }
-  FAV3UNLOCK;
-
-  return (OK);
 }
 
 int
