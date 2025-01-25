@@ -60,6 +60,7 @@ FAV3_CONF_FILE  <filename> <- another config filename to be processed on next it
 #include "faV3Config.h"
 #include "jvme.h"
 #include "faV3Lib.h"
+#include "faV3-HallD.h"
 
 #include "config_defs.h"
 
@@ -115,7 +116,7 @@ faV3InitGlobals()
       faV3[slot].nsb = FAV3_ADC_DEFAULT_NSB * FAV3_ADC_NS_PER_CLK;
       faV3[slot].npeak = FAV3_ADC_DEFAULT_NP;
       faV3[slot].chDisMask = 0x0;
-      faV3[slot].trigMask = 0xffff;
+
       faV3[slot].ptw_fallback_mask = 0;
 
       faV3[slot].nsat = FAV3_ADC_DEFAULT_NSAT * FAV3_ADC_NS_PER_CLK;
@@ -123,8 +124,8 @@ faV3InitGlobals()
       faV3[slot].max_ped = FAV3_ADC_DEFAULT_MAXPED;
 
       faV3[slot].trig_thr = FAV3_ADC_DEFAULT_TPT;
-      faV3[slot].trig_nsa = FAV3_ADC_DEFAULT_TNSA;
-      faV3[slot].trig_nsat = FAV3_ADC_DEFAULT_TNSAT;
+      faV3[slot].trig_nsa = FAV3_ADC_DEFAULT_TNSA * FAV3_ADC_NS_PER_CLK;
+      faV3[slot].trig_nsat = FAV3_ADC_DEFAULT_TNSAT * FAV3_ADC_NS_PER_CLK;
 
       faV3[slot].busy = 8;
       faV3[slot].stop = 9;
@@ -220,11 +221,16 @@ faV3ReadConfigFile(char *filename_in)
       SCAN_INT("FAV3_NSAT", faV3[slot].nsat, slot_min, slot_max);
       SCAN_INT("FAV3_NPED", faV3[slot].nped, slot_min, slot_max);
       SCAN_INT("FAV3_MAXPED", faV3[slot].max_ped, slot_min, slot_max);
-
-      SCAN_MASK("FAV3_TRG_MASK", faV3[slot].trigMask, slot_min, slot_max);
+      faV3[slot].winOffset /= FAV3_ADC_NS_PER_CLK;
+      faV3[slot].winWidth /= FAV3_ADC_NS_PER_CLK;
+      faV3[slot].nsa /= FAV3_ADC_NS_PER_CLK;
+      faV3[slot].nsb /= FAV3_ADC_NS_PER_CLK;
+      faV3[slot].nsat /= FAV3_ADC_NS_PER_CLK;
 
       SCAN_INT("FAV3_TRIG_NSAT", faV3[slot].trig_nsat, slot_min, slot_max);
       SCAN_INT("FAV3_TRIG_NSA", faV3[slot].trig_nsa, slot_min, slot_max);
+      faV3[slot].trig_nsat /= FAV3_ADC_NS_PER_CLK;
+      faV3[slot].trig_nsa /= FAV3_ADC_NS_PER_CLK;
 
       SCAN_INT("FAV3_TRIG_THR", faV3[slot].trig_thr, slot_min, slot_max);
 
@@ -241,6 +247,11 @@ faV3ReadConfigFile(char *filename_in)
 
       SCAN_MASK("FAV3_PTW_FALLBACK_MASK", faV3[slot].ptw_fallback_mask, slot_min, slot_max);
 
+      SCAN_INT("FAV3_DATA_FORMAT",  faV3[slot].data_format, slot_min, slot_max);
+
+      SCAN_INT("FAV3_SUPPRESS_TRIG_TIME",  faV3[slot].suppress_trig_time, slot_min, slot_max);
+      SCAN_INT("FAV3_INSERT_ADC_PARAMS",  faV3[slot].insert_adc_params, slot_min, slot_max);
+
       if(active)
 	{
 	  printf("%s: ERROR: Unknown keyword: %s\n", __func__, keyword);
@@ -249,7 +260,6 @@ faV3ReadConfigFile(char *filename_in)
     }
 
   fclose(fd);
-
 
   return(0);
 }
@@ -261,6 +271,7 @@ faV3DownloadAll()
 {
   int slot, ichan, ifa, nfadc;
   float ped;
+  extern int faV3FwRev[(FAV3_MAX_BOARDS + 1)][FAV3_FW_FUNCTION_MAX];
 
     /* faInit() must be called by now; get the number of boards from there */
   nfadc = faV3GetN();
@@ -269,21 +280,35 @@ faV3DownloadAll()
     {
       slot = faV3Slot(ifa);
 
-      faV3SetProcMode(slot,
-		      faV3[slot].mode,
-		      faV3[slot].winOffset,
-		      faV3[slot].winWidth,
-		      faV3[slot].nsb,
-		      faV3[slot].nsa,
-		      faV3[slot].npeak);
+      if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
+	{
+	  faV3HallDSetProcMode(slot,
+			  faV3[slot].mode,
+			  faV3[slot].winOffset,
+			  faV3[slot].winWidth,
+			  faV3[slot].nsb,
+			  faV3[slot].nsa,
+			  faV3[slot].npeak,
+			  faV3[slot].nped,
+			  faV3[slot].max_ped,
+			  faV3[slot].nsat);
+
+	  faV3HallDSetRoguePTWFallBack(slot, faV3[slot].ptw_fallback_mask);
+
+	  faV3HallDSetDataFormat(slot, faV3[slot].data_format);
+	  faV3HallDDataSuppressTriggerTime(slot, faV3[slot].suppress_trig_time);
+	  faV3HallDDataInsertAdcParameters(slot, faV3[slot].insert_adc_params);
+	}
+
+      faV3SetTriggerPathSamples(slot, faV3[slot].trig_nsa, faV3[slot].trig_nsat);
+      faV3SetTriggerPathThreshold(slot, faV3[slot].trig_thr);
 
       faV3SetChanDisableMask(slot, faV3[slot].chDisMask);
-
-
       faV3SetCompression(slot,faV3[slot].compression);
-
       faV3SetVXSReadout(slot,faV3[slot].vxsReadout);
 
+      faV3SetTriggerBusyCondition(slot, faV3[slot].busy);
+      faV3SetTriggerStopCondition(slot, faV3[slot].stop);
 
       for(ichan=0; ichan<NCHAN; ichan++)
 	{
@@ -308,26 +333,41 @@ faV3GetModulesConfig()
   int slot, ichan, ifa, nfadc;
   float ped = 0.;
   int thres = 0;
+  uint32_t fw_vers = 0;
+  extern int faV3FwRev[(FAV3_MAX_BOARDS + 1)][FAV3_FW_FUNCTION_MAX];
 
   nfadc = faV3GetN();
 
   for(ifa = 0; ifa < nfadc; ifa++)
     {
       slot = faV3Slot(ifa);
+      if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
+	{
+	  faV3HallDGetProcMode(slot,
+			       &faV3[slot].mode,
+			       &faV3[slot].winOffset,
+			       &faV3[slot].winWidth,
+			       &faV3[slot].nsb,
+			       &faV3[slot].nsa,
+			       &faV3[slot].npeak,
+			       &faV3[slot].nped,
+			       &faV3[slot].max_ped,
+			       &faV3[slot].nsat);
+	  faV3[slot].insert_adc_params = faV3HallDDataGetInsertAdcParameters(slot);
+	  faV3[slot].suppress_trig_time = faV3HallDDataGetSuppressTriggerTime(slot);
+	  faV3[slot].data_format = faV3HallDGetDataFormat(slot);
+	}
 
-      faV3GetProcMode(slot,
-		      &faV3[slot].mode,
-		      &faV3[slot].winOffset,
-		      &faV3[slot].winWidth,
-		      &faV3[slot].nsb,
-		      &faV3[slot].nsa,
-		      &faV3[slot].npeak);
+      faV3GetTriggerPathSamples(slot, &faV3[slot].trig_nsa, &faV3[slot].trig_nsat);
+      faV3GetTriggerPathThreshold(slot, &faV3[slot].trig_thr);
+
 
       faV3[slot].chDisMask = faV3GetChanDisableMask(slot);
-
       faV3[slot].compression = faV3GetCompression(slot);
-
       faV3[slot].vxsReadout = faV3GetVXSReadout(slot);
+
+      faV3GetTriggerBusyCondition(slot, &faV3[slot].busy);
+      faV3GetTriggerStopCondition(slot, &faV3[slot].stop);
 
       for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
 	{
@@ -374,22 +414,22 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"FAV3_VXSREADOUT %d\n", faV3[slot].vxsReadout);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_W_OFFSET %d\n", faV3[slot].winOffset);
+      sprintf(sss,"FAV3_W_OFFSET %d\n", faV3[slot].winOffset * FAV3_ADC_NS_PER_CLK);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_W_WIDTH  %d\n", faV3[slot].winWidth);
+      sprintf(sss,"FAV3_W_WIDTH  %d\n", faV3[slot].winWidth * FAV3_ADC_NS_PER_CLK);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_NSA %d\n", faV3[slot].nsa);
+      sprintf(sss,"FAV3_NSA %d\n", faV3[slot].nsa * FAV3_ADC_NS_PER_CLK);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_NSB %d\n", faV3[slot].nsb);
+      sprintf(sss,"FAV3_NSB %d\n", faV3[slot].nsb * FAV3_ADC_NS_PER_CLK);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_NPEAK %d\n", faV3[slot].npeak);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_NSAT %d\n", faV3[slot].nsat);
+      sprintf(sss,"FAV3_NSAT %d\n", faV3[slot].nsat * FAV3_ADC_NS_PER_CLK);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_NPED %d\n", faV3[slot].nped);
@@ -398,10 +438,10 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"FAV3_MAXPED %d\n", faV3[slot].max_ped);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_TRIG_NSA %d\n", faV3[slot].trig_nsa);
+      sprintf(sss,"FAV3_TRIG_NSA %d\n", faV3[slot].trig_nsa * FAV3_ADC_NS_PER_CLK);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_TRIG_NSAT %d\n", faV3[slot].trig_nsat);
+      sprintf(sss,"FAV3_TRIG_NSAT %d\n", faV3[slot].trig_nsat * FAV3_ADC_NS_PER_CLK);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_TRIG_THR %d\n", faV3[slot].trig_thr);
@@ -420,16 +460,6 @@ faV3ConfigToString(char *string, int32_t length)
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",(adcChanEnabled>>ichan)&0x1);
-	  ADD_TO_STRING;
-	}
-      sprintf(sss,"\n");
-      ADD_TO_STRING;
-
-      sprintf(sss,"FAV3_TRG_MASK");
-      ADD_TO_STRING;
-      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
-	{
-	  sprintf(sss," %d",(faV3[slot].trigMask >> ichan) & 0x1);
 	  ADD_TO_STRING;
 	}
       sprintf(sss,"\n");

@@ -312,10 +312,6 @@ typedef struct faV3_sdc_struct
 #define FAV3_ENABLE_TRIG_OUT_P0    0x4000
 #define FAV3_TRIGOUT_MASK          0x7000
 
-#define FAV3_ENABLE_ADC_PARAMETERS_DATA        0x8000
-#define FAV3_SUPPRESS_TRIGGER_TIME_DATA       0x10000
-#define FAV3_SUPPRESS_TRIGGER_TIME_WORD2_DATA 0x20000
-
 #define FAV3_ENABLE_BLKLVL_INT      0x40000
 #define FAV3_ENABLE_BERR           0x100000
 #define FAV3_ENABLE_MULTIBLOCK     0x200000
@@ -476,13 +472,13 @@ typedef struct faV3_sdc_struct
 
 extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
+#define FAV3_ADC_CONFIG1_TNSAT_MASK 0x3000
+
 #define FAV3_ADC_STATUS1_TRIG_RCV_DONE (1<<15)
 #define FAV3_ADC_STATUS1_TRIGNUM_MASK  0x0FFF
 
 #define FAV3_ADC_STATUS2_CHAN_DATA_MASK    0x3FFF
 
-#define FAV3_ADC_CONFIG1_NSAT_MASK  0x0C00
-#define FAV3_ADC_CONFIG1_TNSAT_MASK 0x3000
 
 #define FAV3_ADC_CONFIG3_TPT_MASK   0x0FFF
 
@@ -771,11 +767,15 @@ int faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 
 
 int faV3SetTriggerStopCondition(int id, int trigger_max);
+int faV3GetTriggerStopCondition(int id, int *trigger_max);
 int faV3SetTriggerBusyCondition(int id, int trigger_max);
+int faV3GetTriggerBusyCondition(int id, int *trigger_max);
 int faV3SetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT);
 void faV3GSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT);
+int faV3GetTriggerPathSamples(int id, uint32_t *TNSA, uint32_t *TNSAT);
 int faV3SetTriggerPathThreshold(int id, uint32_t TPT);
 void faV3GSetTriggerPathThreshold(uint32_t TPT);
+int faV3GetTriggerPathThreshold(int id, uint32_t *TPT);
 
 int32_t faV3SetupADC(int id, int32_t mode);
 

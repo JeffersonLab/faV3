@@ -24,15 +24,13 @@ typedef struct {
   int32_t vxsReadout;
   uint32_t winOffset;
   uint32_t winWidth;
-  uint32_t nsb;
+  int32_t nsb;
   uint32_t nsa;
   uint32_t npeak;
 
   uint32_t chDisMask;
+
   uint32_t dac[MAX_FAV3_CH];
-
-  uint32_t trigMask;
-
   uint32_t read_thr[MAX_FAV3_CH];
   float pedestal[MAX_FAV3_CH];
 
@@ -46,10 +44,14 @@ typedef struct {
   uint32_t trig_nsat;
 
   /* Busy and stop processing conditions */
-  uint32_t busy;
-  uint32_t stop;
+  int32_t busy;
+  int32_t stop;
 
   uint32_t ptw_fallback_mask;
+
+  int32_t data_format;
+  int32_t suppress_trig_time;
+  int32_t insert_adc_params;
 
 } FAV3_CONF;
 

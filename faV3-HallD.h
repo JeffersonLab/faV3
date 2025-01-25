@@ -56,10 +56,20 @@ typedef struct
 
 extern const char *faV3_halld_mode_names[FAV3_MAX_PROC_MODE + 1];
 
+#define FAV3_ENABLE_ADC_PARAMETERS_DATA        0x8000
+#define FAV3_SUPPRESS_TRIGGER_TIME_DATA       0x10000
+#define FAV3_SUPPRESS_TRIGGER_TIME_WORD2_DATA 0x20000
+#define FAV3_SUPPRESS_TRIGGER_TIME_MASK       0x30000
+
+
 /* Define MGT Control bits */
 #define FAV3_MGT_FRONT_END_TO_CTP         0x2
 #define FAV3_MGT_ENABLE_DATA_ALIGNMENT    0x4
 #define FAV3_MGT_HITBITS_TO_CTP           0x8
+
+#define FAV3_ADC_CONFIG1_NP_MASK    0x0030
+#define FAV3_ADC_CONFIG1_MODE_MASK  0x0300
+#define FAV3_ADC_CONFIG1_NSAT_MASK  0x0C00
 
 
 #define FAV3_ADC_CONFIG1_CHAN_MASK         0x0F00
@@ -81,6 +91,9 @@ int faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 void faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 			   int NSB, uint32_t NSA, uint32_t NP,
 			   uint32_t NPED, uint32_t MAXPED, uint32_t NSAT);
+int32_t faV3HallDGetProcMode(int id, int *pmode, uint32_t *PL, uint32_t *PTW,
+			     int *NSB, uint32_t *NSA, uint32_t *NP,
+			     uint32_t *NPED, uint32_t *MAXPED, uint32_t *NSAT);
 int faV3HallDProcPedConfig(int id, int nsamples, int maxvalue);
 int faV3HallDGProcPedConfig(int nsamples, int maxvalue);
 int faV3HallDSampleConfig(int id, int nsamples, int maxvalue);
@@ -95,7 +108,10 @@ int faV3HallDSetRoguePTWFallBack(int id, uint16_t enablemask);
 int faV3HallDGetRoguePTWFallBack(int id, uint16_t *enablemask);
 int faV3HallDDataInsertAdcParameters(int id, int enable);
 void faV3HallDGDataInsertAdcParameters(int enable);
+int faV3HallDDataGetInsertAdcParameters(int id);
 int faV3HallDDataSuppressTriggerTime(int id, int suppress);
 void faV3HallDGDataSuppressTriggerTime(int suppress);
+int faV3HallDDataGetSuppressTriggerTime(int id);
 int faV3HallDSetDataFormat(int id, int format);
 void faV3HallDGSetDataFormat(int format);
+int faV3HallDGetDataFormat(int id);

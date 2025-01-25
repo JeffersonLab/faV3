@@ -389,6 +389,42 @@ faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
     }
 }
 
+int32_t
+faV3HallDGetProcMode(int id, int *pmode, uint32_t *PL, uint32_t *PTW,
+		     int *NSB, uint32_t *NSA, uint32_t *NP,
+		     uint32_t *NPED, uint32_t *MAXPED, uint32_t *NSAT)
+{
+  int32_t rval = OK;
+  uint32_t config1 = 0, config7 = 0, nsb = 0;
+  CHECKID;
+
+  FAV3LOCK;
+
+
+  config1 = vmeRead32(&HallDp[id]->config1);
+  *pmode = ((config1 & FAV3_ADC_CONFIG1_MODE_MASK) >> 8) + 9;
+  *NP = ((config1 & FAV3_ADC_CONFIG1_NP_MASK) >> 4) + 1;
+  *NSAT = ((config1 & FAV3_ADC_CONFIG1_NSAT_MASK) >> 10) + 1;
+
+  *PL = vmeRead32(&HallDp[id]->pl) & 0xFFFF;
+  *PTW = (vmeRead32(&HallDp[id]->ptw) & 0xFFFF) + 1;
+
+  nsb = vmeRead32(&HallDp[id]->nsb) & FAV3_ADC_NSB_READBACK_MASK;
+  if(nsb & FAV3_ADC_NSB_NEGATIVE)
+    *NSB = (-1) * nsb * 0x3;
+  else
+    *NSB = nsb * 0x7;
+
+  *NSA = vmeRead32(&HallDp[id]->nsa) & FAV3_ADC_NSA_READBACK_MASK;
+
+  config7 = vmeRead32(&HallDp[id]->config7); // (NPED-1)<<10 | (MAXPED));
+  *NPED = (config7 & FAV3_ADC_CONFIG7_NPED_MASK) >> 10;
+  *MAXPED = (config7 & FAV3_ADC_CONFIG7_MAXPED_MASK);
+
+  FAV3UNLOCK;
+
+  return rval;
+}
 
 /**
  *  @ingroup Readout
@@ -775,6 +811,26 @@ faV3HallDGDataInsertAdcParameters(int enable)
 }
 
 /**
+ *  @ingroup Status
+ *  @brief Get the status of Insert ADC parameter word into datastream.
+ *     The data word appears as a block header continuation word.
+ *  @param id Slot number
+ *  @return 1 if enabled, 0 if disabled, otherwise ERROR.
+ */
+int
+faV3HallDDataGetInsertAdcParameters(int id)
+{
+  int rval = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  rval = (vmeRead32(&FAV3p[id]->ctrl1) & FAV3_ENABLE_ADC_PARAMETERS_DATA) ? 1 : 0;
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+/**
  *  @ingroup Config
  *  @brief Enable/Disable suppression of one or both of the trigger time words
  *    in the data stream.
@@ -842,6 +898,19 @@ faV3HallDGDataSuppressTriggerTime(int suppress)
 
 }
 
+int
+faV3HallDDataGetSuppressTriggerTime(int id)
+{
+  int rval = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  rval = (vmeRead32(&FAV3p[id]->ctrl1) & FAV3_SUPPRESS_TRIGGER_TIME_MASK) >> 16;
+  FAV3UNLOCK;
+
+  return rval;
+}
+
 /**
  *  @ingroup Config
  *  @brief Set the readout data form which allows for suppression of
@@ -889,4 +958,17 @@ faV3HallDGSetDataFormat(int format)
 
   for(ifadc=0;ifadc<nfaV3;ifadc++)
     faV3HallDSetDataFormat(faV3Slot(ifadc), format);
+}
+
+int
+faV3HallDGetDataFormat(int id)
+{
+  int32_t rval = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  rval = (vmeRead32(&FAV3p[id]->ctrl1) & FAV3_CTRL1_DATAFORMAT_MASK) >> 26;
+  FAV3UNLOCK;
+
+  return rval;
 }

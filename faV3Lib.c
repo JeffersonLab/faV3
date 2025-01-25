@@ -1901,6 +1901,18 @@ faV3SetTriggerStopCondition(int id, int trigger_max)
   return OK;
 }
 
+int
+faV3GetTriggerStopCondition(int id, int *trigger_max)
+{
+  CHECKID;
+
+  FAV3LOCK;
+  *trigger_max = (vmeRead32(&FAV3p[id]->trigger_control) & FAV3_TRIGCTL_MAX2_MASK ) >> 16;
+  FAV3UNLOCK;
+
+  return OK;
+}
+
 /**
  *  @ingroup Config
  *  @brief Set the maximum number of unacknowledged triggers before module
@@ -1941,7 +1953,19 @@ faV3SetTriggerBusyCondition(int id, int trigger_max)
   return OK;
 }
 
-/**
+int
+faV3GetTriggerBusyCondition(int id, int *trigger_max)
+{
+  CHECKID;
+
+  FAV3LOCK;
+  *trigger_max = vmeRead32(&FAV3p[id]->trigger_control) & FAV3_TRIGCTL_MAX1_MASK;
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+    /**
  *  @ingroup Config
  *  @brief Set the number of samples that are included before and after
  *    threshold crossing that are sent through the trigger path
@@ -2007,6 +2031,22 @@ faV3GSetTriggerPathSamples(uint32_t TNSA, uint32_t TNSAT)
 
 }
 
+int
+faV3GetTriggerPathSamples(int id, uint32_t *TNSA, uint32_t *TNSAT)
+{
+
+  CHECKID;
+
+  FAV3LOCK;
+
+  *TNSA = (vmeRead32(&FAV3p[id]->adc.nsa) & FAV3_ADC_TNSA_MASK) >> 9;
+  *TNSAT = (vmeRead32(&FAV3p[id]->adc.config1) & FAV3_ADC_CONFIG1_TNSAT_MASK) >> 12;
+
+  FAV3UNLOCK;
+
+  return OK;
+}
+
 /**
  *  @ingroup Config
  *  @brief Set the threshold used to determine what samples are sent through the
@@ -2056,6 +2096,17 @@ faV3GSetTriggerPathThreshold(uint32_t TPT)
     }
 }
 
+int
+faV3GetTriggerPathThreshold(int id, uint32_t *TPT)
+{
+  CHECKID;
+
+  FAV3LOCK;
+  *TPT = vmeRead32(&FAV3p[id]->adc.config3) & FAV3_ADC_CONFIG3_TPT_MASK;
+  FAV3UNLOCK;
+
+  return OK;
+}
 
 
 /**
