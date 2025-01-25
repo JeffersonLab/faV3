@@ -61,69 +61,15 @@ FAV3_CONF_FILE  <filename> <- another config filename to be processed on next it
 #include "jvme.h"
 #include "faV3Lib.h"
 
+#include "config_defs.h"
+
 static int active;
 
 #define NBOARD     21
 static int          nfadc;                        /* Number of FADC250s */
 static FAV3_CONF faV3[NBOARD+1];
 
-
-#define SCAN_MSK						\
-  args = sscanf (str_tmp, "%*s %d %d %d %d %d %d %d %d   \
-                                     %d %d %d %d %d %d %d %d",	\
-		 &msk[ 0], &msk[ 1], &msk[ 2], &msk[ 3],	\
-		 &msk[ 4], &msk[ 5], &msk[ 6], &msk[ 7],	\
-		 &msk[ 8], &msk[ 9], &msk[10], &msk[11],	\
-		 &msk[12], &msk[13], &msk[14], &msk[15])
-
-#define SCAN_FMSK						\
-  args = sscanf (str_tmp, "%*s %f %f %f %f %f %f %f %f   \
-                                     %f %f %f %f %f %f %f %f",	\
-		 &fmsk[ 0], &fmsk[ 1], &fmsk[ 2], &fmsk[ 3],	\
-		 &fmsk[ 4], &fmsk[ 5], &fmsk[ 6], &fmsk[ 7],	\
-		 &fmsk[ 8], &fmsk[ 9], &fmsk[10], &fmsk[11],	\
-		 &fmsk[12], &fmsk[13], &fmsk[14], &fmsk[15])
-
-#define GET_READ_MSK							\
-  SCAN_MSK;								\
-  if(args != 16)							\
-    {									\
-      CFG_ERR("Invalid number of arguments (%d), should be 16\n", args); \
-      return(-8);							\
-    }									\
-  ui1 = 0;								\
-  for(jj=0; jj<NCHAN; jj++)						\
-    {									\
-      if((msk[jj] < 0) || (msk[jj] > 1))				\
-	{								\
-	  CFG_ERR("Invalid mask bit value, %d\n", msk[jj]);		\
-	  return(-6);							\
-	}								\
-      if(strcmp(keyword,"FAV3_ADC_MASK") == 0) msk[jj] = ~(msk[jj])&0x1; \
-      ui1 |= (msk[jj]<<jj);						\
-    }
-
-/* Macros for error ouput */
-#define CFG_ERR(format, ...) {						\
-    fprintf(stdout, "\n%s: ERROR: ", "ReadConfigFile");			\
-    if(slot1==0)							\
-      fprintf(stdout, "ALL SLOTS: ");					\
-    else								\
-      fprintf(stdout, "SLOT %d: ", slot1);				\
-    fprintf(stdout, "%s\n\t", keyword);					\
-    fprintf(stdout, format, ## __VA_ARGS__);				\
-    fprintf(stdout, "\n");						\
-  }
-
-
-
 static char *expid = NULL;
-
-void
-fadc250SetExpid(char *string)
-{
-  expid = strdup(string);
-}
 
 int
 faV3Config(char *fname)
@@ -184,14 +130,6 @@ faV3InitGlobals()
     }
 }
 
-/* to set host externally */
-static char hosthost[1024];
-void
-faV3Sethost(char *host)
-{
-  strcpy(hosthost,host);
-}
-
 /* reading and parsing config file */
 int
 faV3ReadConfigFile(char *filename_in)
@@ -199,326 +137,109 @@ faV3ReadConfigFile(char *filename_in)
   FILE   *fd;
   char   filename[FNLEN];
   char   fname[FNLEN] = { "" };  /* config file name */
-  int    ii, jj, ch;
-  char   str_tmp[STRLEN], str2[STRLEN], keyword[ROCLEN];
   char   host[ROCLEN], ROC_name[ROCLEN];
-  int    args, i1, msk[16];
-  int    slot, slot1, slot2, chan;
-  uint32_t  ui1;
-  float f1, fmsk[16];
-  /*char *getenv();*/
   char *envDir = NULL;
   int do_parsing;
+  SCAN_VARS;
 
-#ifndef OFFLINE
   gethostname(host,ROCLEN);  /* obtain our hostname */
-#else
-  strcpy(host,hosthost);
-#endif
-
-#ifdef FAV3_CONFIG_GET_ENV
-  envDir = getenv(FAV3_CONFIG_GET_ENV);
-  if(envDir == NULL)
-    {
-      strcpy((char *)str_tmp,"./");
-      envDir = (char *)str_tmp;
-      printf("%s: INFO: %s not found. Using %s\n",
-	     __func__,FAV3_CONFIG_GET_ENV,envDir);
-    }
-  else
-    {
-      printf("%s: FADC250-V3 Config Environment Variable:\n"
-	     " %s = %s\n",
-	     __func__,
-	     FAV3_CONFIG_GET_ENV, envDir);
-    }
-#else
-  strcpy((char *)str_tmp,"./");
-  envDir = (char *)str_tmp;
-#endif
-
-  if(expid==NULL)
-    {
-      expid = getenv("EXPID");
-      printf("\nNOTE: use EXPID=>%s< from environment\n",expid);
-    }
-  else
-    {
-      printf("\nNOTE: use EXPID=>%s< from CODA\n",expid);
-    }
 
   strcpy(filename,filename_in); /* copy filename from parameter list to local string */
   do_parsing = 1;
 
-  while(do_parsing)
+  if((fd=fopen(filename,"r")) == NULL)
     {
-      if(strlen(filename)!=0) /* filename specified */
-	{
-	  if ( filename[0]=='/' || (filename[0]=='.' && filename[1]=='/') )
-	    {
-	      sprintf(fname, "%s", filename);
-	    }
-	  else
-	    {
-	      sprintf(fname, "%s/fav3/%s", envDir, filename);
-	    }
-
-	  if((fd=fopen(fname,"r")) == NULL)
-	    {
-	      printf("\nReadConfigFile: Can't open config file >%s<\n",fname);
-	      return(-1);
-	    }
-	}
-      else if(do_parsing<2) /* filename does not specified */
-	{
-	  sprintf(fname, "%s/fav3/%s.cnf", envDir, host);
-	  if((fd=fopen(fname,"r")) == NULL)
-	    {
-	      sprintf(fname, "%s/fav3/%s.cnf", envDir, expid);
-	      if((fd=fopen(fname,"r")) == NULL)
-		{
-		  printf("\nReadConfigFile: Can't open config file >%s<\n",fname);
-		  return(-2);
-		}
-	    }
-	}
-      else
-	{
-	  printf("\nReadConfigFile: ERROR: since do_parsing=%d (>1), filename must be specified\n",do_parsing);
-	  return(-1);
-	}
-
-      printf("\nReadConfigFile: Using configuration file >%s<\n",fname);
-
-      /* Parsing of config file */
-      active = 0; /* by default disable crate */
-      do_parsing = 0; /* will parse only one file specified above, unless it changed during parsing */
-      while ((ch = getc(fd)) != EOF)
-	{
-	  if ( ch == '#' || ch == ' ' || ch == '\t' )
-	    {
-	      while ( getc(fd)!='\n' /*&& getc(fd)!=!= EOF*/ ) {} /*ERROR !!!*/
-	    }
-	  else if( ch == '\n' ) {}
-	  else
-	    {
-	      ungetc(ch,fd);
-	      fgets(str_tmp, STRLEN, fd);
-	      sscanf (str_tmp, "%s %s", keyword, ROC_name);
-#ifdef DEBUG
-	      printf("\nfgets returns %s so keyword=%s\n\n",str_tmp,keyword);
-#endif
-
-	      /* Start parsing real config inputs */
-	      if(strcmp(keyword,"FAV3_CRATE") == 0)
-		{
-		  if(strcmp(ROC_name,host) == 0)
-		    {
-		      printf("\nReadConfigFile: crate = %s  host = %s - activated\n",ROC_name,host);
-		      active = 1;
-		    }
-		  else if(strcmp(ROC_name,"all") == 0)
-		    {
-		      printf("\nReadConfigFile: crate = %s  host = %s - activated\n",ROC_name,host);
-		      active = 1;
-		    }
-		  else
-		    {
-		      printf("\nReadConfigFile: crate = %s  host = %s - disactivated\n",ROC_name,host);
-		      active = 0;
-		    }
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_CONF_FILE")==0))
-		{
-		  sscanf (str_tmp, "%*s %s", str2);
-		  /*printf("str2=%s\n",str2);*/
-		  strcpy(filename,str2);
-		  do_parsing = 2;
-		}
-
-	      else if(active && ((strcmp(keyword,"FAV3_SLOT")==0) || (strcmp(keyword,"FAV3_SLOTS")==0)))
-		{
-		  sscanf (str_tmp, "%*s %s", str2);
-		  /*printf("str2=%s\n",str2);*/
-		  if(isdigit(str2[0]))
-		    {
-		      slot1 = atoi(str2);
-		      slot2 = slot1 + 1;
-		      if(slot1<2 && slot1>21)
-			{
-			  printf("\nReadConfigFile: ERROR: Invalid slot number %d\n\n",slot1);
-			  return(-4);
-			}
-		    }
-		  else if(!strcmp(str2,"all"))
-		    {
-		      slot1 = 0;
-		      slot2 = NBOARD;
-		    }
-		  else
-		    {
-		      printf("\nReadConfigFile: ERROR: Invalid slot >%s<, must be 'all' or actual slot number\n\n",str2);
-		      return(-4);
-		    }
-		  /*printf("slot1=%d slot2=%d\n",slot1,slot2);*/
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_MODE") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].mode = i1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_COMPRESSION") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].compression = i1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_VXSREADOUT") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].vxsReadout = i1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_W_OFFSET") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].winOffset = i1/4;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_W_WIDTH") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  i1 = i1/4; /* convert ns to samples */
-#ifdef HALLB
-		  i1 = ((i1+15)/16)*16; /* round up to 16 samples */
-#endif
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].winWidth = i1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_NSA") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].nsa = i1/4;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_NSB") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].nsb = i1/4;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_NPEAK") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &i1);
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].npeak = i1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_ADC_MASK") == 0))
-		{
-		  GET_READ_MSK;
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].chDisMask = ui1;
-#ifdef DEBUG
-		  printf("\nReadConfigFile: %s = 0x%04x \n",keyword,ui1);
-#endif
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_TET") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &ui1);
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].thr[ii] = ui1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_CH_TET") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d %d", &chan, &ui1);
-		  if((chan<0) || (chan>NCHAN))
-		    {
-		      CFG_ERR("Invalid channel number %d, %s\n", chan, str_tmp);
-		      return(-7);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].thr[chan] = ui1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_ALLCH_TET") == 0))
-		{
-		  SCAN_MSK;
-		  if(args != 16)
-		    {
-		      CFG_ERR("Invalid number of arguments (%d), should be 16\n", args);
-		      return(-8);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].thr[ii] = msk[ii];
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_DAC") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d", &ui1);
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].dac[ii] = ui1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_CH_DAC") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d %d", &chan, &ui1);
-		  if((chan<0) || (chan>NCHAN))
-		    {
-		      CFG_ERR("Invalid channel number %d, %s\n", chan, str_tmp);
-		      return(-7);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].dac[chan] = ui1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_ALLCH_DAC") == 0))
-		{
-		  SCAN_MSK;
-		  if(args != 16)
-		    {
-		      CFG_ERR("Invalid number of arguments (%d), should be 16\n", args);
-		      return(-8);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].dac[ii] = msk[ii];
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_PED") == 0))
-		{
-		  sscanf (str_tmp, "%*s %f", &f1);
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].ped[ii] = f1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_CH_PED") == 0))
-		{
-		  sscanf (str_tmp, "%*s %d %f", &chan, &f1);
-		  if((chan<0) || (chan>NCHAN))
-		    {
-		      CFG_ERR("Invalid channel number %d, %s\n", chan, str_tmp);
-		      return(-7);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) faV3[slot].ped[chan] = f1;
-		}
-
-	      else if(active && (strcmp(keyword,"FAV3_ALLCH_PED") == 0))
-		{
-		  SCAN_FMSK;
-		  if(args != 16)
-		    {
-		      CFG_ERR("Invalid number of arguments (%d), should be 16\n", args);
-		      return(-8);
-		    }
-		  for(slot=slot1; slot<slot2; slot++) for(ii=0; ii<NCHAN; ii++) faV3[slot].ped[ii] = fmsk[ii];
-
-		}
-
-	      else if(active)
-		{
-		  printf("Error: FADC250 unknown line: fgets returns %s so keyword=%s\n\n",str_tmp,keyword);
-		}
-
-	    }
-	}
-      fclose(fd);
+      printf("%s: Can't open config file >%s<\n",
+	     __func__, filename);
+      return(-1);
     }
+
+  printf("%s: Using configuration file >%s<\n",
+	 __func__, filename);
+
+  /* Parsing of config file */
+  active = 0; /* by default disable crate */
+
+  while ((ch = getc(fd)) != EOF)
+    {
+      if ( ch == '#' || ch == ' ' || ch == '\t' )
+	{
+	  while ( getc(fd)!='\n' /*&& getc(fd)!=!= EOF*/ ) {} /*ERROR !!!*/
+	  continue;
+	}
+      if( ch == '\n' )
+	continue;
+
+      ungetc(ch,fd);
+      fgets(str_tmp, STRLEN, fd);
+      sscanf (str_tmp, "%s %s", keyword, ROC_name);
+
+      /* Start parsing real config inputs */
+      if(strcmp(keyword,"FAV3_CRATE") == 0)
+	{
+	  if(strcmp(ROC_name,host) == 0)
+	    {
+	      printf("%s: FAV3_CRATE = %s  host = %s - active\n", __func__, ROC_name, host);
+	      active = 1;
+	    }
+	  else if(strcmp(ROC_name,"all") == 0)
+	    {
+	      printf("%s: FAV3_CRATE = %s  host = %s - active\n",__func__, ROC_name,host);
+	      active = 1;
+	    }
+	  else
+	    {
+	      printf("%s: FAV3_CRATE = %s  host = %s - not active\n", __func__, ROC_name,host);
+	      active = 0;
+	    }
+	  continue;
+	}
+
+      SCAN_SLOT("FAV3_SLOT", slot_min, slot_max);
+
+      SCAN_MASK_INV("FAV3_ADC_MASK", faV3[slot].chDisMask, slot_min, slot_max);
+
+      SCAN_INT("FAV3_MODE", faV3[slot].mode, slot_min, slot_max);
+
+      SCAN_INT("FAV3_COMPRESSION", faV3[slot].compression, slot_min, slot_max);
+      SCAN_INT("FAV3_VXSREADOUT", faV3[slot].vxsReadout, slot_min, slot_max);
+
+      SCAN_INT("FAV3_W_OFFSET", faV3[slot].winOffset, slot_min, slot_max);
+      SCAN_INT("FAV3_W_WIDTH", faV3[slot].winWidth, slot_min, slot_max);
+      SCAN_INT("FAV3_NSA", faV3[slot].nsa, slot_min, slot_max);
+      SCAN_INT("FAV3_NSB", faV3[slot].nsb, slot_min, slot_max);
+      SCAN_INT("FAV3_NPEAK", faV3[slot].npeak, slot_min, slot_max);
+      SCAN_INT("FAV3_NSAT", faV3[slot].nsat, slot_min, slot_max);
+      SCAN_INT("FAV3_NPED", faV3[slot].nped, slot_min, slot_max);
+      SCAN_INT("FAV3_MAXPED", faV3[slot].max_ped, slot_min, slot_max);
+
+      SCAN_MASK("FAV3_TRIG_MASK", faV3[slot].trigMask, slot_min, slot_max);
+
+      SCAN_INT("FAV3_TRIG_NSAT", faV3[slot].trig_nsat, slot_min, slot_max);
+      SCAN_INT("FAV3_TRIG_NSB", faV3[slot].trig_nsb, slot_min, slot_max);
+      SCAN_INT("FAV3_TRIG_NSA", faV3[slot].trig_nsa, slot_min, slot_max);
+
+      SCAN_INT("FAV3_TRIG_THR", faV3[slot].trig_thr, slot_min, slot_max);
+
+      SCAN_INT_ALL("FAV3_READ_THR", faV3[slot].read_thr, slot_min, slot_max);
+      SCAN_INT_CH("FAV3_CH_READ_THR", faV3[slot].read_thr, slot_min, slot_max);
+      SCAN_INT_ALLCH("FAV3_ALLCH_READ_THR", faV3[slot].read_thr, slot_min, slot_max);
+
+      SCAN_INT_ALL("FAV3_DAC", faV3[slot].dac, slot_min, slot_max);
+      SCAN_INT_CH("FAV3_CH_DAC", faV3[slot].dac, slot_min, slot_max);
+      SCAN_INT_ALLCH("FAV3_ALLCH_DAC", faV3[slot].dac, slot_min, slot_max);
+
+      SCAN_INT("FAV3_BUSY",  faV3[slot].busy, slot_min, slot_max);
+      SCAN_INT("FAV3_STOP",  faV3[slot].stop, slot_min, slot_max);
+
+      if(active)
+	{
+	  printf("%s: ERROR: Unknown keyword: %s\n", __func__, keyword);
+	}
+
+    }
+
+  fclose(fd);
 
 
   return(0);
@@ -538,12 +259,12 @@ faV3DownloadAll()
       slot = faV3Slot(jj);
 
       faV3SetProcMode(slot,
-		    faV3[slot].mode,
-		    faV3[slot].winOffset,
-		    faV3[slot].winWidth,
-		    faV3[slot].nsb,
-		    faV3[slot].nsa,
-		    faV3[slot].npeak);
+		      faV3[slot].mode,
+		      faV3[slot].winOffset,
+		      faV3[slot].winWidth,
+		      faV3[slot].nsb,
+		      faV3[slot].nsa,
+		      faV3[slot].npeak);
 
       faV3SetChanDisableMask(slot, faV3[slot].chDisMask);
 
@@ -584,12 +305,12 @@ faV3UploadAll(char *string, int length)
       slot = faV3Slot(jj);
 
       faV3GetProcMode(slot,
-		    &faV3[slot].mode,
-		    &faV3[slot].winOffset,
-		    &faV3[slot].winWidth,
-		    &faV3[slot].nsb,
-		    &faV3[slot].nsa,
-		    &faV3[slot].npeak);
+		      &faV3[slot].mode,
+		      &faV3[slot].winOffset,
+		      &faV3[slot].winWidth,
+		      &faV3[slot].nsb,
+		      &faV3[slot].nsa,
+		      &faV3[slot].npeak);
 
       faV3[slot].chDisMask = faV3GetChanDisableMask(slot);
 
@@ -705,4 +426,62 @@ faV3UploadAllPrint()
   printf("%s",str);
 
   return 0;
+}
+
+void
+faV3PrintConf(int slot){
+
+  int ch;
+
+
+  printf("\n===================================================\n");
+
+  printf("Slot  =  %d \n", slot);
+  printf(" FAV3_MODE      =  %d  \n", faV3[slot].mode);
+  printf(" FAV3_W_OFFSET  =  %d  \n", faV3[slot].winOffset);
+  printf(" FAV3_W_WIDTH   =  %d  \n", faV3[slot].winWidth);
+  printf(" FAV3_NSB       =  %d  \n", faV3[slot].nsb);
+  printf(" FAV3_NSA       =  %d  \n", faV3[slot].nsa);
+  printf(" FAV3_NPEAK     =  %d  \n", faV3[slot].npeak);
+  printf(" FAV3_NSAT      =  %d  \n", faV3[slot].nsat);
+  printf(" \n");
+  printf(" FAV3_NPED      =  %d  \n", faV3[slot].nped);
+  printf(" FAV3_MAX_PED   =  %d  \n", faV3[slot].max_ped);
+  printf(" \n");
+  printf(" FAV3_BUSY      =  %d  \n", faV3[slot].busy);
+  printf(" FAV3_STOP      =  %d  \n", faV3[slot].stop);
+  printf(" \n");
+  printf(" FAV3_FORMAT    =  %d  \n", faV3[slot].data_format);
+  printf(" \n");
+  printf(" FAV3_ADC_MASK  =  0x%x  \n", faV3[slot].chDisMask);
+  printf(" \n");
+
+  printf(" FAV3_DAC  =  ");
+  for(ch = 0; ch <  NCHAN; ch++)
+    printf("  %d", faV3[slot].dac[ch]);
+  printf("\n");
+
+
+  printf(" FAV3_TET  =  ");
+  for(ch = 0; ch <  NCHAN; ch++)
+    printf("  %d", faV3[slot].read_thr[ch]);
+  printf("\n");
+
+
+  printf("\n");
+
+  printf(" FAV3_TRIG_THR     =  %d  \n",   faV3[slot].trig_thr);
+  printf(" FAV3_TRIG_NSB     =  %d  \n",   faV3[slot].trig_nsb);
+  printf(" FAV3_TRIG_NSA     =  %d  \n",   faV3[slot].trig_nsa);
+  printf(" FAV3_TRIG_NSAT    =  %d  \n",   faV3[slot].trig_nsat);
+  printf(" FAV3_TRIG_MASK    =  0x%x  \n", faV3[slot].trigMask);
+
+  printf(" FAV3_TRIG_BL  =  ");
+  for(ch = 0; ch <  NCHAN; ch++)
+    printf("  %d", faV3[slot].trig_bl[ch]);
+  printf("\n");
+
+  printf("\n");
+
+
 }

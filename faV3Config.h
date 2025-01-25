@@ -32,10 +32,6 @@
 
 /** FADC250 configuration parameters **/
 typedef struct {
-  int f_rev;
-  int b_rev;
-  int b_ID;
-
   int          mode;
   int          compression;
   int          vxsReadout;
@@ -49,6 +45,28 @@ typedef struct {
   uint32_t thr[NCHAN];
   uint32_t dac[NCHAN];
   float        ped[NCHAN];
+
+  uint32_t trigMask;
+
+  uint32_t read_thr[NCHAN];
+
+  uint32_t nsat;
+
+  uint32_t nped;
+  uint32_t max_ped;
+
+  uint32_t trig_bl[NCHAN];
+
+  uint32_t trig_thr;
+  uint32_t trig_nsb;
+  uint32_t trig_nsa;
+  uint32_t trig_nsat;
+
+  /* Busy and stop processing conditions */
+  uint32_t busy;
+  uint32_t stop;
+
+  uint32_t data_format;
 
 } FAV3_CONF;
 
