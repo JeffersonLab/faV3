@@ -437,7 +437,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	{
 	  faV3DACInit(faV3ID[ii]);
 	  faV3DACClear(faV3ID[ii]);
-	  faV3LoadIdelay(faV3ID[ii],1);
+	  faV3LoadIdelay(faV3ID[ii], 0);
 	}
     }
 
@@ -1385,8 +1385,9 @@ faV3GStatus(int sflag)
 
       for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS/2; ii++)
 	{
-	  // FIXME: 2 channels per reg?
-	  st[id].adc.thres[ii] = vmeRead32(&FAV3p[id]->adc.thres[ii]);
+	  uint32_t data = vmeRead32(&FAV3p[id]->adc.thres[ii]);
+	  st[id].adc.thres[ii] = data & 0xFFFF;
+	  st[id].adc.thres[ii+1] = (data & 0xFFFF0000) >> 16;
 	}
 
     }
@@ -1729,7 +1730,7 @@ int
 faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 		uint32_t NSB, uint32_t NSA, uint32_t NP)
 {
-
+  int rval = OK;
   int err = 0;
   uint32_t ptw_last_adr, ptw_max_buf;
 
@@ -1785,7 +1786,11 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   ptw_max_buf = (uint32_t) (2016 / (PTW + 8));
   ptw_last_adr = ptw_max_buf * (PTW + 8) - 1;
 
-  faV3SetupADC(id, 0);
+  rval = faV3SetupADC(id, 0);
+
+  if(err)
+    rval = ERROR;
+
 
   FAV3LOCK;
   /* Disable ADC processing while writing window info */
@@ -1803,7 +1808,7 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 
   FAV3UNLOCK;
 
-  return (OK);
+  return (rval);
 }
 
 /**
@@ -2143,24 +2148,29 @@ faV3ADCWriteAll(int id, uint32_t value)
   /* broadcasts 'value' to all ADC chips */
   /* 'value' contains ADC register address (bits 15-8) and data (bits 7-0)  */
   /* 'value' bits 31-16 are ignored */
-  int32_t rval = OK, adc_ready;
+  int32_t rval = OK, adc_ready, debug = 0;
 
   adc_ready = faV3ADCTestReady(id);
-  printf("+++++ adc_ready (start) = %d\n", adc_ready);
+  if(debug)
+    printf("+++++ adc_ready (start) = %d\n", adc_ready);
 
+  FAV3LOCK;
   vmeWrite32(&FAV3p[id]->adc.config5, value);		/* set up address & data */
 
   vmeWrite32(&FAV3p[id]->adc.config4, 0x40);		/* write all */
   adc_ready = faV3ADCTestReady(id);
-  printf("+++++ adc_ready (1) = %d\n", adc_ready);
+  if(debug)
+    printf("+++++ adc_ready (1) = %d\n", adc_ready);
 
   vmeWrite32(&FAV3p[id]->adc.config4, 0xC0);
   adc_ready = faV3ADCTestReady(id);
-  printf("+++++ adc_ready (2) = %d\n", adc_ready);
+  if(debug)
+    printf("+++++ adc_ready (2) = %d\n", adc_ready);
 
   vmeWrite32(&FAV3p[id]->adc.config4, 0x40);
   adc_ready = faV3ADCTestReady(id);
-  printf("+++++ adc_ready (end) = %d\n", adc_ready);
+  if(debug)
+    printf("+++++ adc_ready (end) = %d\n", adc_ready);
 
   return rval;
 }
@@ -2174,21 +2184,21 @@ faV3ADCWriteAll(int id, uint32_t value)
  *
  */
 
-// FIXME: Call this from SetProcMode
-
 int32_t
 faV3SetupADC(int id, int32_t mode)
 {
-  int32_t rval = OK;
+  int32_t rval = OK, debug = 0;
 
   CHECKID;
 
   mode = 0;
   taskDelay(1);
 
-  printf("%s(%d): ---- Initializing ADC chips ----\n",
-	 __func__, id);
+  if(debug)
+    printf("%s(%d): ---- Initializing ADC chips ----\n",
+	   __func__, id);
 
+  FAV3LOCK;
   vmeWrite32(&FAV3p[id]->adc.config4, 0x0);			/* reset adc chip */
   taskDelay(1);
 
@@ -2204,18 +2214,22 @@ faV3SetupADC(int id, int32_t mode)
 
   faV3ADCWriteAll(id, 0xFF01);			/* transfer register values */
 
-  printf("%s(%d):   ---- ADC chips initialized ----\n",
-	 __func__, id);
+  if(debug)
+    printf("%s(%d):   ---- ADC chips initialized ----\n",
+	   __func__, id);
 
-  printf("%s(%d):   ---- Put ADC chips in normal running mode ----\n",
-	 __func__, id);
+  if(debug)
+    printf("%s(%d):   ---- Put ADC chips in normal running mode ----\n",
+	   __func__, id);
 
   faV3ADCWriteAll(id, 0x0D00);
 
   faV3ADCWriteAll(id, 0xFF01);			/* transfer register values */
 
-  printf("%s(%d):   ---- ADC chips in normal running mode ----\n",
-	 __func__, id);
+  if(debug)
+    printf("%s(%d):   ---- ADC chips in normal running mode ----\n",
+	   __func__, id);
+  FAV3UNLOCK;
 
   return rval;
 }
@@ -4538,13 +4552,13 @@ faV3DACClear(int id)
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->dac_csr, FAV3_DAC_CLEAR);
   csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
-  ready = (csr_value & FAV3_DAC_READY >> 16);
+  ready = (csr_value & FAV3_DAC_READY) >> 16;
   success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
   not_ready_since_clear = (csr_value & FAV3_DAC_NOT_READY) >> 18;
   timeout_since_clear = (csr_value & FAV3_DAC_TIMEOUT) >> 19;
   FAV3UNLOCK;
 
-  if(!ready || !success || not_ready_since_clear || timeout_since_clear)
+  if(!ready || not_ready_since_clear || timeout_since_clear)
     {
       printf("%s(id = %d): ERROR: Clear Failed.  DAC_CSR: 0x%08x\n",
 	     __func__, id, csr_value);
@@ -4591,7 +4605,7 @@ faV3DACSet(int id, int chan, uint32_t dac_value)
 
   CHECKID;
 
-  if(chan > FAV3_MAX_ADC_CHANNELS)
+  if((chan < 0) || (chan > FAV3_MAX_ADC_CHANNELS))
     {
       printf("%s: ERROR: Invalid chan (%d)\n",
 	     __func__, chan);
@@ -4608,20 +4622,14 @@ faV3DACSet(int id, int chan, uint32_t dac_value)
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->dac_csr, chan);
 
+  vmeWrite32(&FAV3p[id]->dac_data, dac_value);
   csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
-  ready = (csr_value & FAV3_DAC_READY >> 16);
+  ready = (csr_value & FAV3_DAC_READY) >> 16;
   success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
 
-  if(ready && success)
-    {
-      vmeWrite32(&FAV3p[id]->dac_data, dac_value);
-      csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
-      ready = (csr_value & FAV3_DAC_READY >> 16);
-      success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
-    }
   FAV3UNLOCK;
 
-  if(!ready || !success)
+  if(!ready)
     {
       printf("%s(id = %d, chan = %d): ERROR: Write 0x%x Failed.  DAC_CSR: 0x%08x\n",
 	     __func__, id, chan, dac_value, csr_value);
@@ -4652,31 +4660,115 @@ faV3DACGet(int id, int chan, uint32_t *dac_value)
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->dac_csr, chan);
 
-  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
-  ready = (csr_value & FAV3_DAC_READY >> 16);
-  success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
+  data_value = vmeRead32(&FAV3p[id]->dac_data);
+  *dac_value = data_value & FAV3_DAC_DATA_MASK;
+  chan_value = (data_value & FAV3_DAC_CHAN_MASK) >> 14;
 
-  if(ready && success)
-    {
-      data_value = vmeRead32(&FAV3p[id]->dac_data);
-      *dac_value = data_value & FAV3_DAC_DATA_MASK;
-      csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
-      ready = (csr_value & FAV3_DAC_READY >> 16);
-      success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
-    }
+  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read back value
+  ready = (csr_value & FAV3_DAC_READY) >> 16;
+  success = (csr_value & FAV3_DAC_SUCCESS) >> 17;
   FAV3UNLOCK;
 
   if(!ready || !success)
     {
-      printf("%s(id = %d, chan = %d): ERROR: Read 0x%x Failed.  DAC_CSR: 0x%08x\n",
-	     __func__, id, chan, *dac_value, csr_value);
-      printf("    Ready: %d  Success: %d\n",
-	     ready, success);
+      printf("%s(id = %d, chan = %d): ERROR: Read Failed.\n  DAC_CSR: 0x%08x  DAC_DATA: 0x%08x\n",
+	     __func__, id, chan, csr_value, data_value);
+      printf("    Ready: %d  Success: %d  Chan: %2d  Data: 0x%x\n",
+	     ready, success, chan_value, *dac_value);
       rval = ERROR;
     }
 
   return rval;
 }
+
+int32_t
+test_dac(int32_t id)
+{
+  // writes different values to all DAC channels, then read back and compare
+
+  uint32_t dac_channel, dac_value, csr_value, data_from_dac, chan_value;
+  uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
+  uint32_t start_value, value_to_write, expected_value, dac_error;
+  uint32_t ii;
+  uint32_t READ_CSR_AFTER_WRITE, READ_CSR_AFTER_READ;
+
+  CHECKID;
+
+  READ_CSR_AFTER_WRITE = 0;	// '0' = do not read CSR after WRITE
+  READ_CSR_AFTER_READ = 0;	// '0' = do not read CSR after READ
+
+  dac_error = 0;
+  start_value = 3000;		// start value
+  printf("\n ---------------- WRITE all DAC channels ----------------\n");
+  for(ii = 0; ii < 16; ii++)	// write values to all channels
+    {
+#ifdef DACTEST1
+      vmeWrite32(&FAV3p[id]->dac_csr, ii);	// write DAC channel to CSR
+      value_to_write = start_value + ii * 50;	// DAC value to write
+      vmeWrite32(&FAV3p[id]->dac_data, value_to_write);	// write DAC
+      if(READ_CSR_AFTER_WRITE)
+	{
+	  taskDelay(1);
+	  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read CSR value for status bits after write
+	  //            ------------------------------------------------------
+	  printf("\nDAC CSR value after channel %d write = %X\n", ii,
+		 csr_value);
+	  ready = (csr_value >> 16) & 1;
+	  success = (csr_value >> 17) & 1;
+	  not_ready_since_clear = (csr_value >> 18) & 1;
+	  timeout_since_clear = (csr_value >> 19) & 1;
+	  printf("CSR status: ready = %d  success = %d  not ready(since clear) = %d  timeout(since clear) = %d\n",
+		 ready, success, not_ready_since_clear, timeout_since_clear);
+	  //            ------------------------------------------------------
+	}
+#else
+      faV3DACSet(id, ii, start_value + ii * 50);
+#endif
+    }
+
+  printf("\n ---------------- READ all DAC channels ----------------\n");
+  for(ii = 0; ii < 16; ii++)	// read values from all channels
+    {
+#ifdef DACTEST1
+      vmeWrite32(&FAV3p[id]->dac_csr, ii);	// write DAC channel to CSR
+      data_from_dac = vmeRead32(&FAV3p[id]->dac_data);	// read DAC
+      dac_value = 0xFFF & data_from_dac;
+      chan_value = (data_from_dac >> 14) & 0xF;
+      printf("\n******** HEX DAC data (req chan %d) = %X  (actual chan %d  dac_value (dec) = %d)\n",
+	     ii, data_from_dac, chan_value, dac_value);
+
+      if(READ_CSR_AFTER_READ)
+	{
+	  taskDelay(1);
+	  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read CSR value for status bits after read
+	  //            ------------------------------------------------------
+	  printf("DAC CSR value after read = %X\n", csr_value);
+	  ready = (csr_value >> 16) & 1;
+	  success = (csr_value >> 17) & 1;
+	  not_ready_since_clear = (csr_value >> 18) & 1;
+	  timeout_since_clear = (csr_value >> 19) & 1;
+	  printf("CSR status: ready = %d  success = %d  not ready(since clear) = %d  timeout(since clear) = %d\n",
+		 ready, success, not_ready_since_clear, timeout_since_clear);
+	  //            ------------------------------------------------------
+	}
+#else
+      faV3DACGet(id, ii, &dac_value);
+#endif
+      expected_value = start_value + ii * 50;	// compare
+      if(dac_value != expected_value)
+	{
+	  printf("\n !!!!!!!! ERROR IN DAC READBACK of channel %d !!!!!!!!\n\n",
+		 ii);
+	  dac_error = 1;
+	}
+    }
+
+  if(dac_error == 0)
+    printf("\n ******** NO ERRORS ********\n");
+
+  return 0;
+}
+
 
 /**
  *  @ingroup Config

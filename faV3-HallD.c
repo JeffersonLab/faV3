@@ -206,7 +206,7 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 		     int NSB, uint32_t NSA, uint32_t NP,
 		     uint32_t NPED, uint32_t MAXPED, uint32_t NSAT)
 {
-
+  int rval = OK;
   int imode=0, supported_modes[FAV3_SUPPORTED_NMODES] = {FAV3_SUPPORTED_MODES};
   int mode_supported=0;
   int mode_bit=0;
@@ -297,6 +297,8 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
       printf("Setting to %d.\n",NSAT);
     }
 
+  rval = faV3SetupADC(id, 0);
+
   FAV3LOCK;
   /* Disable ADC processing while writing window info */
   if(pmode == FAV3_HALLD_PROC_MODE_PULSE_PARAM)
@@ -345,7 +347,7 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   faV3SetTriggerStopCondition(id, faV3HallDCalcMaxUnAckTriggers(pmode,PTW,NSA,NSB,NP));
   faV3SetTriggerBusyCondition(id, faV3HallDCalcMaxUnAckTriggers(pmode,PTW,NSA,NSB,NP));
 
-  return(OK);
+  return(rval);
 }
 
 /**

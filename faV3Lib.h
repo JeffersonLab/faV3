@@ -380,7 +380,6 @@ typedef struct faV3_sdc_struct
 #define FAV3_RAM_ADR_INCREMENT   0x00100000
 
 /* Define dac_csr and dac_data bits */
-#define FAV3_DAC_CHAN_MASK 0x0000000F
 #define FAV3_DAC_READY     (1 << 16)
 #define FAV3_DAC_SUCCESS   (1 << 17)
 #define FAV3_DAC_NOT_READY (1 << 18)
@@ -388,11 +387,8 @@ typedef struct faV3_sdc_struct
 #define FAV3_DAC_CLEAR     (1 << 29)
 #define FAV3_DAC_INIT_DONE (1 << 30)
 #define FAV3_DAC_INIT      (1 << 31)
-
 #define FAV3_DAC_DATA_MASK         0x00000FFF
-#define FAV3_DAC_DATA_REG_SELECT01 0x00003000
-#define FAV3_DAC_DATA_CHAN_MASK    0x0003C000
-#define FAV3_DAC_DATA_REG_SELECTAB (1 << 21)
+#define FAV3_DAC_CHAN_MASK         0x0003C000
 #define FAV3_DAC_MAX_VALUE         0xFFF
 
 /* Define Bit Masks */
