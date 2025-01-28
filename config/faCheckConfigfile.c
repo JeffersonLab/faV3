@@ -35,7 +35,7 @@ main(int argc, char *argv[])
   /* grab filename using arguments */
   if(argc == 2)
     {
-      sprintf(config_filename, "%s/%s/nps-vme.cfg",
+      sprintf(config_filename, "%s/%s",
 	      buf,
 	      argv[1]);
     }
@@ -56,7 +56,18 @@ main(int argc, char *argv[])
     printf("SUCCESS!\n");
 
   printf(" file: %s\n", config_filename);
-  printf(" fadc250ReadConfigFile returned %d\n\n", err);
+  printf(" faV3ReadConfigFile returned %d\n\n", err);
+
+  extern int faV3ID[21];
+  extern int nfaV3;
+
+  nfaV3 = 1;
+  faV3ID[0] = 3;
+
+  char bigstring[12000];
+
+  faV3ConfigToString(bigstring, 12000);
+  printf("%s", bigstring);
 
   exit(0);
 }
