@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include "jvme.h"
 #include "faV3Lib.h"
+#include "fadcLib.h"
 
 int
 main(int argc, char *argv[])
@@ -30,13 +31,16 @@ main(int argc, char *argv[])
     faV3Init(3 << 19, 1<<19, 2,
 		  FAV3_INIT_VXS_CLKSRC | FAV3_INIT_EXT_SYNCRESET | FAV3_INIT_VXS_TRIG);
 
-    int ifa = 0;
+    int ifa = 0, chan = 0;
     char serial_number[1024];
     for(ifa = 0; ifa < faV3GetN(); ifa++)
       {
 	faV3GetSerialNumber(faV3Slot(ifa), (char**)&serial_number);
 	printf(">%s<\n", serial_number);
+
+	test_dac(faV3Slot(ifa));
       }
+
     vmeBusUnlock();
 
 

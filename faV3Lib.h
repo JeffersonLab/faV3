@@ -130,7 +130,7 @@ typedef struct
   /* 0x0024 */ BLANK[1];
   /* 0x0028 */ volatile uint32_t trig_cfg;
   /* 0x002C */ volatile uint32_t reset;
-  /* 0x0030 */ volatile uint32_t trig_count;
+  /* 0x0030 */ volatile uint32_t trig_scal;
   /* 0x0034 */ volatile uint32_t ev_count;
   /* 0x0038 */ volatile uint32_t blk_count;
   /* 0x003C */ volatile uint32_t blk_fifo_count;
@@ -157,8 +157,8 @@ typedef struct
   /* 0x0094 */ volatile uint32_t mem2_data;
   /* 0x0098 */ volatile uint32_t prom_reg1;
   /* 0x009C */ volatile uint32_t prom_reg2;
-  /* 0x00A0 */ volatile uint32_t berr_count;
-  /* 0x00A4 */ volatile uint32_t berr_in_count;
+  /* 0x00A0 */ volatile uint32_t berr_scal;
+  /* 0x00A4 */ volatile uint32_t berr_in_scal;
   /* 0x00A8 */ volatile uint32_t proc_words_scal;
   /* 0x00AC */ volatile uint32_t lost_trig_scal;
   /* 0x00B0 */ volatile uint32_t header_scal;
@@ -353,7 +353,7 @@ typedef struct faV3_sdc_struct
 #define FAV3_RESET_ALL                 0xFFFF
 
 /* Define trig_scal bits */
-#define FAV3_TRIG_COUNT_RESET          (1 << 31)
+#define FAV3_TRIG_SCAL_RESET          (1 << 31)
 
 /* Define trigger_control bits */
 #define FAV3_TRIGCTL_TRIGSTOP_EN      (1 << 31)

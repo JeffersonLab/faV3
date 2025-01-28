@@ -157,6 +157,34 @@
       for(chan = 0; chan < NCHAN; chan++)   (TDP3_S)[chan] = msk[chan]; \
     continue;}
 
+#define SCAN_FLOAT_ALL(TDP_K, TDP_S,SL_MIN,SL_MAX)			\
+  if(active && (strcmp(keyword,(TDP_K)) == 0)) {			\
+    sscanf (str_tmp, "%*s %f", &f1);					\
+    for(slot = SL_MIN; slot < SL_MAX; slot++)				\
+      for(chan = 0; chan < NCHAN; chan++)   (TDP_S)[chan] = f1;		\
+    continue;}
+
+#define SCAN_FLOAT_CH(TDP3_K,TDP3_S,SL_MIN,SL_MAX)			\
+  if(active && (strcmp(keyword,(TDP3_K)) == 0))	{			\
+    sscanf (str_tmp, "%*s %d %f", &chan, &f1);				\
+    if((chan < 0) || (chan > NCHAN)) {				\
+      printf("%s: ERROR: Invalid channel number %d\n\n", __func__, chan); \
+      return(-4);}							\
+    for(slot = SL_MIN; slot < SL_MAX; slot++)				\
+      (TDP3_S)[chan] = f1;						\
+    continue;}
+
+#define SCAN_FLOAT_ALLCH(TDP3_K,TDP3_S,SL_MIN,SL_MAX)			\
+  if(active && (strcmp(keyword,(TDP3_K)) == 0))	{			\
+    SCAN_FMSK;								\
+    if(args != 16) {							\
+      printf("%s: Wrong argument's number %d, should be 16\n\n", __func__, args); \
+      return(-8);							\
+    }									\
+    for(slot = SL_MIN; slot < SL_MAX; slot++)				\
+      for(chan = 0; chan < NCHAN; chan++)   (TDP3_S)[chan] = fmsk[chan]; \
+    continue;}
+
 #define SCAN_B_MSKS(BKEYWORD,BSTRUCT)			\
   if(active && (strcmp(keyword,(BKEYWORD)) == 0)) {	\
     GET_READ_MSK;					\

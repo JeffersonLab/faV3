@@ -221,22 +221,19 @@ faV3ReadConfigFile(char *filename_in)
       SCAN_INT("FAV3_NSAT", faV3[slot].nsat, slot_min, slot_max);
       SCAN_INT("FAV3_NPED", faV3[slot].nped, slot_min, slot_max);
       SCAN_INT("FAV3_MAXPED", faV3[slot].max_ped, slot_min, slot_max);
-      faV3[slot].winOffset /= FAV3_ADC_NS_PER_CLK;
-      faV3[slot].winWidth /= FAV3_ADC_NS_PER_CLK;
-      faV3[slot].nsa /= FAV3_ADC_NS_PER_CLK;
-      faV3[slot].nsb /= FAV3_ADC_NS_PER_CLK;
-      faV3[slot].nsat /= FAV3_ADC_NS_PER_CLK;
 
-      SCAN_INT("FAV3_TRIG_NSAT", faV3[slot].trig_nsat, slot_min, slot_max);
       SCAN_INT("FAV3_TRIG_NSA", faV3[slot].trig_nsa, slot_min, slot_max);
-      faV3[slot].trig_nsat /= FAV3_ADC_NS_PER_CLK;
-      faV3[slot].trig_nsa /= FAV3_ADC_NS_PER_CLK;
+      SCAN_INT("FAV3_TRIG_NSAT", faV3[slot].trig_nsat, slot_min, slot_max);
 
       SCAN_INT("FAV3_TRIG_THR", faV3[slot].trig_thr, slot_min, slot_max);
 
       SCAN_INT_ALL("FAV3_READ_THR", faV3[slot].read_thr, slot_min, slot_max);
       SCAN_INT_CH("FAV3_CH_READ_THR", faV3[slot].read_thr, slot_min, slot_max);
       SCAN_INT_ALLCH("FAV3_ALLCH_READ_THR", faV3[slot].read_thr, slot_min, slot_max);
+
+      SCAN_FLOAT_ALL("FAV3_PED", faV3[slot].pedestal, slot_min, slot_max);
+      SCAN_FLOAT_CH("FAV3_CH_PED", faV3[slot].pedestal, slot_min, slot_max);
+      SCAN_FLOAT_ALLCH("FAV3_ALLCH_PED", faV3[slot].pedestal, slot_min, slot_max);
 
       SCAN_INT_ALL("FAV3_DAC", faV3[slot].dac, slot_min, slot_max);
       SCAN_INT_CH("FAV3_CH_DAC", faV3[slot].dac, slot_min, slot_max);
@@ -284,14 +281,14 @@ faV3DownloadAll()
 	{
 	  faV3HallDSetProcMode(slot,
 			  faV3[slot].mode,
-			  faV3[slot].winOffset,
-			  faV3[slot].winWidth,
-			  faV3[slot].nsb,
-			  faV3[slot].nsa,
+			  faV3[slot].winOffset / FAV3_ADC_NS_PER_CLK,
+			  faV3[slot].winWidth / FAV3_ADC_NS_PER_CLK,
+			  faV3[slot].nsb / FAV3_ADC_NS_PER_CLK,
+			  faV3[slot].nsa / FAV3_ADC_NS_PER_CLK,
 			  faV3[slot].npeak,
 			  faV3[slot].nped,
 			  faV3[slot].max_ped,
-			  faV3[slot].nsat);
+			  faV3[slot].nsat / FAV3_ADC_NS_PER_CLK);
 
 	  faV3HallDSetRoguePTWFallBack(slot, faV3[slot].ptw_fallback_mask);
 
@@ -300,7 +297,8 @@ faV3DownloadAll()
 	  faV3HallDDataInsertAdcParameters(slot, faV3[slot].insert_adc_params);
 	}
 
-      faV3SetTriggerPathSamples(slot, faV3[slot].trig_nsa, faV3[slot].trig_nsat);
+      faV3SetTriggerPathSamples(slot, faV3[slot].trig_nsa / FAV3_ADC_NS_PER_CLK,
+				faV3[slot].trig_nsat / FAV3_ADC_NS_PER_CLK);
       faV3SetTriggerPathThreshold(slot, faV3[slot].trig_thr);
 
       faV3SetChanDisableMask(slot, faV3[slot].chDisMask);
@@ -314,13 +312,9 @@ faV3DownloadAll()
 	{
 	  faV3DACSet(slot, ichan, faV3[slot].dac[ichan]);
 
-	  float ped = faV3[slot].pedestal[ichan] * ((float) (faV3[slot].nsb + faV3[slot].nsa));
-	  faV3SetPedestal(slot, ichan, (int) ped);
+	  faV3SetPedestal(slot, ichan, (int) faV3[slot].pedestal[ichan]);
 
-	  if(faV3[slot].read_thr[ichan] > 0)
-	    faV3SetThreshold(slot, ichan, faV3[slot].read_thr[ichan] + faV3[slot].pedestal[ichan]);
-	  else
-	    faV3SetThreshold(slot, ichan, 0);
+	  faV3SetThreshold(slot, ichan, faV3[slot].read_thr[ichan]);
 	}
     }
 
@@ -356,9 +350,17 @@ faV3GetModulesConfig()
 	  faV3[slot].insert_adc_params = faV3HallDDataGetInsertAdcParameters(slot);
 	  faV3[slot].suppress_trig_time = faV3HallDDataGetSuppressTriggerTime(slot);
 	  faV3[slot].data_format = faV3HallDGetDataFormat(slot);
+
+	  faV3[slot].winOffset *= FAV3_ADC_NS_PER_CLK;
+	  faV3[slot].winWidth *= FAV3_ADC_NS_PER_CLK;
+	  faV3[slot].nsb *= FAV3_ADC_NS_PER_CLK;
+	  faV3[slot].nsa *= FAV3_ADC_NS_PER_CLK;
+	  faV3[slot].nsat *= FAV3_ADC_NS_PER_CLK;
 	}
 
       faV3GetTriggerPathSamples(slot, &faV3[slot].trig_nsa, &faV3[slot].trig_nsat);
+      faV3[slot].trig_nsa *= FAV3_ADC_NS_PER_CLK;
+      faV3[slot].trig_nsat *= FAV3_ADC_NS_PER_CLK;
       faV3GetTriggerPathThreshold(slot, &faV3[slot].trig_thr);
 
 
@@ -373,14 +375,9 @@ faV3GetModulesConfig()
 	{
 	  faV3DACGet(slot, ichan, &faV3[slot].dac[ichan]);
 
-	  ped = (float) faV3GetPedestal(slot, ichan);
-	  faV3[slot].pedestal[ichan] = ped / ((float) (faV3[slot].nsb + faV3[slot].nsa));
+	  faV3[slot].pedestal[ichan] = (float) faV3GetPedestal(slot, ichan);
 
-	  thres = faV3GetThreshold(slot, ichan);
-	  if(thres > 0)
-	    faV3[slot].read_thr[ichan] = thres - (int)faV3[slot].pedestal[ichan];
-	  else
-	    faV3[slot].read_thr[ichan] = 0;
+	  faV3[slot].read_thr[ichan] = faV3GetThreshold(slot, ichan);;
 	}
     }
   return 0;
@@ -414,22 +411,22 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"FAV3_VXSREADOUT %d\n", faV3[slot].vxsReadout);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_W_OFFSET %d\n", faV3[slot].winOffset * FAV3_ADC_NS_PER_CLK);
+      sprintf(sss,"FAV3_W_OFFSET %d\n", faV3[slot].winOffset);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_W_WIDTH  %d\n", faV3[slot].winWidth * FAV3_ADC_NS_PER_CLK);
+      sprintf(sss,"FAV3_W_WIDTH  %d\n", faV3[slot].winWidth);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_NSA %d\n", faV3[slot].nsa * FAV3_ADC_NS_PER_CLK);
+      sprintf(sss,"FAV3_NSA %d\n", faV3[slot].nsa);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_NSB %d\n", faV3[slot].nsb * FAV3_ADC_NS_PER_CLK);
+      sprintf(sss,"FAV3_NSB %d\n", faV3[slot].nsb);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_NPEAK %d\n", faV3[slot].npeak);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_NSAT %d\n", faV3[slot].nsat * FAV3_ADC_NS_PER_CLK);
+      sprintf(sss,"FAV3_NSAT %d\n", faV3[slot].nsat);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_NPED %d\n", faV3[slot].nped);
@@ -438,10 +435,10 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"FAV3_MAXPED %d\n", faV3[slot].max_ped);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_TRIG_NSA %d\n", faV3[slot].trig_nsa * FAV3_ADC_NS_PER_CLK);
+      sprintf(sss,"FAV3_TRIG_NSA %d\n", faV3[slot].trig_nsa);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_TRIG_NSAT %d\n", faV3[slot].trig_nsat * FAV3_ADC_NS_PER_CLK);
+      sprintf(sss,"FAV3_TRIG_NSAT %d\n", faV3[slot].trig_nsat);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_TRIG_THR %d\n", faV3[slot].trig_thr);
@@ -480,6 +477,16 @@ faV3ConfigToString(char *string, int32_t length)
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",faV3[slot].read_thr[ichan]);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_ALLCH_PED");
+      ADD_TO_STRING;
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %.1f",faV3[slot].pedestal[ichan]);
 	  ADD_TO_STRING;
 	}
       sprintf(sss,"\n");

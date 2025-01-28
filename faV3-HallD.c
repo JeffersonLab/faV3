@@ -118,7 +118,13 @@ faV3HallDCheckAddresses()
   offset = ((u_long) &v3p->aux.idelay_control_1) - base;
   expected = 0x540;
   if(offset != expected)
-    printf("%s: ERROR: status0 not at expected offset 0x%lx (@ 0x%lx)\n",
+    printf("%s: ERROR: idelay_control_1 not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  offset = ((u_long) &halld->rogue_ptw_fall_back) - base;
+  expected = 0x1A4;
+  if(offset != expected)
+    printf("%s: ERROR: rogue_ptw_fall_back not at expected offset 0x%lx (@ 0x%lx)\n",
 	   __func__,expected,offset);
 
   return 0;
@@ -556,43 +562,41 @@ faV3HallDGSampleConfig(int nsamples, int maxvalue)
 int
 faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data)
 {
-  int ichan=0;
-  uint32_t write=0, read=0;
+  int ichan=0, iwait = 0;
+  const int nwait = 10;
+  uint32_t config1 = 0, status2 = 0;
+
   CHECKID;
 
   FAV3LOCK;
-  write = vmeRead32(&HallDp[id]->config1) & 0xFFFF;
 
+  config1 = vmeRead32(&HallDp[id]->config1);
   // Set request bit
-  vmeWrite32(&HallDp[id]->config1, (write |  FAV3_ADC_CONFIG1_CHAN_READ_ENABLE) );
+  vmeWrite32(&HallDp[id]->config1, (config1 |  FAV3_ADC_CONFIG1_CHAN_READ_ENABLE) );
 
-  // Reset request pedestal sum bit
-  vmeWrite32(&HallDp[id]->config1, (write &  (~FAV3_ADC_CONFIG1_CHAN_READ_ENABLE)) );
+  // reset request bit
+  vmeWrite32(&HallDp[id]->config1, config1);
+
 
   for(ichan=0; ichan<FAV3_MAX_ADC_CHANNELS; ichan++)
     {
-      read = vmeRead32(&HallDp[id]->status2);
+      status2 = vmeRead32(&HallDp[id]->status2);
 
-      if(read & (1<<14))
+      if(status2 & (1<<15))
 	{
-	  read = (read & FAV3_ADC_STATUS2_CHAN_DATA_MASK) | (1<<15);
-	}
-      else
-	read &= FAV3_ADC_STATUS2_CHAN_DATA_MASK;
-
-      if( (ichan%2)==0 )
-	{
-	  data[ichan/2] = (data[ichan/2] & 0xFFFF0000) | read;
+	  data[ichan] = status2 & 0x7FFF;
 	}
       else
 	{
-	  data[ichan/2] = (data[ichan/2] & 0xFFFF) | (read<<16);
+	  printf("not ready\n");
 	}
+
     }
   FAV3UNLOCK;
 
-  return (FAV3_MAX_ADC_CHANNELS/2);
+  return (FAV3_MAX_ADC_CHANNELS);
 }
+
 
 
 /**
@@ -736,7 +740,7 @@ faV3HallDSetRoguePTWFallBack(int id, uint16_t enablemask)
   CHECKID;
 
   FAV3LOCK;
-  vmeWrite32(&HallDp[id]->roque_ptw_fall_back, enablemask);
+  vmeWrite32(&HallDp[id]->rogue_ptw_fall_back, enablemask);
   FAV3UNLOCK;
 
   return(OK);
@@ -760,7 +764,7 @@ faV3HallDGetRoguePTWFallBack(int id, uint16_t *enablemask)
   CHECKID;
 
   FAV3LOCK;
-  *enablemask = vmeRead32(&HallDp[id]->roque_ptw_fall_back) & FAV3_ROQUE_PTW_FALL_BACK_MASK;
+  *enablemask = vmeRead32(&HallDp[id]->rogue_ptw_fall_back) & FAV3_ROGUE_PTW_FALL_BACK_MASK;
   FAV3UNLOCK;
 
   return(rval);
@@ -939,7 +943,7 @@ faV3HallDSetDataFormat(int id, int format)
   FAV3LOCK;
   vmeWrite32(&FAV3p[id]->ctrl1,
 	     (vmeRead32(&FAV3p[id]->ctrl1) & ~FAV3_CTRL1_DATAFORMAT_MASK)
-	     | format);
+	     | (format << 26));
   FAV3UNLOCK;
 
   return OK;
@@ -973,4 +977,313 @@ faV3HallDGetDataFormat(int id)
   FAV3UNLOCK;
 
   return rval;
+}
+
+void
+faV3HallDGStatus(int sflag)
+{
+  int ifa, id, ii;
+  faV3_t st[FAV3_MAX_BOARDS + 1];
+  faV3_halld_adc_t hd_st[(FAV3_MAX_BOARDS + 1)];
+  uint32_t a24addr[FAV3_MAX_BOARDS + 1];
+  int nsb;
+  extern u_long faV3A24Offset;
+
+  FAV3LOCK;
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      a24addr[id] = (uint32_t) ((u_long) FAV3p[id] - faV3A24Offset);
+      st[id].version = vmeRead32(&FAV3p[id]->version);
+      st[id].adr32 = vmeRead32(&FAV3p[id]->adr32);
+      st[id].adr_mb = vmeRead32(&FAV3p[id]->adr_mb);
+
+      st[id].ctrl1 = vmeRead32(&FAV3p[id]->ctrl1);
+      st[id].ctrl2 = vmeRead32(&FAV3p[id]->ctrl2);
+
+      st[id].csr = vmeRead32(&FAV3p[id]->csr);
+
+      st[id].sys_mon = vmeRead32(&FAV3p[id]->sys_mon);
+
+      hd_st[id].status0 =
+	vmeRead32(&HallDp[id]->status0) & 0xFFFF;
+      hd_st[id].status1 =
+	vmeRead32(&HallDp[id]->status1) & 0xFFFF;
+      hd_st[id].status2 =
+	vmeRead32(&HallDp[id]->status2) & 0xFFFF;
+
+      hd_st[id].config1 =
+	vmeRead32(&HallDp[id]->config1) & 0xFFFF;
+      hd_st[id].config2 =
+	vmeRead32(&HallDp[id]->config2) & 0xFFFF;
+      hd_st[id].config3 =
+	vmeRead32(&HallDp[id]->config3) & 0xFFFF;
+      hd_st[id].config4 =
+	vmeRead32(&HallDp[id]->config4) & 0xFFFF;
+      hd_st[id].config5 =
+	vmeRead32(&HallDp[id]->config5) & 0xFFFF;
+      hd_st[id].config6 =
+	vmeRead32(&HallDp[id]->config6) & 0xFFFF;
+      hd_st[id].config7 =
+	vmeRead32(&HallDp[id]->config7) & 0xFFFF;
+
+      hd_st[id].ptw = vmeRead32(&HallDp[id]->ptw);
+      hd_st[id].pl = vmeRead32(&HallDp[id]->pl);
+      hd_st[id].nsb = vmeRead32(&HallDp[id]->nsb);
+      hd_st[id].nsa = vmeRead32(&HallDp[id]->nsa);
+
+      st[id].blk_count = vmeRead32(&FAV3p[id]->blk_count);
+      st[id].blocklevel = vmeRead32(&FAV3p[id]->blocklevel);
+      st[id].ram_word_count =
+	vmeRead32(&FAV3p[id]->ram_word_count) & FAV3_RAM_DATA_MASK;
+
+      st[id].trig_scal = vmeRead32(&(FAV3p[id]->trig_scal));
+      st[id].trig2_scal = vmeRead32(&FAV3p[id]->trig2_scal);
+      st[id].syncreset_scal = vmeRead32(&FAV3p[id]->syncreset_scal);
+      st[id].berr_scal = vmeRead32(&FAV3p[id]->berr_scal);
+      st[id].lost_trig_scal = vmeRead32(&FAV3p[id]->lost_trig_scal);
+      st[id].aux.berr_driven_count = vmeRead32(&FAV3p[id]->aux.berr_driven_count);
+
+      st[id].aux.sparsify_control = vmeRead32(&FAV3p[id]->aux.sparsify_control);
+      st[id].status_mgt = vmeRead32(&FAV3p[id]->status_mgt);
+      hd_st[id].rogue_ptw_fall_back = vmeRead32(&HallDp[id]->rogue_ptw_fall_back);
+
+      for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
+	{
+	  hd_st[id].pedestal[ii] = vmeRead32(&HallDp[id]->pedestal[ii]);
+	}
+
+      for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS/2; ii++)
+	{
+	  hd_st[id].thres[ii] = vmeRead32(&HallDp[id]->thres[ii]);
+	}
+
+    }
+  FAV3UNLOCK;
+
+  printf("\n");
+
+  printf("                      fADC250 Module Configuration Summary\n\n");
+  printf("     Firmware Rev   .................Addresses................\n");
+  printf("Slot  Ctrl   Proc      A24        A32     A32 Multiblock Range   VXS Readout\n");
+  printf("--------------------------------------------------------------------------------\n");
+
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d  ", id);
+
+      printf("0x%04x 0x%04x  ", st[id].version & 0xFFFF,
+	     hd_st[id].status0 & FAV3_ADC_VERSION_MASK);
+
+      printf("0x%06x  ", a24addr[id]);
+
+      if(st[id].adr32 & FAV3_A32_ENABLE)
+	{
+	  printf("0x%08x  ", (st[id].adr32 & FAV3_A32_ADDR_MASK) << 16);
+	}
+      else
+	{
+	  printf("  Disabled  ");
+	}
+
+      if(st[id].adr_mb & FAV3_AMB_ENABLE)
+	{
+	  printf("0x%08x-0x%08x  ",
+		 (st[id].adr_mb & FAV3_AMB_MIN_MASK) << 16,
+		 (st[id].adr_mb & FAV3_AMB_MAX_MASK));
+	}
+      else
+	{
+	  printf("Disabled               ");
+	}
+
+      printf("%s",
+	     (st[id].ctrl2 & FAV3_CTRL_VXS_RO_ENABLE) ? " Enabled" : "Disabled");
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+
+  printf("\n");
+  printf("      .Signal Sources..                        ..Channel...  ..Channel.\n");
+  printf("Slot  Clk   Trig   Sync     MBlk  Token  BERR  Enabled Mask  Rogue Mask\n");
+  printf("--------------------------------------------------------------------------------\n");
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d  ", id);
+
+      printf("%s  ",
+	     (st[id].ctrl1 & FAV3_REF_CLK_MASK) ==
+	     FAV3_REF_CLK_INTERNAL ? " INT " : (st[id].
+						ctrl1 & FAV3_REF_CLK_MASK) ==
+	     FAV3_REF_CLK_P0 ? " VXS " : (st[id].ctrl1 & FAV3_REF_CLK_MASK) ==
+	     FAV3_REF_CLK_FP ? "  FP " : " ??? ");
+
+      printf("%s  ",
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_INTERNAL ? " INT " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_VME ? " VME " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_P0_ISYNC ? " VXS " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_FP_ISYNC ? "  FP " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_P0 ? " VXS " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_FP ? "  FP " : " ??? ");
+
+      printf("%s    ",
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_VME ? " VME " :
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_P0_ISYNC ? " VXS " :
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_FP_ISYNC ? "  FP " :
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_P0 ? " VXS " :
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_FP ? "  FP " :
+	     " ??? ");
+
+      printf("%s   ", (st[id].ctrl1 & FAV3_ENABLE_MULTIBLOCK) ? "YES" : " NO");
+
+      printf("%s",
+	     st[id].ctrl1 & (FAV3_MB_TOKEN_VIA_P0) ? " P0" :
+	     st[id].ctrl1 & (FAV3_MB_TOKEN_VIA_P2) ? " P0" : " NO");
+      printf("%s  ",
+	     st[id].ctrl1 & (FAV3_FIRST_BOARD) ? "-F" :
+	     st[id].ctrl1 & (FAV3_LAST_BOARD) ? "-L" : "  ");
+
+      printf("%s     ", st[id].ctrl1 & FAV3_ENABLE_BERR ? "YES" : " NO");
+
+      printf("0x%04X        ",
+	     ~(hd_st[id].config2 & FAV3_ADC_CHAN_MASK) & 0xFFFF);
+
+      printf("0x%04X",
+	     hd_st[id].rogue_ptw_fall_back & FAV3_ADC_CHAN_MASK);
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("                         fADC250 Processing Mode Config\n\n");
+  printf("      Block          ...[nanoseconds]...       [ns]\n");
+  printf("Slot  Level  Mode    PL   PTW   NSB  NSA  NP   NPED  MAXPED  NSAT   Playback   \n");
+  printf("--------------------------------------------------------------------------------\n");
+
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d    ", id);
+
+      printf("%3d    ", st[id].blocklevel & FAV3_BLOCK_LEVEL_MASK);
+
+      printf("%2d   ", (hd_st[id].config1 & FAV3_ADC_PROC_MASK) + 1);
+
+      printf("%4d  ", (hd_st[id].pl & 0xFFFF) * FAV3_ADC_NS_PER_CLK);
+
+      printf("%4d   ", ((hd_st[id].ptw & 0xFFFF) + 1) * FAV3_ADC_NS_PER_CLK);
+
+      nsb = hd_st[id].nsb & FAV3_ADC_NSB_READBACK_MASK;
+      nsb =
+	(nsb & 0x7) * ((nsb & FAV3_ADC_NSB_NEGATIVE) ? -1 : 1) *
+	FAV3_ADC_NS_PER_CLK;
+      printf("%3d  ", nsb);
+
+      printf("%3d   ",
+	     (hd_st[id].nsa & FAV3_ADC_NSA_READBACK_MASK) * FAV3_ADC_NS_PER_CLK);
+
+      printf("%1d     ",
+	     ((hd_st[id].config1 & FAV3_ADC_PEAK_MASK) >> 4) + 1);
+
+      printf("%2d    ", (((hd_st[id].config7 & FAV3_ADC_CONFIG7_NPED_MASK)>>10) + 1)*FAV3_ADC_NS_PER_CLK);
+
+      printf("%4d     ", hd_st[id].config7 & FAV3_ADC_CONFIG7_MAXPED_MASK);
+
+      printf("%d   ", ((hd_st[id].config1 & FAV3_ADC_CONFIG1_NSAT_MASK)>>10) + 1);
+
+      printf("%s   ",
+	     (hd_st[id].config1 &FAV3_ADC_PLAYBACK_MODE)>>7 ?" Enabled":"Disabled");
+
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("  fADC250 Trigger Path Processing        fADC250 Pedestal Monitoring\n\n");
+  printf("         [ns]               [ns]\n");
+  printf("Slot     TNSA      TPT     TNSAT               MNPED     MMAXPED\n");
+  printf("--------------------------------------------------------------------------------\n");
+  for(ifa=0; ifa<nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d       ",id);
+
+      printf("%3d     ", ((hd_st[id].nsa & FAV3_ADC_TNSA_MASK)>>9)*FAV3_ADC_NS_PER_CLK);
+
+      printf("%4d         ", hd_st[id].config3 & FAV3_ADC_TPT_MASK);
+
+      printf("%d                ", (((hd_st[id].config1 &FAV3_ADC_CONFIG1_TNSAT_MASK)>>12) + 1)*FAV3_ADC_NS_PER_CLK);
+
+      printf("%4d        ", (( (hd_st[id].config6 & 0x3C00 )>>10) + 1));
+
+      printf("%4d   ", ( hd_st[id].config6 & 0x3FF ));
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+
+  printf("\n");
+  printf("                             fADC250 Signal Scalers\n\n");
+  printf("Slot       Trig1       Trig2   SyncReset        BERR  Lost Triggers\n");
+  printf("--------------------------------------------------------------------------------\n");
+  for(ifa=0; ifa<nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d   ",id);
+
+      printf("%10d  ", st[id].trig_scal);
+
+      printf("%10d  ", st[id].trig2_scal);
+
+      printf("%10d  ", st[id].syncreset_scal);
+
+      printf("%10d     ", st[id].berr_scal);
+
+      printf("%10d  ", st[id].lost_trig_scal);
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("                              fADC250 Data Status\n\n");
+  printf("      Trigger   Block                              Error Status\n");
+  printf("Slot  Source    Ready  Blocks In Fifo  RAM Level   CSR     MGT\n");
+  printf("--------------------------------------------------------------------------------\n");
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d  ", id);
+
+      printf("%s    ",
+	     st[id].ctrl2 & FAV3_CTRL_ENABLE_MASK ? " Enabled" : "Disabled");
+
+      printf("%s       ", st[id].csr & FAV3_CSR_BLOCK_READY ? "YES" : " NO");
+
+      printf("%10d ", st[id].blk_count & FAV3_BLOCK_COUNT_MASK);
+
+      printf("%10d  ", (st[id].ram_word_count & FAV3_RAM_DATA_MASK) * 8);
+
+      printf("%s     ", st[id].csr & FAV3_CSR_ERROR_MASK ? "ERROR" : "  OK ");
+
+      printf("%s  ",
+	     st[id].status_mgt &
+	     (FAV3_MGT_GTX1_HARD_ERROR | FAV3_MGT_GTX1_SOFT_ERROR |
+	      FAV3_MGT_GTX2_HARD_ERROR | FAV3_MGT_GTX2_SOFT_ERROR) ? "ERROR" : "  OK " );
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+
+  printf("\n");
+  printf("\n");
+
 }

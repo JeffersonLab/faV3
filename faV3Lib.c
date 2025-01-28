@@ -872,6 +872,8 @@ faV3SetClockSource(int id, int clkSrc)
 	     (vmeRead32(&FAV3p[id]->ctrl1) & ~(FAV3_REF_CLK_MASK)) |
 	     (clkSrc | FAV3_ENABLE_INTERNAL_CLK));
   taskDelay(20);
+  printf("%s: ctrl1 = 0x%08x\n",
+	 __func__, vmeRead32(&FAV3p[id]->ctrl1));
   FAV3UNLOCK;
 
   switch (clkSrc)
@@ -1004,7 +1006,7 @@ faV3Status(int id, int sflag)
   bcount = (vmeRead32(&(FAV3p[id]->blk_count))) & FAV3_BLOCK_COUNT_MASK;
   blevel = (vmeRead32(&(FAV3p[id]->blocklevel))) & FAV3_BLOCK_LEVEL_MASK;
   ramWords = (vmeRead32(&(FAV3p[id]->ram_word_count))) & FAV3_RAM_DATA_MASK;
-  trigCnt = vmeRead32(&(FAV3p[id]->trig_count));
+  trigCnt = vmeRead32(&(FAV3p[id]->trig_scal));
   trig2Cnt = vmeRead32(&FAV3p[id]->trig2_scal);
   srCnt = vmeRead32(&FAV3p[id]->syncreset_scal);
   itrigCnt = vmeRead32(&(FAV3p[id]->trig_live_count));
@@ -1371,7 +1373,7 @@ faV3GStatus(int sflag)
       st[id].ram_word_count =
 	vmeRead32(&FAV3p[id]->ram_word_count) & FAV3_RAM_DATA_MASK;
 
-      st[id].trig_count = vmeRead32(&(FAV3p[id]->trig_count));
+      st[id].trig_scal = vmeRead32(&(FAV3p[id]->trig_scal));
       st[id].trig2_scal = vmeRead32(&FAV3p[id]->trig2_scal);
       st[id].syncreset_scal = vmeRead32(&FAV3p[id]->syncreset_scal);
       st[id].aux.berr_driven_count = vmeRead32(&FAV3p[id]->aux.berr_driven_count);
@@ -1553,7 +1555,7 @@ faV3GStatus(int sflag)
       id = faV3Slot(ifa);
       printf(" %2d   ", id);
 
-      printf("%10d  ", st[id].trig_count);
+      printf("%10d  ", st[id].trig_scal);
 
       printf("%10d  ", st[id].trig2_scal);
 
@@ -2154,7 +2156,6 @@ faV3ADCWriteAll(int id, uint32_t value)
   if(debug)
     printf("+++++ adc_ready (start) = %d\n", adc_ready);
 
-  FAV3LOCK;
   vmeWrite32(&FAV3p[id]->adc.config5, value);		/* set up address & data */
 
   vmeWrite32(&FAV3p[id]->adc.config4, 0x40);		/* write all */
@@ -4396,7 +4397,7 @@ faV3GetTriggerCount(int id)
   CHECKID;
 
   /* Just reading - not need to Lock mutex */
-  rval = vmeRead32(&FAV3p[id]->trig_count);
+  rval = vmeRead32(&FAV3p[id]->trig_scal);
 
   return rval;
 }
@@ -4414,7 +4415,7 @@ faV3ResetTriggerCount(int id)
   CHECKID;
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->trig_count, FAV3_TRIG_COUNT_RESET);
+  vmeWrite32(&FAV3p[id]->trig_scal, FAV3_TRIG_SCAL_RESET);
   FAV3UNLOCK;
 
   return OK;
