@@ -560,7 +560,7 @@ faV3HallDGSampleConfig(int nsamples, int maxvalue)
  *         configured with @faSampleConfig
  */
 int
-faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data)
+faV3HallDReadAllChannelSamples(int id, uint16_t data[16])
 {
   int ichan=0, iwait = 0;
   const int nwait = 10;
@@ -578,19 +578,23 @@ faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data)
   vmeWrite32(&HallDp[id]->config1, config1);
 
 
-  for(ichan=0; ichan<FAV3_MAX_ADC_CHANNELS; ichan++)
+  status2 = vmeRead32(&HallDp[id]->status2);
+  while( ((status2 & (1<<15)) == 0) && (iwait++ < nwait))
+    status2 = vmeRead32(&HallDp[id]->status2);
+
+  if((status2 & (1<<15)) == 0)
+    {
+      printf("%s(id = %d): Timeout waiting for Channel Samples\n",
+	     __func__, id);
+      FAV3UNLOCK;
+      return ERROR;
+    }
+
+  data[0] = status2 & 0x7FFF;
+  for(ichan=1; ichan<FAV3_MAX_ADC_CHANNELS; ichan++)
     {
       status2 = vmeRead32(&HallDp[id]->status2);
-
-      if(status2 & (1<<15))
-	{
-	  data[ichan] = status2 & 0x7FFF;
-	}
-      else
-	{
-	  printf("not ready\n");
-	}
-
+      data[ichan] = status2 & 0x7FFF;
     }
   FAV3UNLOCK;
 

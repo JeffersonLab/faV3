@@ -96,7 +96,7 @@ int faV3HallDProcPedConfig(int id, int nsamples, int maxvalue);
 int faV3HallDGProcPedConfig(int nsamples, int maxvalue);
 int faV3HallDSampleConfig(int id, int nsamples, int maxvalue);
 int faV3HallDGSampleConfig(int nsamples, int maxvalue);
-int faV3HallDReadAllChannelSamples(int id, volatile uint32_t *data);
+int faV3HallDReadAllChannelSamples(int id, uint16_t data[16]);
 int faV3SetMGTTestMode(int id, uint32_t mode);
 int faV3SyncResetMode(int id, uint32_t mode);
 int faV3GetAlignmentDebugMode();
