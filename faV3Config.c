@@ -205,6 +205,7 @@ faV3ReadConfigFile(char *filename_in)
 	}
 
       SCAN_SLOT("FAV3_SLOT", slot_min, slot_max);
+      SCAN_INT("FAV3_PROC_VERSION", faV3[slot].proc_version, slot_min, slot_max);
 
       SCAN_MASK_INV("FAV3_ADC_MASK", faV3[slot].chDisMask, slot_min, slot_max);
 

@@ -19,6 +19,7 @@
 
 /** FADC250 configuration parameters **/
 typedef struct {
+  uint32_t proc_version;
   int32_t mode;
   int32_t compression;
   int32_t vxsReadout;

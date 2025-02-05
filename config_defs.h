@@ -18,6 +18,7 @@
 #define STRLEN    250       /* length of str_tmp */
 #define ROCLEN     80       /* length of ROC_name */
 #define NCHAN      16
+#define CONFIG_DEBUG 0
 
 #define SCAN_VARS						\
   int    slot, slot_min, slot_max, chan;			\
@@ -90,14 +91,14 @@
      printf("%s: ERROR: Invalid slot >%s<, must be 'all' or actual slot number\n\n", __func__, str2); \
      return(-4);							\
    }									\
-   printf("%s: keyword = %s  SL_MIN = %d\n", __func__, keyword, SL_MIN);	\
+   if(CONFIG_DEBUG) printf("%s: keyword = %s  SL_MIN = %d\n", __func__, keyword, SL_MIN);	\
    continue;}
 
 #define SCAN_INT(BKEYWORD,BSTRUCT,SL_MIN,SL_MAX)		\
   if(active && (strcmp(keyword,(BKEYWORD)) == 0)) {		\
     sscanf (str_tmp, "%*s %d", &val);				\
     for(slot = SL_MIN; slot < SL_MAX; slot++) (BSTRUCT) = val;	\
-    printf("%s: keyword = %s  val = %d\n", __func__, keyword, val);\
+    if(CONFIG_DEBUG) printf("%s: keyword = %s  val = %d\n", __func__, keyword, val);	\
     continue;}					\
 
 
@@ -114,7 +115,7 @@
       val |= msk[chan] << chan;						\
     for (slot = SL_MIN; slot < SL_MAX; slot++)				\
       (BSTRUCT) = val;							\
-    printf("%s: keyword = %s  val = %d\n", __func__, keyword, val);\
+    if(CONFIG_DEBUG) printf("%s: keyword = %s  val = %d\n", __func__, keyword, val);\
     continue;}
 
 #define SCAN_MASK_INV(BKEYWORD,BSTRUCT,SL_MIN,SL_MAX)		\
@@ -124,7 +125,7 @@
       val |= msk[chan] << chan;						\
     for (slot = SL_MIN; slot < SL_MAX; slot++)				\
       (BSTRUCT) = ~val & 0xffff;					\
-    printf("%s: keyword = %s  val = %d\n", __func__, keyword, val);\
+    if(CONFIG_DEBUG) printf("%s: keyword = %s  val = %d\n", __func__, keyword, val);\
     continue;}
 
 
