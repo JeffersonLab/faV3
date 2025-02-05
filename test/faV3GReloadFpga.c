@@ -3,7 +3,7 @@
  *    faV3GReloadFpga.c
  *
  * Description:
- *    Reload the specified FPGA(s) for all fADC250 V3s found in the crate
+ *    Reload FPGA for all found FADC250-V3 in the crate
  *
  *
  */
@@ -19,14 +19,12 @@
 #include "faV3FirmwareTools.h"
 
 char *progName;
-extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];
 
-int  TestReady(int id, int n_try, int pFlag);
 void
 Usage()
 {
   printf("\n");
-  printf("%s\n", progName);
+  printf("Execute %s without arguments\n", progName);
   printf("\n");
 }
 
@@ -35,43 +33,48 @@ main(int argc, char *argv[])
 {
   int stat = 0, rval = OK, iFlag = 0, pFlag = 0;
   extern int nfaV3;
-  int ifadc = 0, id = 0, user_choice = 0, fpga_choice = 0, doBoth = 0;
+  uint32_t fadc_address = 0;
+  int ifadc = 0;
 
   progName = argv[0];
 
-  printf("\nfaV3250-V2 FPGA Reload\n");
+  printf("\nfADC250-V3 FPGA Reload\n");
   printf
     ("--------------------------------------------------------------------------------\n\n");
 
   vmeSetQuietFlag(1);
   stat = vmeOpenDefaultWindows();
 
-
   if (argc != 1)
     {
-      printf(" ERROR: Must specify no arguments\n");
+      printf(" ERROR: No arguments expected\n");
       Usage();
       goto CLOSE;
     }
+
+  fadc_address = (3 << 19);
 
   vmeCheckMutexHealth(10);
   vmeBusLock();
 
 
   iFlag = FAV3_INIT_SKIP | FAV3_INIT_SKIP_FIRMWARE_CHECK;
-  stat = faV3Init((3<<19) , (1<<19), 20, iFlag);
+  stat = faV3Init(fadc_address, (1 << 19), 18, iFlag);
 
   if(nfaV3 < 0)
     {
-      printf(" ERROR: Unable to initialize FADCs.\n");
+      printf(" ERROR: Unable to initialize FAV3s.\n");
       vmeBusUnlock();
       goto CLOSE;
     }
 
+  int32_t id = 0;
   printf("REBOOT FPGA\n");
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faV3Slot(ifadc);
+      printf(" %2d: ", id);
+      fflush(stdout);
       faV3FirmwareReboot(id);
     }
 
@@ -79,12 +82,10 @@ main(int argc, char *argv[])
   for(ifadc = 0; ifadc < nfaV3; ifadc++)
     {
       id = faV3Slot(ifadc);
-      printf(" %2d: ", id);
-      fflush(stdout);
       if(faV3FirmwareWaitForReboot(id, 60000, pFlag) < OK) /* Wait til it's done */
 	{
-	  printf("%2d: ERROR: Timeout after FPGA %d Reboot\n",
-		 id, fpga_choice);
+	  printf("%2d: ERROR: Timeout after FPGA Reboot\n",
+		 id);
 	  rval = ERROR;
 	}
     }
@@ -102,44 +103,4 @@ main(int argc, char *argv[])
 
 
   exit(0);
-}
-
-
-int
-TestReady(int id, int n_try, int pFlag)
-{
-  int ii;
-  int result;
-  unsigned int value = 0;
-
-  result = ERROR;
-
-  for(ii = 0; ii < n_try; ii++)	/* poll for ready bit */
-    {
-      taskDelay(1);		/* wait */
-
-      value = vmeRead32(&FAV3p[id]->prom_reg1);
-
-
-      if( value == 0xFFFFFFFF)
-	continue;
-
-      if(value & FAV3_PROMREG1_READY)
-	{
-	  result = OK;
-	  break;
-	}
-    }
-
-  if(pFlag)
-    {
-      if( ii == n_try )		/* failed to detect ready asserted */
-	printf("%s: FADC %2d NOT READY after %d wait cycles (1/60 sec)\n",
-	       __FUNCTION__,id,n_try);
-      else
-	printf("%s: FADC %2d READY after %d wait cycles (1/60 sec)\n",
-	       __FUNCTION__,id,(ii + 1));
-    }
-
-  return result;
 }
