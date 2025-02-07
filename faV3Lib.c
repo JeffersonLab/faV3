@@ -201,6 +201,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   int useList = 0;
   int multiBlockOnly = 0;
   int vxsReadoutOnly = 0;
+  int32_t skipIdelayConfig = 0;
   uint16_t ctrl_version = 0, proc_version = 0;
 
   /* Check if we have already Initialized boards before */
@@ -225,6 +226,8 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 
   /* Check if we're reading out through the VXS (VTP) */
   vxsReadoutOnly = (iFlag & FAV3_INIT_VXS_READOUT_ONLY) ? 1 : 0;
+
+  skipIdelayConfig = (iFlag & FAV3_INIT_SKIP_IDELAY_CONFIG) ? 1 : 0;
 
   /* Check for valid address */
   if(addr == 0)
@@ -437,7 +440,8 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	{
 	  faV3DACInit(faV3ID[ii]);
 	  faV3DACClear(faV3ID[ii]);
-	  faV3LoadIdelay(faV3ID[ii], 0);
+	  if(!skipIdelayConfig) faV3LoadIdelay(faV3ID[ii], 1);
+	  else printf("%s: skipping idelay config\n", __func__);
 	}
     }
 
