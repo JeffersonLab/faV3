@@ -23,6 +23,8 @@
 char *progName;
 char serial_number[16];
 int32_t FAV3_SLOT = 0;
+int32_t prog_nsamples = 0;
+
 
 void
 Usage()
@@ -213,6 +215,7 @@ setped(char *choice)
       printf("%s: ERROR from faV3HallDSampleConfig\n", __func__);
       return ERROR;
     }
+  prog_nsamples = nsamples;
 
   return 0;
 }
@@ -232,9 +235,18 @@ getped(char *choice)
   int ichan = 0;
   printf("# Slot %2d: %s \n", FAV3_SLOT, serial_number);
 
-  printf("Ch 1: %4d\n", (channel_data[ichan] & 0x3fff) >> 2);
+  printf("Ch 1: (0x%04x) -> (%5d / %2d) = %4d\n",
+	 channel_data[ichan],
+	 (channel_data[ichan] & 0x3fff), prog_nsamples,
+	 (int)((channel_data[ichan] & 0x3fff) / prog_nsamples));
   for(ichan = 1; ichan < 16; ichan ++)
-    printf("  %2d: %4d\n", ichan+1, (channel_data[ichan] & 0x3fff) >> 2);
+    {
+      printf("  %2d: (0x%04x) -> (%5d / %2d) = %4d\n",
+	     ichan+1,
+	     channel_data[ichan],
+	     (channel_data[ichan] & 0x3fff), prog_nsamples,
+	     (int)((channel_data[ichan] & 0x3fff) / prog_nsamples));
+    }
 
   printf("\n");
 
@@ -288,6 +300,7 @@ main(int argc, char *argv[])
   vmeCheckMutexHealth(1);
 
   init("0");
+  setped("4 10");
 
   initialize_readline(progName);	/* Bind our completer. */
   com_help("");
