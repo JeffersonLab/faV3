@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include "jvme.h"
 #include "faV3Lib.h"
+#include "faV3-HallD.h"
 
 int
 main(int argc, char *argv[])
@@ -27,9 +28,9 @@ main(int argc, char *argv[])
 
     vmeBusLock();
     /* Set the FADC structure pointer */
-    faV3Init( 3 << 19 , 1 << 19, 18, FAV3_INIT_SKIP | FAV3_INIT_SKIP_FIRMWARE_CHECK);
+    faV3HallDInit( 3 << 19 , 1 << 19, 18, FAV3_INIT_SKIP | FAV3_INIT_SKIP_FIRMWARE_CHECK);
 
-    faV3GStatus(0);
+    faV3HallDGStatus(0);
     vmeBusUnlock();
 
 

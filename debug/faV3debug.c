@@ -112,6 +112,21 @@ idelay(char *choice)
   return 0;
 }
 
+int32_t
+istatus(char *choice)
+{
+  printf("\n");
+
+  if(faV3IDelayPrint(FAV3_SLOT) != OK)
+    {
+      printf("%s(%d): ERROR from faV3IDelayPrint\n",
+	     __func__, FAV3_SLOT);
+      return -1;
+    }
+
+  return 0;
+}
+
 
 // set the DAC for the specified channel
 int32_t
@@ -271,6 +286,7 @@ COMMAND commands[] = {
   {"init", init, "Initialize module: init <slotnumber>"},
   {"status", status, "Print status of initialized modules"},
   {"idelay", idelay, "Configure IDelay"},
+  {"istatus", istatus, "Current IDelay settings"},
   {"setdac", setdac, "Set DAC for Channel: setdac <channel> <dac value>"},
   {"getdac", getdac, "Print DAC values for all channels"},
   {"setped", setped, "Set Pedestal Monitor parameters: setped <nsamples> <maxped>"},

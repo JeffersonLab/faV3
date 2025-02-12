@@ -914,8 +914,8 @@ int faV3SetScalerBlockInterval(int id, uint32_t nblock);
 int faV3GetScalerBlockInterval(int id);
 int faV3ForceEndOfBlock(int id, int scalers);
 void faV3GForceEndOfBlock(int scalers);
-int32_t faV3IdelayStatus(int32_t id, int32_t pflag);
 int32_t faV3LoadIdelay(int32_t id, int32_t pflag);
+int32_t faV3IDelayPrint(int32_t id);
 
 /* SDC prototypes */
 int faV3SDC_Config(uint16_t cFlag, uint16_t bMask);

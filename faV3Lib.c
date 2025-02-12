@@ -2196,6 +2196,13 @@ faV3SetupADC(int id, int32_t mode)
 
   CHECKID;
 
+  if((mode < 0) || (mode > 2))
+    {
+      printf("%s: ERROR: Invalid mode (%d)\n",
+	     __func__, mode);
+      return ERROR;
+    }
+
   mode = 0;
   taskDelay(1);
 
@@ -6968,39 +6975,6 @@ faV3GetTriggersProcessedCount(int id)
 }
 
 int32_t
-faV3IdelayStatus(int32_t id, int32_t pflag)
-{
-  int32_t rval = OK;
-  uint32_t status1 = 0, status2 = 0;
-  uint32_t IdelayCtrlRdy = 0, DoneLdIdelay = 0;
-  const uint32_t DoneLdIdelayMask = 0x80000000;
-  const int32_t IdelayCtrlRdyMask = 1;
-
-  CHECKID;
-
-  FAV3LOCK;
-  status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
-  status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
-  FAV3UNLOCK;
-
-  DoneLdIdelay = status1 & DoneLdIdelayMask;
-  IdelayCtrlRdy = status2 & IdelayCtrlRdyMask;
-
-  if(DoneLdIdelay && IdelayCtrlRdy)
-    rval = OK;
-  else
-    rval = ERROR;
-
-  if(pflag)
-    {
-      printf("%s(id = %d): Done = %d  Ready = %d  status1 = 0x%08x  status2 = 0x%08x\n",
-	     __func__, id, DoneLdIdelay, IdelayCtrlRdy, status1, status2);
-    }
-
-  return rval;
-}
-
-int32_t
 faV3LoadIdelay(int32_t id, int32_t pflag)
 {
   //  The time delay of Idelay component in Ultra Scale Xilinx FPGA is
@@ -7210,21 +7184,120 @@ faV3LoadIdelay(int32_t id, int32_t pflag)
 }
 
 int32_t
-faV3IDelayStatus(int32_t id)
+faV3IDelayPrint(int32_t id)
 {
+  //  The time delay of Idelay component in Ultra Scale Xilinx FPGA is
+  //  determined by the setting of the Idelay Count Value 512
+  //  taps. Each tap delays input by 17.857 pS.
+  //  The purpose of this routine is to take into VTC feature of the Idelay.
+  //  It does the following:
+  //    1) Read the desired delays (in pSec from serial ROM on the FADCV3 board => IdelayValInRom
+  //    2) Read the present Idely Count Values  (position of 512 taps) => InitIdelyCountValue
+  //    3) Tap delay resoultion; TapRes = 500 pS/InitIdelyCountValue
+  //    4) NewTapVal =  TapRes *  IdelayValInRom
+  //    5) Program NewTapVal into Idelay
   int32_t rval = OK;
-  uint32_t status1 = 0, status2 = 0;
+  uint32_t ADC_Chan;
+  uint32_t IdelayValInRom[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t InitIdelyCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t InitOdelyCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t DiffInitCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  int32_t NewIdelCntValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t IdelayAssignedInVHDLCode[16] = // Numbers that are in VHDL code
+    { 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000 };
+  uint32_t IDELAY_CONTROL_1_VAL;
+  uint32_t IdelayCtrlRdy, DoneLdIdelayCntVal, DoneLdIdelay;
+  float IdelayCountPerPsec;
+  uint32_t CountLoop;
+  const uint32_t HostSelIdelCntValueBitShift = 9;
+  const uint32_t IDECntValOutCh0_7_Mask = 0xFF800;
+  const uint32_t IDECntValOutCh15_8_Mask = 0x1FF00000;
+  const uint32_t SelCntValOutShift = 13;
+  const uint32_t IDE_CntValOutCH0_7_Shift = 11;
+  const uint32_t IDE_CntValOutCH16_8_Shift = 20;
+  const uint32_t ConfigIdelayBit = 0x10000;
+  const uint32_t HostIdelayTuneEnBit = 0x20000;
+  const uint32_t IdelayCtrlReset = 0x100000;
+  const uint32_t LdIdelayValueArray = 0x10;
+  const uint32_t LdIdelayCntValueArray = 0x80000;
+  const uint32_t DoneLdIdelayCntValMask = 0x20000000;
+  const uint32_t DoneLdIdelayMask = 0x80000000;
+  const int32_t IdelayCtrlRdyMask = 1;
+  int32_t invalid_diff = 0;
+  int32_t alreadyLoaded = 0;
+
   CHECKID;
 
   FAV3LOCK;
-  status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
-  status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
+
+  DoneLdIdelay = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask;
+  IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+  if(DoneLdIdelay && IdelayCtrlRdy)
+    {
+      alreadyLoaded = 1;
+    }
+
+  IDELAY_CONTROL_1_VAL = HostIdelayTuneEnBit;
+  vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
+
+  /// ****** Read IdelayValInRom  from FPGA
+  for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
+    {
+      vmeWrite32(&FAV3p[id]->aux.idelay_control_2, ADC_Chan | LdIdelayValueArray);
+
+      IdelayValInRom[ADC_Chan] = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & 0x7FF;
+
+    }
+  /// Read current IdelAy count from FPGA to InitIdelyCountValue
+  for(ADC_Chan = 0; ADC_Chan < 8; ++ADC_Chan)
+    {
+      uint32_t status1 = 0, status2 = 0;
+      IDELAY_CONTROL_1_VAL = ADC_Chan << SelCntValOutShift;
+      vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
+
+      status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
+      status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
+      InitIdelyCountValue[ADC_Chan] =
+	(status1 & IDECntValOutCh0_7_Mask) >> IDE_CntValOutCH0_7_Shift;
+
+      InitIdelyCountValue[ADC_Chan + 8] =
+	(status1 & IDECntValOutCh15_8_Mask) >> IDE_CntValOutCH16_8_Shift;
+
+      InitOdelyCountValue[ADC_Chan] =
+	(status2 & IDECntValOutCh0_7_Mask) >> IDE_CntValOutCH0_7_Shift;
+
+      InitOdelyCountValue[ADC_Chan + 8] =
+	(status2 & IDECntValOutCh15_8_Mask) >> IDE_CntValOutCH16_8_Shift;
+
+    }
+
   FAV3UNLOCK;
 
-  printf("%s: status1 = 0x%08x  status2 = 0x%08x\n",
-	 __func__, status1, status2);
+  int jj;
+  // print arrays
+  // ----------------------------------------------------------
+  printf("%s(%d): alreadyLoaded = %d\n", __func__, id, alreadyLoaded);
+  printf("  Ch  InRom     Init      Init0 \n");
+  printf("--------------------------------------------------------------------------\n");
 
-  return rval;
+  for(jj = 0; jj < 16; jj++)
+    {
+      printf(" %2d   ", jj);
+      printf("%4d      ", IdelayValInRom[jj]);
+      printf("%4d      ", InitIdelyCountValue[jj]);
+      printf("%4d      ", InitOdelyCountValue[jj]);
+      printf("\n");
+
+    }
+  printf("\n\n");
+
+  return (rval);
+
 }
 
 /***************************************************************************************
