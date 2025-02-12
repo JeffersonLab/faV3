@@ -268,6 +268,37 @@ getped(char *choice)
   return 0;
 }
 
+int32_t
+setclock(char *choice)
+{
+  int clock_choice = 0;
+  if(strlen(choice) > 0)
+    {
+      sscanf(choice, "%d", &clock_choice);
+    }
+  else
+    {
+      printf(" Clock Set (0 = Internal, 1 = Front Panel, 2 = VXS): ");
+      fflush(stdout);
+      scanf("%d", &clock_choice);
+    }
+
+  if((clock_choice < 0) || (clock_choice > 2))
+    {
+      printf("%s: ERROR: Invalid clock choice (%d)\n",
+	     __func__, clock_choice);
+      return -1;
+    }
+
+  if(faV3SetClockSource(FAV3_SLOT, clock_choice) != OK)
+    {
+      printf("%s: ERROR from faV3SetClockSource\n",
+	     __func__);
+      return -1;
+    }
+
+  return 0;
+}
 
 #include <readline/readline.h>
 int com_quit(char *arg);
@@ -291,6 +322,7 @@ COMMAND commands[] = {
   {"getdac", getdac, "Print DAC values for all channels"},
   {"setped", setped, "Set Pedestal Monitor parameters: setped <nsamples> <maxped>"},
   {"getped", getped, "Print out Pedestal Monitor"},
+  {"setclock", setclock, "Set clock source: setclock <source #>"},
   {"quit", com_quit, "Quit"},
   {(char *) NULL, (rl_icpfunc_t *) NULL, (char *) NULL}
 };
