@@ -436,13 +436,6 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	  vmeWrite32(&(FAV3p[faV3ID[ii]]->reset), FAV3_RESET_ALL);
 	}
       taskDelay(60);
-      for(ii = 0; ii < nfaV3; ii++)
-	{
-	  faV3DACInit(faV3ID[ii]);
-	  faV3DACClear(faV3ID[ii]);
-	  if(!skipIdelayConfig) faV3LoadIdelay(faV3ID[ii], 1);
-	  else printf("%s: skipping idelay config\n", __func__);
-	}
     }
 
   /* Initialize Interrupt variables */
@@ -702,6 +695,15 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 		     (vmeRead32(&FAV3p[faV3ID[ii]]->ctrl1) &
 		      ~(FAV3_REF_CLK_MASK | FAV3_TRIG_MASK | FAV3_SRESET_MASK)) |
 		     (clkSrc | srSrc | trigSrc) );
+
+	  /* Initialize DAC */
+	  faV3DACInit(faV3ID[ii]);
+	  faV3DACClear(faV3ID[ii]);
+
+	  /* Configure IDelay */
+	  if(!skipIdelayConfig) faV3LoadIdelay(faV3ID[ii], 1);
+	  else printf("%s: skipping idelay config\n", __func__);
+
 	}
     }				//End loop through fadcs
 
@@ -876,8 +878,6 @@ faV3SetClockSource(int id, int clkSrc)
 	     (vmeRead32(&FAV3p[id]->ctrl1) & ~(FAV3_REF_CLK_MASK)) |
 	     (clkSrc | FAV3_ENABLE_INTERNAL_CLK));
   taskDelay(20);
-  printf("%s: ctrl1 = 0x%08x\n",
-	 __func__, vmeRead32(&FAV3p[id]->ctrl1));
   FAV3UNLOCK;
 
   switch (clkSrc)
@@ -899,6 +899,9 @@ faV3SetClockSource(int id, int clkSrc)
       printf("%s: FADC id %d clock source set to VXS (P0)\n", __func__, id);
       break;
     }
+
+  /* Re-run the idelay configuration */
+  faV3LoadIdelay(id, 1);
 
   return OK;
 }
@@ -965,6 +968,13 @@ faV3GSetClockSource(int clkSrc)
     case FAV3_REF_CLK_MASK:
       printf("%s: FADC clock source set to VXS (P0)\n", __func__);
       break;
+    }
+
+  /* Re-run the idelay configuration */
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      faV3LoadIdelay(id, 1);
     }
 
   return OK;
@@ -7025,8 +7035,8 @@ faV3LoadIdelay(int32_t id, int32_t pflag)
 
   FAV3LOCK;
 
-  DoneLdIdelay = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask;
-  IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+  DoneLdIdelay = (vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask) ? 1 : 0;
+  IdelayCtrlRdy = (vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask) ? 1 : 0;
   if(DoneLdIdelay && IdelayCtrlRdy)
     {
       FAV3UNLOCK;
@@ -7235,8 +7245,8 @@ faV3IDelayPrint(int32_t id)
 
   FAV3LOCK;
 
-  DoneLdIdelay = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask;
-  IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+  DoneLdIdelay = (vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask) ? 1 : 0;
+  IdelayCtrlRdy = (vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask) ? 1 : 0;
   if(DoneLdIdelay && IdelayCtrlRdy)
     {
       alreadyLoaded = 1;
