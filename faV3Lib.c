@@ -4704,91 +4704,36 @@ faV3DACGet(int id, int chan, uint32_t *dac_value)
 }
 
 int32_t
-test_dac(int32_t id)
+faV3DACPrint(int id)
 {
-  // writes different values to all DAC channels, then read back and compare
-
-  uint32_t dac_channel, dac_value, csr_value, data_from_dac, chan_value;
-  uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
-  uint32_t start_value, value_to_write, expected_value, dac_error;
-  uint32_t ii;
-  uint32_t READ_CSR_AFTER_WRITE, READ_CSR_AFTER_READ;
+  int32_t rval = OK;
+  int32_t ichan, nchan = FAV3_MAX_ADC_CHANNELS;
+  uint32_t dac_value[FAV3_MAX_ADC_CHANNELS];
 
   CHECKID;
 
-  READ_CSR_AFTER_WRITE = 0;	// '0' = do not read CSR after WRITE
-  READ_CSR_AFTER_READ = 0;	// '0' = do not read CSR after READ
-
-  dac_error = 0;
-  start_value = 3000;		// start value
-  printf("\n ---------------- WRITE all DAC channels ----------------\n");
-  for(ii = 0; ii < 16; ii++)	// write values to all channels
+  for(ichan = 0; ichan < nchan; ichan++)
     {
-#ifdef DACTEST1
-      vmeWrite32(&FAV3p[id]->dac_csr, ii);	// write DAC channel to CSR
-      value_to_write = start_value + ii * 50;	// DAC value to write
-      vmeWrite32(&FAV3p[id]->dac_data, value_to_write);	// write DAC
-      if(READ_CSR_AFTER_WRITE)
+      if(faV3DACGet(id, ichan, &dac_value[ichan]) < 0)
 	{
-	  taskDelay(1);
-	  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read CSR value for status bits after write
-	  //            ------------------------------------------------------
-	  printf("\nDAC CSR value after channel %d write = %X\n", ii,
-		 csr_value);
-	  ready = (csr_value >> 16) & 1;
-	  success = (csr_value >> 17) & 1;
-	  not_ready_since_clear = (csr_value >> 18) & 1;
-	  timeout_since_clear = (csr_value >> 19) & 1;
-	  printf("CSR status: ready = %d  success = %d  not ready(since clear) = %d  timeout(since clear) = %d\n",
-		 ready, success, not_ready_since_clear, timeout_since_clear);
-	  //            ------------------------------------------------------
-	}
-#else
-      faV3DACSet(id, ii, start_value + ii * 50);
-#endif
-    }
-
-  printf("\n ---------------- READ all DAC channels ----------------\n");
-  for(ii = 0; ii < 16; ii++)	// read values from all channels
-    {
-#ifdef DACTEST1
-      vmeWrite32(&FAV3p[id]->dac_csr, ii);	// write DAC channel to CSR
-      data_from_dac = vmeRead32(&FAV3p[id]->dac_data);	// read DAC
-      dac_value = 0xFFF & data_from_dac;
-      chan_value = (data_from_dac >> 14) & 0xF;
-      printf("\n******** HEX DAC data (req chan %d) = %X  (actual chan %d  dac_value (dec) = %d)\n",
-	     ii, data_from_dac, chan_value, dac_value);
-
-      if(READ_CSR_AFTER_READ)
-	{
-	  taskDelay(1);
-	  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read CSR value for status bits after read
-	  //            ------------------------------------------------------
-	  printf("DAC CSR value after read = %X\n", csr_value);
-	  ready = (csr_value >> 16) & 1;
-	  success = (csr_value >> 17) & 1;
-	  not_ready_since_clear = (csr_value >> 18) & 1;
-	  timeout_since_clear = (csr_value >> 19) & 1;
-	  printf("CSR status: ready = %d  success = %d  not ready(since clear) = %d  timeout(since clear) = %d\n",
-		 ready, success, not_ready_since_clear, timeout_since_clear);
-	  //            ------------------------------------------------------
-	}
-#else
-      faV3DACGet(id, ii, &dac_value);
-#endif
-      expected_value = start_value + ii * 50;	// compare
-      if(dac_value != expected_value)
-	{
-	  printf("\n !!!!!!!! ERROR IN DAC READBACK of channel %d !!!!!!!!\n\n",
-		 ii);
-	  dac_error = 1;
+	  rval = ERROR;
+	  break;
 	}
     }
 
-  if(dac_error == 0)
-    printf("\n ******** NO ERRORS ********\n");
+  if(rval == OK)
+    {
+      printf("%s(%d):\n", __func__, id);
+      printf(" Ch    DAC\n");
+      for(ichan = 0; ichan < nchan; ichan++)
+	{
+	  printf(" %2d    %4d\n",
+		 ichan, dac_value[ichan]);
+	}
+      printf("\n");
+    }
 
-  return 0;
+  return rval;
 }
 
 

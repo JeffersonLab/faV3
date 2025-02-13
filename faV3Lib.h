@@ -867,6 +867,7 @@ int32_t faV3DACClear(int id);
 int32_t faV3DACStatus(int id);
 int32_t faV3DACSet(int id, int chan, uint32_t dac_value);
 int32_t faV3DACGet(int id, int chan, uint32_t *dac_value);
+int32_t faV3DACPrint(int id);
 
 int faV3SetPedestal(int id, uint32_t chan, uint32_t ped);
 int faV3GetPedestal(int id, uint32_t chan);
