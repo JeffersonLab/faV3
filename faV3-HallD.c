@@ -74,20 +74,22 @@ faV3HallDInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   int32_t ifa;
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_CTRL] != FAV3_HALLD_SUPPORTED_CTRL_FIRMWARE)
+      if((iFlag & FAV3_INIT_SKIP_FIRMWARE_CHECK) == 0)
 	{
-	  printf("%s: Slot %d control fw not compatible with Hall D library\n",
-		 __func__, faV3Slot(ifa));
-	  continue;
-	}
+	  if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_CTRL] != FAV3_HALLD_SUPPORTED_CTRL_FIRMWARE)
+	    {
+	      printf("%s: Slot %d control fw not compatible with Hall D library\n",
+		     __func__, faV3Slot(ifa));
+	      continue;
+	    }
 
-      if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_PROC] != FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
-	{
-	  printf("%s: Slot %d processing fw not compatible with Hall D library\n",
-		 __func__, faV3Slot(ifa));
-	  continue;
+	  if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_PROC] != FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
+	    {
+	      printf("%s: Slot %d processing fw not compatible with Hall D library\n",
+		     __func__, faV3Slot(ifa));
+	      continue;
+	    }
 	}
-
       HallDp[faV3Slot(ifa)] = (faV3_halld_adc_t *)((u_long)FAV3p[faV3Slot(ifa)] + 0x100);
       printf("%s: Slot %d: CTRL 0x%x PROC 0x%x\n",
 	     __func__, faV3Slot(ifa),
