@@ -701,7 +701,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	  faV3DACClear(faV3ID[ii]);
 
 	  /* Configure IDelay */
-	  if(!skipIdelayConfig) faV3LoadIdelay(faV3ID[ii], 1);
+	  if(!skipIdelayConfig) faV3LoadIdelay(faV3ID[ii], 0);
 	  else printf("%s: skipping idelay config\n", __func__);
 
 	}
@@ -901,7 +901,7 @@ faV3SetClockSource(int id, int clkSrc)
     }
 
   /* Re-run the idelay configuration */
-  faV3LoadIdelay(id, 1);
+  faV3LoadIdelay(id, 0);
 
   return OK;
 }
@@ -974,7 +974,7 @@ faV3GSetClockSource(int clkSrc)
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
       id = faV3Slot(ifa);
-      faV3LoadIdelay(id, 1);
+      faV3LoadIdelay(id, 0);
     }
 
   return OK;
