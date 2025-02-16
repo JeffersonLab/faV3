@@ -31,7 +31,7 @@
 #define FAV3_VME_INT_LEVEL           3
 #define FAV3_VME_INT_VEC          0xFA
 
-#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x0E
+#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x20E
 #define FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER 1
 #define FAV3_SUPPORTED_PROC_FIRMWARE 0xE03
 #define FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER 1
@@ -392,7 +392,7 @@ typedef struct faV3_sdc_struct
 #define FAV3_DAC_MAX_VALUE         0xFFF
 
 /* Define Bit Masks */
-#define FAV3_VERSION_MASK        0x000000ff
+#define FAV3_VERSION_MASK        0x00000fff
 #define FAV3_BOARD_MASK          0xffff0000
 #define FAV3_CSR_MASK            0x0fffffff
 #define FAV3_CONTROL_MASK        0xffffffff
@@ -652,10 +652,6 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3SDC_CTRL_ENABLE_SOFT_SRESET  0x200
 #define FAV3SDC_CTRL_ASSERT_SOFT_BUSY   0x8000
 #define FAV3SDC_CTRL_MASK               0x8331
-
-/* Definitions for FADC Firmware Tools */
-#define FAV3_FIRMWARE_LX110    0
-#define FAV3_FIRMWARE_FX70T    1
 
 #define FAV3_CTRL1_SYSTEM_TEST_MODE   (1<<31)
 

@@ -914,7 +914,7 @@ faV3FirmwareGLoad(int32_t pFlag, int32_t force)
       for(ifadc = 0; ifadc < nfaV3; ifadc++)
 	{
 	  uint32_t fw_vers = 0;
-	  uint32_t fw_supported = ((FAV3_SUPPORTED_PROC_FIRMWARE << 16) | (0x200 | FAV3_SUPPORTED_CTRL_FIRMWARE) );
+	  uint32_t fw_supported = ((FAV3_SUPPORTED_PROC_FIRMWARE << 16) | (FAV3_SUPPORTED_CTRL_FIRMWARE) );
 
 	  id = faV3Slot(ifadc);
 	  fw_vers = faV3GetFirmwareVersions(id, 0);

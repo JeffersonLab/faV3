@@ -104,6 +104,7 @@ main(int argc, char *argv[])
       goto CLOSE;
     }
 
+  int32_t update_count = 0;
   printf("\n\n");
   printf("Slot     Ctrl      Proc    Update\n");
   printf("----------------------------------\n");
@@ -116,9 +117,11 @@ main(int argc, char *argv[])
       ctrl = cfw & 0xFFFF;
       proc = (cfw >> 16) & 0xFFFF;
 
-      if(ctrl == (0x200 | FAV3_SUPPORTED_CTRL_FIRMWARE)
-	 && (proc == FAV3_SUPPORTED_PROC_FIRMWARE))
+      if(ctrl == (FAV3_SUPPORTED_CTRL_FIRMWARE) && (proc == FAV3_SUPPORTED_PROC_FIRMWARE))
 	skip = 1;
+
+      if((skip == 0) || (force == 1))
+	update_count++;
 
       printf(" %2d    ", faV3Slot(ifa));
       printf("0x%04x    ", ctrl);
@@ -128,11 +131,22 @@ main(int argc, char *argv[])
       printf("\n");
     }
 
+  if(update_count == 0)
+    {
+      printf("\n");
+      printf(" All FADC firmware is already up to date with\n");
+      printf("   Ctrl: 0x%04x\n", FAV3_SUPPORTED_CTRL_FIRMWARE);
+      printf("   Proc: 0x%04x\n", FAV3_SUPPORTED_PROC_FIRMWARE);
+      printf("\n");
+      goto CLOSE;
+    }
+
   printf("\n\n");
   printf(" Update firmware with file: \n   %s\n", fw_filename);
 
   while(!yes)
     {
+      printf("\n");
       printf(" Press y and <ENTER> to continue... n or q and <ENTER> to quit without update\n");
 
       scanf("%s", (char *) inputchar);
