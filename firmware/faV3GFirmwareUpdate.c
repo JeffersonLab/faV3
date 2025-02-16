@@ -173,7 +173,13 @@ void
 Usage()
 {
   printf("\n");
-  printf("%s <firmware file>\n", progName);
+  printf("%s <options> <firmware file>\n", progName);
+  printf("\n");
+  printf("\n");
+  printf(" options:\n");
+  printf("     -f                  force program of all modules,\n");
+  printf("                         regardless of supported firmware\n");
+  printf("     -y                  assume 'yes' to all prompts\n");
   printf("\n");
 
 }
