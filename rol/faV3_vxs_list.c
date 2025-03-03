@@ -41,8 +41,7 @@ extern int nfaV3;
 #define FADC_INCR (1<<19)
 #define FADC_BANK 0x3
 
-#define FADC_READ_CONF_FILE {			\
-    faV3Config("");				\
+#define FAV3_READ_CONF_FILE {			\
     if(rol->usrConfig)				\
       faV3Config(rol->usrConfig);		\
   }
@@ -141,7 +140,7 @@ rocDownload()
     faV3EnableMultiBlock(1);
 
   /* configure all modules based on config file */
-  FADC_READ_CONF_FILE;
+  FAV3_READ_CONF_FILE;
 
   for(ifa = 0; ifa < nfaV3; ifa++)
     {

@@ -201,7 +201,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   int useList = 0;
   int multiBlockOnly = 0;
   int vxsReadoutOnly = 0;
-  int32_t skipIdelayConfig = 0;
+  int useSlotNumbers=0;
   uint16_t ctrl_version = 0, proc_version = 0;
 
   /* Check if we have already Initialized boards before */
@@ -227,7 +227,11 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   /* Check if we're reading out through the VXS (VTP) */
   vxsReadoutOnly = (iFlag & FAV3_INIT_VXS_READOUT_ONLY) ? 1 : 0;
 
-  skipIdelayConfig = (iFlag & FAV3_INIT_SKIP_IDELAY_CONFIG) ? 1 : 0;
+  /* Use slot numbers for A32 addressing */
+  useSlotNumbers = (iFlag & FAV3_INIT_A32_SLOTNUMBER) ? 1 : 0;
+
+  if(useSlotNumbers)
+    faV3A32Base = 0;
 
   /* Check for valid address */
   if(addr == 0)
@@ -446,34 +450,6 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   faV3IntRoutine = NULL;
   faV3IntArg = 0;
 
-  /* Calculate the A32 Offset for use in Block Transfers */
-#ifdef VXWORKS
-  res = sysBusToLocalAdrs(0x09, (char *) faV3A32Base, (char **) &laddr);
-  if(res != 0)
-    {
-      printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-	     faV3A32Base);
-      return (ERROR);
-    }
-  else
-    {
-      faV3A32Offset = laddr - faV3A32Base;
-    }
-#else
-  res =
-    vmeBusToLocalAdrs(0x09, (char *) (u_long) faV3A32Base, (char **) &laddr);
-  if(res != 0)
-    {
-      printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-	     faV3A32Base);
-      return (ERROR);
-    }
-  else
-    {
-      faV3A32Offset = laddr - faV3A32Base;
-    }
-#endif
-
   if(!noBoardInit)
     {
       /* what are the Trigger Sync Reset and Clock sources */
@@ -659,26 +635,26 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       if((!multiBlockOnly) || (!vxsReadoutOnly))
 	{
 	  /* Program an A32 access address for this FADC's FIFO */
-	  a32addr = faV3A32Base + ii * FAV3_MAX_A32_MEM;
+	  if(useSlotNumbers)
+	    a32addr = faV3ID[ii] << 23;
+	  else
+	    a32addr = faV3A32Base + ii * FAV3_MAX_A32_MEM;
+
 #ifdef VXWORKS
 	  res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
-	  if(res != 0)
-	    {
-	      printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-		     a32addr);
-	      return (ERROR);
-	    }
 #else
-	  res =
-	    vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
-	  if(res != 0)
-	    {
-	      printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-		     a32addr);
-	      return (ERROR);
-	    }
+	  res = vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
 #endif
-	  FAV3pd[faV3ID[ii]] = (uint32_t *) (laddr);	/* Set a pointer to the FIFO */
+	  if ((res != 0) || (faV3A32Offset == 0))
+	    {
+	      FAV3pd[faV3ID[ii]] = (unsigned int *)(unsigned long) a32addr;
+	      faV3A32Offset = 0;
+	    }
+	  else
+	    {
+	      faV3A32Offset = laddr - (unsigned long) a32addr;
+	      FAV3pd[faV3ID[ii]] = (uint32_t *) (laddr);	/* Set a pointer to the FIFO */
+	    }
 	}
 
       if(!noBoardInit)
@@ -701,8 +677,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	  faV3DACClear(faV3ID[ii]);
 
 	  /* Configure IDelay */
-	  if(!skipIdelayConfig) faV3LoadIdelay(faV3ID[ii], 0);
-	  else printf("%s: skipping idelay config\n", __func__);
+	  faV3LoadIdelay(faV3ID[ii], 0);
 
 	}
     }				//End loop through fadcs
@@ -711,29 +686,25 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
      window. This must be the same on each board in the crate */
   if((nfaV3 > 1) && (!vxsReadoutOnly))
     {
-      if(multiBlockOnly)
-	a32addr = faV3A32Base;
+      if(useSlotNumbers)
+	a32addr = 22 << 23;
       else
-	a32addr = faV3A32Base + (nfaV3 + 1) * FAV3_MAX_A32_MEM;	/* set MB base above individual board base */
+	{
+	  if(multiBlockOnly)
+	    a32addr = faV3A32Base;
+	  else
+	    a32addr = faV3A32Base + (nfaV3 + 1) * FAV3_MAX_A32_MEM;	/* set MB base above individual board base */
+	}
 #ifdef VXWORKS
       res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
-      if(res != 0)
-	{
-	  printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-		 a32addr);
-	  return (ERROR);
-	}
 #else
-      res =
-	vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
-      if(res != 0)
-	{
-	  printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-		 a32addr);
-	  return (ERROR);
-	}
+      res = vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
 #endif
-      FAV3pmb = (uint32_t *) (laddr);	/* Set a pointer to the FIFO */
+      if ((res != 0) || (faV3A32Offset == 0))
+	FAV3pmb = (unsigned int *)(unsigned long)a32addr;
+      else
+	FAV3pmb = (unsigned int *)(laddr);  /* Set a pointer to the FIFO */
+
       if(!noBoardInit)
 	{
 	  for(ii = 0; ii < nfaV3; ii++)
@@ -2615,6 +2586,11 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
     }
   else
     {				/*Programmed IO */
+      if(faV3A32Offset == 0)
+	{
+	  logMsg("faV3ReadBlock(%d): ERROR: Invalid Readout mode (%d) for A32 address (0x%08x)", rmode, (unsigned int)(unsigned long)FAV3pd[id]);
+	  return ERROR;
+	}
 
       /* Check if Bus Errors are enabled. If so then disable for Prog I/O reading */
       FAV3LOCK;

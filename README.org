@@ -28,38 +28,68 @@ Library and Example code for use of the Jefferson Lab VME Based 250MHz Flash ADC
   faV3Init(addr, addr_inc, num, iFlag)
   #+end_src
 
-- =addr=: A24 VME address set by micro switches on the FADC
+- =addr=: A24 VME address set by micro switches on the FADC. (using *slot convention*: ~slotnumber << 19~)
 
-- =addr_inc=: With multiple boards this is the value that the A24 address is incremented between the base addresses of each board (typically ~0x080000~)
+- =addr_inc=: With multiple boards this is the value that the A24 address is incremented between the base addresses of each board (using *slot convention*: ~1 << 19 = 0x080000~)
 
 - =num=: Number of FADCs to initialize
 
 - =iFlag=: 16 bit integer
   - =Low 6 bits= - Specifies the default Signal distribution (clock,trigger) sources for the board (INTernal, FrontPanel, VXS, VME(Soft))
     - =bit 0=:  defines Sync Reset source
-         ~0~  VME (Software Sync-Reset)
-         ~1~  Front Panel/VXS/P2 (Depends on Clk/Trig source selection)
+      ~0 : FAV3_INIT_SOFT_SYNCRESET~  VME (Software Sync-Reset)
+      ~1 : FAV3_INIT_EXT_SYNCRESET~   Front Panel/VXS/P2 (Depends on Clk/Trig source selection)
     - =bits 3-1=:  defines Trigger source
-      ~0 0 0~  VME (Software Triggers)
-      ~0 0 1~  Front Panel Input
-      ~0 1 0~  VXS (P0) 
+      ~0 0 0 : FAV3_INIT_SOFT_TRIG~  VME (Software Triggers)
+      ~0 0 1 : FAV3_INIT_FP_TRIG~  Front Panel Input
+      ~0 1 0 : FAV3_INIT_VXS_TRIG~  VXS (P0) 
       ~1 0 0~  Internal Trigger Logic (HITSUM FPGA)
                 (all others Undefined - default to Internal)
     - =bits 5-4=:  defines Clock Source
-      ~0 0~  Internal 250MHz Clock
-      ~0 1~  Front Panel 
-      ~1 0~  VXS (P0)
-      ~1 1~  P2 Connector (Blackplane)
+      ~0 0 : FAV3_INIT_INT_CLKSRC~  Internal 250MHz Clock
+      ~0 1 : FAV3_INIT_FP_CLKSRC~  Front Panel 
+      ~1 0 : FAV3_INIT_VXS_CLKSRC~  VXS (P0)
+      ~1 1 : FAV3_INIT_P2_CLKSRC~  P2 Connector (Blackplane)
 
 
    - =High 10bits= - A16 Base address of FADC Signal Distribution Module
-     This board can control up to 7 FADC Boards.
+     This board can control up to 7 faV3 Boards.
      Clock Source must be set to Front Panel (=bit4 = 1=)
 
-   - =bit 16=:  Exit before board initialization
-     ~0~  Initialize FADC (default behavior)
-     ~1~  Skip initialization (just setup register map pointers)
+   - =bit 16:= =FAV3_INIT_SKIP=
+     Exit before board initialization
 
+   - =bit 17: FAV3_INIT_USE_ADDRLIST=
+   Initialize modules using contents of array =faV3AddrList[]= with =num= as the number of elements to use.
+   For example
+   #+begin_src C
+   extern uint32_t faV3AddrList[FAV3_MAX_BOARDS];
+   faV3AddrList[0] = 0xed0000;
+   faV3AddrList[1] = 0xee0000;
+   faV3AddrList[2] = 0xef0000;
+   faInit(faV3AddrList[0], 0, 3, FAV3_INIT_USE_ADDRLIST);
+   #+end_src
+   
+   - =bit 18: FAV3_INIT_SKIP_FIRMWARE_CHECK=
+   Initialize faV3 modules even if their firmware version is not supported by the library (useful for firmware update programs and debugging).
+     
+   - =bit 19: FAV3_INIT_MULTIBLOCK_ONLY=
+   Initialize faV3 modules without configuration of A32 address for individual readout.  Multi-board readout using token passing will still be configured.
+     
+   - =bit 20: FAV3_INIT_VXS_READOUT_ONLY=
+   Initialize faV3 modules without any configuration of A32 address for readout.  Multi-board readout using VXS to VTP will be configured
+     
+   - =bit 21: FAV3_INIT_A32_SLOTNUMBER=
+   Initialize faV3 modules using slot number to determine A32 address for individual and token passing readout.  Programmed I/O readout will not work with this configuration (_DMA Only_).  Individual A32 addresses will be configured with =slotnumber << 23= and multi-board A32 address set to =22 << 23=:
+   | Slot | A32         |
+   |------+-------------|
+   |    3 | 0x0180 0000 |
+   |    4 | 0x0200 0000 |
+   |    5 | 0x0280 0000 |
+   |  ... | ...         |
+   |   20 | 0x0A00 0000 |
+   |   MB | 0x0B00 0000 |
+   
 ** Common Modes of Operation:
 
 | iFlag | CLK | TRIG | SYNC | description         |
@@ -81,7 +111,7 @@ faV3Init(0xed0000, 0x0, 1, 0x0);
 #+end_src
 
 ** Example
-Initialize 5 FADC boards at using slot convention for slots 3 - 7
+Initialize 5 FADC boards at using *slot convention* for slots 3 - 7
 =Address = (slot << 19)=
 | Slot |  Address |
 |------+----------|
