@@ -211,7 +211,7 @@ faV3HallDCalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np)
  */
 int
 faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
-		     int NSB, uint32_t NSA, uint32_t NP,
+		     uint32_t NSB, uint32_t NSA, uint32_t NP,
 		     uint32_t NPED, uint32_t MAXPED, uint32_t NSAT)
 {
   int rval = OK;
@@ -386,7 +386,7 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 
 void
 faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
-		      int NSB, uint32_t NSA, uint32_t NP,
+		      uint32_t NSB, uint32_t NSA, uint32_t NP,
 		      uint32_t NPED, uint32_t MAXPED, uint32_t NSAT)
 {
   int ii, res;
@@ -401,7 +401,7 @@ faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 
 int32_t
 faV3HallDGetProcMode(int id, int *pmode, uint32_t *PL, uint32_t *PTW,
-		     int *NSB, uint32_t *NSA, uint32_t *NP,
+		     uint32_t *NSB, uint32_t *NSA, uint32_t *NP,
 		     uint32_t *NPED, uint32_t *MAXPED, uint32_t *NSAT)
 {
   int32_t rval = OK;

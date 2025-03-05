@@ -1,14 +1,7 @@
 #pragma once
-
-#ifndef FAV3_CONFIG_GET_ENV
-#define FAV3_CONFIG_GET_ENV "FAV3_PARAMS"
-#endif
-
 /****************************************************************************
  *
- *  fadc250Config.h  -  configuration library header file for fADC250 board
- *
- *  SP, 07-Nov-2013
+ *  faV3Config.h  -  configuration library header file for faV3
  *
  */
 
@@ -25,7 +18,7 @@ typedef struct {
   int32_t vxsReadout;
   uint32_t winOffset;
   uint32_t winWidth;
-  int32_t nsb;
+  uint32_t nsb;
   uint32_t nsa;
   uint32_t npeak;
 
