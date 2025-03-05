@@ -22,7 +22,6 @@
 
 #define SCAN_VARS						\
   int    slot, slot_min, slot_max, chan;			\
-  int    ii, jj, ch;						\
   int    args, i1, msk[16];					\
   uint32_t  ui1, val;						\
   char   str_tmp[STRLEN], str2[STRLEN], keyword[ROCLEN];	\
@@ -53,11 +52,11 @@
       return(-8);							\
     }									\
   val = 0;								\
-  for(jj=0; jj<MAX_FAV3_CH; jj++)					\
+  for(chan=0; chan<NCHAN; chan++)					\
     {									\
-      if((msk[jj] < 0) || (msk[jj] > 1))				\
+      if((msk[chan] < 0) || (msk[chan] > 1))				\
 	{								\
-	  CFG_ERR("Invalid mask bit value, %d\n", msk[jj]);		\
+	  CFG_ERR("Invalid mask bit value, %d\n", msk[chan]);		\
 	  return(-6);							\
 	}								\
     }
