@@ -74,28 +74,22 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 DEPFILES := $(VMEROL:%.so=$(DEPDIR)/%.d)
 DEPFILES += $(CFILES:%.c=$(DEPDIR)/%.d)
 
-COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) $(CPPFLAGS) $(TARGET_ARCH)
-
 
 all:  $(VMEROL) $(SOBJS)
 
-event_list.c: event_list.crl Makefile
+event_list.c: event_list.crl
 	@echo " CCRL   $@"
 	${Q}${CCRL} $<
 
 event_list.so: event_list.c
+%.so: %.c $(DEPDIR)/%.d | $(DEPDIR)
 	@echo " CC     $@"
-	${Q}${CC} ${CODA_CFLAGS} -o $@ $<
+	${Q}${CC} $(DEPFLAGS) ${CODA_CFLAGS} -o $@ $<
 
 %.so: %.c
 %.so: %.c $(DEPDIR)/%.d | $(DEPDIR)
 	@echo " CC     $@"
-	${Q}$(COMPILE.c) -fpic -shared  $(CFLAGS) $(INCS) $(LIBS) \
-		-DINIT_NAME=$(@:.so=__init) -DINIT_NAME_POLL=$(@:.so=__poll) -o $@ $<
-
-fadc_vxs_list.so: fadc_vxs_list.c
-	@echo " CC     $@"
-	${Q}$(CC) -fpic -shared  $(CFLAGS) $(INCS) $(LIBS) -lts -lsd \
+	${Q}${CC} $(DEPFLAGS)  -fpic -shared  $(CFLAGS) $(INCS) $(LIBS) \
 		-DINIT_NAME=$(@:.so=__init) -DINIT_NAME_POLL=$(@:.so=__poll) -o $@ $<
 
 clean distclean:
