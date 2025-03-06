@@ -3,52 +3,6 @@
  *  faV3Config.c  -  configuration library file for fADC250 V3 board
  *
  *  empty lines and line startes with # - will be ignored
- *  config file format:
-
-CRATE             <rocipname>   <- ROC/crate IP name
-FAV3_ALLSLOTS             <- just keyword - all settings after this line will be implemented
-#                                              for all slots, till FAV3_SLOTS will be met
-FAV3_SLOTS     3  8  15   <- slot_numbers - in which next settings will be implemented
-#                                              till file ends or next FAV3_SLOTS will be met
-FAV3_F_REV     0x02c1     <- firmware revision  (0x0 Bits:7-0)
-FAV3_B_REV     0x0a03     <- board revision     (0x0 Bits:15-8)
-FAV3_ID        0xfadc     <- board type         (0x0 Bits:31-16)
-
-FAV3_MODE         1   <- process mode: 1-4  (0x10C Bits:2-0)
-FAV3_COMPRESSION  0   <- compression mode: 0-uncompressed, 1-compressed, 2-both
-FAV3_VXSREADOUT   0   <- readout data through VXS: 0-disable, 1-enable
-FAV3_W_OFFSET  50  <- number of ns back from trigger point. (0x120)
-#                           (in Manual it is  PL=Trigger_Window(ns) * 250MHz)
-FAV3_W_WIDTH   49  <- number of ns to include in trigger window. (0x11C)
-#                           (in M:  PTW=Trigger_Window(ns) * 250MHz, minimum is 6)
-FAV3_NSB       3   <- number of ns before trigger point to include in data processing. (0x124)
-#                           This include the trigger Point. (minimum is 2 in all mode)
-FAV3_NSA       6   <- number of ns after trigger point to include in data processing. (0x128)
-#                           Minimum is (6 in mode 2) and ( 3 in mode 0 and 1).
-#                           Number of sample report is 1 more for odd and 2 more for even NSA number.
-FAV3_NPEAK     1   <- number of Pulses in Mode 2 and 3.  (0x10C Bits:6-5)
-
-#                 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 - channels ##
-FAV3_ADC_MASK  1  0  1  0  1  0  1  0  1  0  1  0  1  0  1  0   <- channel enable mask
-FAV3_TRG_MASK  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   <- trigger enable mask
-
-
-FAV3_TET       110        <- board Trigger Energy Threshold (TET), same for all 16 channels
-FAV3_CH_TET    0    110   <- channel# and TET_value for this channel
-FAV3_ALLCH_TET 111  222  2  3  4  5  6  7  8  9  10  11  12  13  14  15   <- 16 TETs (0x12C - 0x148)
-
-FAV3_DAC       3300       <- board DAC, one and the same for all 16 channels
-FAV3_CH_DAC    0    3300  <- channel# and DAC_value for this channel
-FAV3_ALLCH_DAC 3300 3280 3310 3280 3310 3280 3310 3280 3300 3280 3300 3280 3310 3280 3310 3280 <- 16 DACs
-
-FAV3_PED       210        <- board Pedestals, same for all channels
-FAV3_CH_PED    0    210   <- channel# and Pedestal_value for this channel
-FAV3_ALLCH_PED 210  220  210  215  215  220  220  210  210  215  215  220  220  210  215  220  <- 16 PEDs
-
-
-FAV3_CONF_FILE  <filename> <- another config filename to be processed on next iteration
-
-
 */
 
 #include <stdio.h>
@@ -168,7 +122,7 @@ faV3ReadConfigFile(char *filename_in)
 
   /* Parsing of config file */
   active = 0; /* by default disable crate */
-
+  int ch = 0;
   while ((ch = getc(fd)) != EOF)
     {
       if ( ch == '#' || ch == ' ' || ch == '\t' )

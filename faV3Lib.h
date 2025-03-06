@@ -31,9 +31,9 @@
 #define FAV3_VME_INT_LEVEL           3
 #define FAV3_VME_INT_VEC          0xFA
 
-#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x0E
+#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x20E
 #define FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER 1
-#define FAV3_SUPPORTED_PROC_FIRMWARE 0xE00
+#define FAV3_SUPPORTED_PROC_FIRMWARE 0xE05
 #define FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER 1
 
 /* Macros to help with register spacers */
@@ -392,7 +392,7 @@ typedef struct faV3_sdc_struct
 #define FAV3_DAC_MAX_VALUE         0xFFF
 
 /* Define Bit Masks */
-#define FAV3_VERSION_MASK        0x000000ff
+#define FAV3_VERSION_MASK        0x00000fff
 #define FAV3_BOARD_MASK          0xffff0000
 #define FAV3_CSR_MASK            0x0fffffff
 #define FAV3_CONTROL_MASK        0xffffffff
@@ -653,10 +653,6 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3SDC_CTRL_ASSERT_SOFT_BUSY   0x8000
 #define FAV3SDC_CTRL_MASK               0x8331
 
-/* Definitions for FADC Firmware Tools */
-#define FAV3_FIRMWARE_LX110    0
-#define FAV3_FIRMWARE_FX70T    1
-
 #define FAV3_CTRL1_SYSTEM_TEST_MODE   (1<<31)
 
 #define FAV3_TESTBIT_TRIGOUT          (1<<0)
@@ -685,7 +681,7 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 
 
-/* faInit initialization flag bits */
+/* faV3Init initialization flag bits */
 #define FAV3_INIT_SOFT_SYNCRESET      (0<<0)
 #define FAV3_INIT_EXT_SYNCRESET       (1<<0)
 #define FAV3_INIT_SOFT_TRIG           (0<<1)
@@ -700,7 +696,7 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_INIT_SKIP_FIRMWARE_CHECK (1<<18)
 #define FAV3_INIT_MULTIBLOCK_ONLY     (1<<19)
 #define FAV3_INIT_VXS_READOUT_ONLY    (1<<20)
-#define FAV3_INIT_SKIP_IDELAY_CONFIG  (1<<21)
+#define FAV3_INIT_A32_SLOTNUMBER      (1<<21)
 
 /* Define Init Flag bits for Clock Source */
 #define FAV3_SOURCE_INT         FAV3_INIT_INT_CLKSRC
@@ -867,6 +863,7 @@ int32_t faV3DACClear(int id);
 int32_t faV3DACStatus(int id);
 int32_t faV3DACSet(int id, int chan, uint32_t dac_value);
 int32_t faV3DACGet(int id, int chan, uint32_t *dac_value);
+int32_t faV3DACPrint(int id);
 
 int faV3SetPedestal(int id, uint32_t chan, uint32_t ped);
 int faV3GetPedestal(int id, uint32_t chan);
@@ -914,8 +911,8 @@ int faV3SetScalerBlockInterval(int id, uint32_t nblock);
 int faV3GetScalerBlockInterval(int id);
 int faV3ForceEndOfBlock(int id, int scalers);
 void faV3GForceEndOfBlock(int scalers);
-int32_t faV3IdelayStatus(int32_t id, int32_t pflag);
 int32_t faV3LoadIdelay(int32_t id, int32_t pflag);
+int32_t faV3IDelayPrint(int32_t id);
 
 /* SDC prototypes */
 int faV3SDC_Config(uint16_t cFlag, uint16_t bMask);

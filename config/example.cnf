@@ -75,7 +75,7 @@ FAV3_CRATE all
 
 FAV3_SLOT 3
 
-FAV3_PROC_VERSION 0xE02
+FAV3_PROC_VERSION 0xE05
 
 #       channel:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 FAV3_ADC_MASK     1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1

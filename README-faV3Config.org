@@ -1,4 +1,4 @@
-This README describes the use of the faV3Config library of routines to configure one or more fadc250 V3s.  The configuration file routines here were adapted from the Hall-B implementation.
+This README describes the use of the faV3Config library of routines to configure one or more fadc250 V3s.  The configuration file routines here were adapted from the Hall B and Hall D implementation.
 
 * Example faV3Config file
 - contains all definitions recognized by faV3Config:
@@ -17,7 +17,7 @@ config/example.cnf
 
 ** Call =faV3Config=
 - after fadc initialization with =faInit(...)=:
-
+  
 #+begin_src C
 int faV3Config(char *fname);
 #+end_src
@@ -32,21 +32,9 @@ faV3Config("example.cnf");
 
 - PATHS checked:
 #+begin_example
-${FAV3_PARAMS}/example.cnf
-./faV3/example.cnf
-#+end_example
-
-**** Filename with ./ relative path
-
-#+begin_src C
-faV3Config("./example.cnf");
-#+end_src
-
-- PATHS checked:
-#+begin_example
 ./example.cnf
 #+end_example
-     
+
 **** Filename with full path
 
 #+begin_src C
@@ -58,37 +46,14 @@ faV3Config("/full/path/example.cnf");
 /full/path/example.cnf
 #+end_example
      
-**** No filename
 
-#+begin_src C
-faV3Config("");
-#+end_src
-
-- PATHS checked:
-#+begin_example
-${FAV3_PARAMS}/faV3/${EXPID}.cnf
-./faV3/${EXPID}.cnf     
-#+end_example
-
-
-** =FADC_READ_CONF_FILE=
+** =FAV3_READ_CONF_FILE=
 - Defined in the example readout list (rol/fadc_vxs_list.c) as
 #+begin_src C
-#define FADC_READ_CONF_FILE {			\
-    faV3Config("");				\
+#define FAV3_READ_CONF_FILE {		\
     if(rol->usrConfig)			\
       faV3Config(rol->usrConfig);		\
   }
 #+end_src
 
-This macro first looks for config file here:
-#+begin_example
-${FAV3_PARAMS}/faV3/${EXPID}.cnf
-#+end_example
-or 
-#+begin_example
-./faV3/${EXPID}.cnf
-#+end_example
-and applies them to the modules initialized with =faInit(...)=
-
-Then it checks for a configuration file specified in the COOL database.  The string is taken from the ROC Component setting "User Config".  If it is defined, faV3Config will treat the config file as is done in the examples above.
+This macro checks for a configuration file specified in the COOL database.  The string is taken from the ROC Component setting "User Config".  If it is defined, faV3Config will treat the config file as is done in the examples above.

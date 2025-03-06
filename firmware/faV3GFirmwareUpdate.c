@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <getopt.h>
 #include "jvme.h"
 #include "faV3Lib.h"
 #include "faV3FirmwareTools.h"
@@ -61,16 +62,28 @@ main(int argc, char *argv[])
 
   progName = argv[0];
 
-  if(argc < 2)
-    {
-      printf(" ERROR: Must specify one argument\n");
+  int32_t force = 0, yes = 0, opt;
+
+  while ((opt = getopt(argc, argv, "fy")) != -1) {
+    switch (opt) {
+    case 'f':
+      force = 1;
+      break;
+    case 'y':
+      yes = 1;
+      break;
+    default: /* '?' */
       Usage();
-      exit(-1);
+      exit(EXIT_FAILURE);
     }
-  else
-    {
-      fw_filename = argv[1];
-    }
+  }
+
+  if ((optind + 1) != argc) {
+    Usage();
+    exit(EXIT_FAILURE);
+  }
+
+  fw_filename = argv[optind++];
 
   vmeSetQuietFlag(1);
   status = vmeOpenDefaultWindows();
@@ -91,36 +104,70 @@ main(int argc, char *argv[])
       goto CLOSE;
     }
 
+  int32_t update_count = 0;
+  printf("\n\n");
+  printf("Slot     Ctrl      Proc    Update\n");
+  printf("----------------------------------\n");
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
+      int skip = 0;
+      uint32_t ctrl = 0, proc = 0;
+
       cfw = faV3GetFirmwareVersions(faV3Slot(ifa), 0);
-      printf("%2d: Control Firmware Version: 0x%04x   Proc Firmware Version: 0x%04x\n",
-	     faV3Slot(ifa), cfw & 0xFFFF, (cfw >> 16) & 0xFFFF);
+      ctrl = cfw & 0xFFFF;
+      proc = (cfw >> 16) & 0xFFFF;
+
+      if(ctrl == (FAV3_SUPPORTED_CTRL_FIRMWARE) && (proc == FAV3_SUPPORTED_PROC_FIRMWARE))
+	skip = 1;
+
+      if((skip == 0) || (force == 1))
+	update_count++;
+
+      printf(" %2d    ", faV3Slot(ifa));
+      printf("0x%04x    ", ctrl);
+      printf("0x%04x       ", proc);
+      printf("%s",
+	     ((skip == 0) || (force == 1)) ? "YES" : " NO");
+      printf("\n");
     }
 
-  printf(" Will update firmware with file: \n   %s\n", fw_filename);
-
- REPEAT2:
-  printf(" Press y and <ENTER> to continue... n or q and <ENTER> to quit without update\n");
-
-  scanf("%s", (char *) inputchar);
-
-  if((strcmp(inputchar, "q") == 0) || (strcmp(inputchar, "Q") == 0) ||
-     (strcmp(inputchar, "n") == 0) || (strcmp(inputchar, "N") == 0))
+  if(update_count == 0)
     {
-      printf(" Exiting without update\n");
+      printf("\n");
+      printf(" All FADC firmware is already up to date with\n");
+      printf("   Ctrl: 0x%04x\n", FAV3_SUPPORTED_CTRL_FIRMWARE);
+      printf("   Proc: 0x%04x\n", FAV3_SUPPORTED_PROC_FIRMWARE);
+      printf("\n");
       goto CLOSE;
     }
-  else if((strcmp(inputchar, "y") == 0) || (strcmp(inputchar, "Y") == 0))
+
+  printf("\n\n");
+  printf(" Update firmware with file: \n   %s\n", fw_filename);
+
+  while(!yes)
     {
+      printf("\n");
+      printf(" Press y and <ENTER> to continue... n or q and <ENTER> to quit without update\n");
+
+      scanf("%s", (char *) inputchar);
+
+      if((strcmp(inputchar, "q") == 0) || (strcmp(inputchar, "Q") == 0) ||
+	 (strcmp(inputchar, "n") == 0) || (strcmp(inputchar, "N") == 0))
+	{
+	  printf(" Exiting without update\n");
+	  goto CLOSE;
+	}
+      else if((strcmp(inputchar, "y") == 0) || (strcmp(inputchar, "Y") == 0))
+	{
+	  yes = 1;
+	}
     }
-  else
-    goto REPEAT2;
+
 
   if(faV3FirmwareReadFile(fw_filename) != OK)
     goto CLOSE;
 
-  faV3FirmwareGLoad(0);
+  faV3FirmwareGLoad(0, force);
 
  CLOSE:
 
@@ -140,7 +187,13 @@ void
 Usage()
 {
   printf("\n");
-  printf("%s <firmware file>\n", progName);
+  printf("%s <options> <firmware file>\n", progName);
+  printf("\n");
+  printf("\n");
+  printf(" options:\n");
+  printf("     -f                  force program of all modules,\n");
+  printf("                         regardless of supported firmware\n");
+  printf("     -y                  assume 'yes' to all prompts\n");
   printf("\n");
 
 }

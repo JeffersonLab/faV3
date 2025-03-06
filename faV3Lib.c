@@ -201,7 +201,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   int useList = 0;
   int multiBlockOnly = 0;
   int vxsReadoutOnly = 0;
-  int32_t skipIdelayConfig = 0;
+  int useSlotNumbers=0;
   uint16_t ctrl_version = 0, proc_version = 0;
 
   /* Check if we have already Initialized boards before */
@@ -227,7 +227,11 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   /* Check if we're reading out through the VXS (VTP) */
   vxsReadoutOnly = (iFlag & FAV3_INIT_VXS_READOUT_ONLY) ? 1 : 0;
 
-  skipIdelayConfig = (iFlag & FAV3_INIT_SKIP_IDELAY_CONFIG) ? 1 : 0;
+  /* Use slot numbers for A32 addressing */
+  useSlotNumbers = (iFlag & FAV3_INIT_A32_SLOTNUMBER) ? 1 : 0;
+
+  if(useSlotNumbers)
+    faV3A32Base = 0;
 
   /* Check for valid address */
   if(addr == 0)
@@ -436,13 +440,6 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	  vmeWrite32(&(FAV3p[faV3ID[ii]]->reset), FAV3_RESET_ALL);
 	}
       taskDelay(60);
-      for(ii = 0; ii < nfaV3; ii++)
-	{
-	  faV3DACInit(faV3ID[ii]);
-	  faV3DACClear(faV3ID[ii]);
-	  if(!skipIdelayConfig) faV3LoadIdelay(faV3ID[ii], 1);
-	  else printf("%s: skipping idelay config\n", __func__);
-	}
     }
 
   /* Initialize Interrupt variables */
@@ -452,34 +449,6 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   faV3IntVec = FAV3_VME_INT_VEC;
   faV3IntRoutine = NULL;
   faV3IntArg = 0;
-
-  /* Calculate the A32 Offset for use in Block Transfers */
-#ifdef VXWORKS
-  res = sysBusToLocalAdrs(0x09, (char *) faV3A32Base, (char **) &laddr);
-  if(res != 0)
-    {
-      printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-	     faV3A32Base);
-      return (ERROR);
-    }
-  else
-    {
-      faV3A32Offset = laddr - faV3A32Base;
-    }
-#else
-  res =
-    vmeBusToLocalAdrs(0x09, (char *) (u_long) faV3A32Base, (char **) &laddr);
-  if(res != 0)
-    {
-      printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-	     faV3A32Base);
-      return (ERROR);
-    }
-  else
-    {
-      faV3A32Offset = laddr - faV3A32Base;
-    }
-#endif
 
   if(!noBoardInit)
     {
@@ -666,26 +635,26 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
       if((!multiBlockOnly) || (!vxsReadoutOnly))
 	{
 	  /* Program an A32 access address for this FADC's FIFO */
-	  a32addr = faV3A32Base + ii * FAV3_MAX_A32_MEM;
+	  if(useSlotNumbers)
+	    a32addr = faV3ID[ii] << 23;
+	  else
+	    a32addr = faV3A32Base + ii * FAV3_MAX_A32_MEM;
+
 #ifdef VXWORKS
 	  res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
-	  if(res != 0)
-	    {
-	      printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-		     a32addr);
-	      return (ERROR);
-	    }
 #else
-	  res =
-	    vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
-	  if(res != 0)
-	    {
-	      printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-		     a32addr);
-	      return (ERROR);
-	    }
+	  res = vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
 #endif
-	  FAV3pd[faV3ID[ii]] = (uint32_t *) (laddr);	/* Set a pointer to the FIFO */
+	  if ((res != 0) || (faV3A32Offset == 0))
+	    {
+	      FAV3pd[faV3ID[ii]] = (unsigned int *)(unsigned long) a32addr;
+	      faV3A32Offset = 0;
+	    }
+	  else
+	    {
+	      faV3A32Offset = laddr - (unsigned long) a32addr;
+	      FAV3pd[faV3ID[ii]] = (uint32_t *) (laddr);	/* Set a pointer to the FIFO */
+	    }
 	}
 
       if(!noBoardInit)
@@ -702,6 +671,14 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 		     (vmeRead32(&FAV3p[faV3ID[ii]]->ctrl1) &
 		      ~(FAV3_REF_CLK_MASK | FAV3_TRIG_MASK | FAV3_SRESET_MASK)) |
 		     (clkSrc | srSrc | trigSrc) );
+
+	  /* Initialize DAC */
+	  faV3DACInit(faV3ID[ii]);
+	  faV3DACClear(faV3ID[ii]);
+
+	  /* Configure IDelay */
+	  faV3LoadIdelay(faV3ID[ii], 0);
+
 	}
     }				//End loop through fadcs
 
@@ -709,29 +686,25 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
      window. This must be the same on each board in the crate */
   if((nfaV3 > 1) && (!vxsReadoutOnly))
     {
-      if(multiBlockOnly)
-	a32addr = faV3A32Base;
+      if(useSlotNumbers)
+	a32addr = 22 << 23;
       else
-	a32addr = faV3A32Base + (nfaV3 + 1) * FAV3_MAX_A32_MEM;	/* set MB base above individual board base */
+	{
+	  if(multiBlockOnly)
+	    a32addr = faV3A32Base;
+	  else
+	    a32addr = faV3A32Base + (nfaV3 + 1) * FAV3_MAX_A32_MEM;	/* set MB base above individual board base */
+	}
 #ifdef VXWORKS
       res = sysBusToLocalAdrs(0x09, (char *) a32addr, (char **) &laddr);
-      if(res != 0)
-	{
-	  printf("%s: ERROR in sysBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-		 a32addr);
-	  return (ERROR);
-	}
 #else
-      res =
-	vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
-      if(res != 0)
-	{
-	  printf("%s: ERROR in vmeBusToLocalAdrs(0x09,0x%x,&laddr) \n", __func__,
-		 a32addr);
-	  return (ERROR);
-	}
+      res = vmeBusToLocalAdrs(0x09, (char *) (u_long) a32addr, (char **) &laddr);
 #endif
-      FAV3pmb = (uint32_t *) (laddr);	/* Set a pointer to the FIFO */
+      if ((res != 0) || (faV3A32Offset == 0))
+	FAV3pmb = (unsigned int *)(unsigned long)a32addr;
+      else
+	FAV3pmb = (unsigned int *)(laddr);  /* Set a pointer to the FIFO */
+
       if(!noBoardInit)
 	{
 	  for(ii = 0; ii < nfaV3; ii++)
@@ -876,8 +849,6 @@ faV3SetClockSource(int id, int clkSrc)
 	     (vmeRead32(&FAV3p[id]->ctrl1) & ~(FAV3_REF_CLK_MASK)) |
 	     (clkSrc | FAV3_ENABLE_INTERNAL_CLK));
   taskDelay(20);
-  printf("%s: ctrl1 = 0x%08x\n",
-	 __func__, vmeRead32(&FAV3p[id]->ctrl1));
   FAV3UNLOCK;
 
   switch (clkSrc)
@@ -899,6 +870,9 @@ faV3SetClockSource(int id, int clkSrc)
       printf("%s: FADC id %d clock source set to VXS (P0)\n", __func__, id);
       break;
     }
+
+  /* Re-run the idelay configuration */
+  faV3LoadIdelay(id, 0);
 
   return OK;
 }
@@ -965,6 +939,13 @@ faV3GSetClockSource(int clkSrc)
     case FAV3_REF_CLK_MASK:
       printf("%s: FADC clock source set to VXS (P0)\n", __func__);
       break;
+    }
+
+  /* Re-run the idelay configuration */
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      faV3LoadIdelay(id, 0);
     }
 
   return OK;
@@ -2196,6 +2177,13 @@ faV3SetupADC(int id, int32_t mode)
 
   CHECKID;
 
+  if((mode < 0) || (mode > 2))
+    {
+      printf("%s: ERROR: Invalid mode (%d)\n",
+	     __func__, mode);
+      return ERROR;
+    }
+
   mode = 0;
   taskDelay(1);
 
@@ -2598,6 +2586,11 @@ faV3ReadBlock(int id, volatile uint32_t *data, int nwrds, int rflag)
     }
   else
     {				/*Programmed IO */
+      if(faV3A32Offset == 0)
+	{
+	  logMsg("faV3ReadBlock(%d): ERROR: Invalid Readout mode (%d) for A32 address (0x%08x)", rmode, (unsigned int)(unsigned long)FAV3pd[id]);
+	  return ERROR;
+	}
 
       /* Check if Bus Errors are enabled. If so then disable for Prog I/O reading */
       FAV3LOCK;
@@ -4687,91 +4680,36 @@ faV3DACGet(int id, int chan, uint32_t *dac_value)
 }
 
 int32_t
-test_dac(int32_t id)
+faV3DACPrint(int id)
 {
-  // writes different values to all DAC channels, then read back and compare
-
-  uint32_t dac_channel, dac_value, csr_value, data_from_dac, chan_value;
-  uint32_t ready, success, not_ready_since_clear, timeout_since_clear;
-  uint32_t start_value, value_to_write, expected_value, dac_error;
-  uint32_t ii;
-  uint32_t READ_CSR_AFTER_WRITE, READ_CSR_AFTER_READ;
+  int32_t rval = OK;
+  int32_t ichan, nchan = FAV3_MAX_ADC_CHANNELS;
+  uint32_t dac_value[FAV3_MAX_ADC_CHANNELS];
 
   CHECKID;
 
-  READ_CSR_AFTER_WRITE = 0;	// '0' = do not read CSR after WRITE
-  READ_CSR_AFTER_READ = 0;	// '0' = do not read CSR after READ
-
-  dac_error = 0;
-  start_value = 3000;		// start value
-  printf("\n ---------------- WRITE all DAC channels ----------------\n");
-  for(ii = 0; ii < 16; ii++)	// write values to all channels
+  for(ichan = 0; ichan < nchan; ichan++)
     {
-#ifdef DACTEST1
-      vmeWrite32(&FAV3p[id]->dac_csr, ii);	// write DAC channel to CSR
-      value_to_write = start_value + ii * 50;	// DAC value to write
-      vmeWrite32(&FAV3p[id]->dac_data, value_to_write);	// write DAC
-      if(READ_CSR_AFTER_WRITE)
+      if(faV3DACGet(id, ichan, &dac_value[ichan]) < 0)
 	{
-	  taskDelay(1);
-	  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read CSR value for status bits after write
-	  //            ------------------------------------------------------
-	  printf("\nDAC CSR value after channel %d write = %X\n", ii,
-		 csr_value);
-	  ready = (csr_value >> 16) & 1;
-	  success = (csr_value >> 17) & 1;
-	  not_ready_since_clear = (csr_value >> 18) & 1;
-	  timeout_since_clear = (csr_value >> 19) & 1;
-	  printf("CSR status: ready = %d  success = %d  not ready(since clear) = %d  timeout(since clear) = %d\n",
-		 ready, success, not_ready_since_clear, timeout_since_clear);
-	  //            ------------------------------------------------------
-	}
-#else
-      faV3DACSet(id, ii, start_value + ii * 50);
-#endif
-    }
-
-  printf("\n ---------------- READ all DAC channels ----------------\n");
-  for(ii = 0; ii < 16; ii++)	// read values from all channels
-    {
-#ifdef DACTEST1
-      vmeWrite32(&FAV3p[id]->dac_csr, ii);	// write DAC channel to CSR
-      data_from_dac = vmeRead32(&FAV3p[id]->dac_data);	// read DAC
-      dac_value = 0xFFF & data_from_dac;
-      chan_value = (data_from_dac >> 14) & 0xF;
-      printf("\n******** HEX DAC data (req chan %d) = %X  (actual chan %d  dac_value (dec) = %d)\n",
-	     ii, data_from_dac, chan_value, dac_value);
-
-      if(READ_CSR_AFTER_READ)
-	{
-	  taskDelay(1);
-	  csr_value = vmeRead32(&FAV3p[id]->dac_csr);	// read CSR value for status bits after read
-	  //            ------------------------------------------------------
-	  printf("DAC CSR value after read = %X\n", csr_value);
-	  ready = (csr_value >> 16) & 1;
-	  success = (csr_value >> 17) & 1;
-	  not_ready_since_clear = (csr_value >> 18) & 1;
-	  timeout_since_clear = (csr_value >> 19) & 1;
-	  printf("CSR status: ready = %d  success = %d  not ready(since clear) = %d  timeout(since clear) = %d\n",
-		 ready, success, not_ready_since_clear, timeout_since_clear);
-	  //            ------------------------------------------------------
-	}
-#else
-      faV3DACGet(id, ii, &dac_value);
-#endif
-      expected_value = start_value + ii * 50;	// compare
-      if(dac_value != expected_value)
-	{
-	  printf("\n !!!!!!!! ERROR IN DAC READBACK of channel %d !!!!!!!!\n\n",
-		 ii);
-	  dac_error = 1;
+	  rval = ERROR;
+	  break;
 	}
     }
 
-  if(dac_error == 0)
-    printf("\n ******** NO ERRORS ********\n");
+  if(rval == OK)
+    {
+      printf("%s(%d):\n", __func__, id);
+      printf(" Ch    DAC\n");
+      for(ichan = 0; ichan < nchan; ichan++)
+	{
+	  printf(" %2d    %4d\n",
+		 ichan, dac_value[ichan]);
+	}
+      printf("\n");
+    }
 
-  return 0;
+  return rval;
 }
 
 
@@ -6968,39 +6906,6 @@ faV3GetTriggersProcessedCount(int id)
 }
 
 int32_t
-faV3IdelayStatus(int32_t id, int32_t pflag)
-{
-  int32_t rval = OK;
-  uint32_t status1 = 0, status2 = 0;
-  uint32_t IdelayCtrlRdy = 0, DoneLdIdelay = 0;
-  const uint32_t DoneLdIdelayMask = 0x80000000;
-  const int32_t IdelayCtrlRdyMask = 1;
-
-  CHECKID;
-
-  FAV3LOCK;
-  status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
-  status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
-  FAV3UNLOCK;
-
-  DoneLdIdelay = status1 & DoneLdIdelayMask;
-  IdelayCtrlRdy = status2 & IdelayCtrlRdyMask;
-
-  if(DoneLdIdelay && IdelayCtrlRdy)
-    rval = OK;
-  else
-    rval = ERROR;
-
-  if(pflag)
-    {
-      printf("%s(id = %d): Done = %d  Ready = %d  status1 = 0x%08x  status2 = 0x%08x\n",
-	     __func__, id, DoneLdIdelay, IdelayCtrlRdy, status1, status2);
-    }
-
-  return rval;
-}
-
-int32_t
 faV3LoadIdelay(int32_t id, int32_t pflag)
 {
   //  The time delay of Idelay component in Ultra Scale Xilinx FPGA is
@@ -7051,8 +6956,8 @@ faV3LoadIdelay(int32_t id, int32_t pflag)
 
   FAV3LOCK;
 
-  DoneLdIdelay = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask;
-  IdelayCtrlRdy = vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask;
+  DoneLdIdelay = (vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask) ? 1 : 0;
+  IdelayCtrlRdy = (vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask) ? 1 : 0;
   if(DoneLdIdelay && IdelayCtrlRdy)
     {
       FAV3UNLOCK;
@@ -7210,21 +7115,120 @@ faV3LoadIdelay(int32_t id, int32_t pflag)
 }
 
 int32_t
-faV3IDelayStatus(int32_t id)
+faV3IDelayPrint(int32_t id)
 {
+  //  The time delay of Idelay component in Ultra Scale Xilinx FPGA is
+  //  determined by the setting of the Idelay Count Value 512
+  //  taps. Each tap delays input by 17.857 pS.
+  //  The purpose of this routine is to take into VTC feature of the Idelay.
+  //  It does the following:
+  //    1) Read the desired delays (in pSec from serial ROM on the FADCV3 board => IdelayValInRom
+  //    2) Read the present Idely Count Values  (position of 512 taps) => InitIdelyCountValue
+  //    3) Tap delay resoultion; TapRes = 500 pS/InitIdelyCountValue
+  //    4) NewTapVal =  TapRes *  IdelayValInRom
+  //    5) Program NewTapVal into Idelay
   int32_t rval = OK;
-  uint32_t status1 = 0, status2 = 0;
+  uint32_t ADC_Chan;
+  uint32_t IdelayValInRom[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t InitIdelyCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t InitOdelyCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t DiffInitCountValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  int32_t NewIdelCntValue[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint32_t IdelayAssignedInVHDLCode[16] = // Numbers that are in VHDL code
+    { 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000 };
+  uint32_t IDELAY_CONTROL_1_VAL;
+  uint32_t IdelayCtrlRdy, DoneLdIdelayCntVal, DoneLdIdelay;
+  float IdelayCountPerPsec;
+  uint32_t CountLoop;
+  const uint32_t HostSelIdelCntValueBitShift = 9;
+  const uint32_t IDECntValOutCh0_7_Mask = 0xFF800;
+  const uint32_t IDECntValOutCh15_8_Mask = 0x1FF00000;
+  const uint32_t SelCntValOutShift = 13;
+  const uint32_t IDE_CntValOutCH0_7_Shift = 11;
+  const uint32_t IDE_CntValOutCH16_8_Shift = 20;
+  const uint32_t ConfigIdelayBit = 0x10000;
+  const uint32_t HostIdelayTuneEnBit = 0x20000;
+  const uint32_t IdelayCtrlReset = 0x100000;
+  const uint32_t LdIdelayValueArray = 0x10;
+  const uint32_t LdIdelayCntValueArray = 0x80000;
+  const uint32_t DoneLdIdelayCntValMask = 0x20000000;
+  const uint32_t DoneLdIdelayMask = 0x80000000;
+  const int32_t IdelayCtrlRdyMask = 1;
+  int32_t invalid_diff = 0;
+  int32_t alreadyLoaded = 0;
+
   CHECKID;
 
   FAV3LOCK;
-  status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
-  status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
+
+  DoneLdIdelay = (vmeRead32(&FAV3p[id]->aux.idelay_status_1) & DoneLdIdelayMask) ? 1 : 0;
+  IdelayCtrlRdy = (vmeRead32(&FAV3p[id]->aux.idelay_status_2) & IdelayCtrlRdyMask) ? 1 : 0;
+  if(DoneLdIdelay && IdelayCtrlRdy)
+    {
+      alreadyLoaded = 1;
+    }
+
+  IDELAY_CONTROL_1_VAL = HostIdelayTuneEnBit;
+  vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
+
+  /// ****** Read IdelayValInRom  from FPGA
+  for(ADC_Chan = 0; ADC_Chan < 16; ++ADC_Chan)
+    {
+      vmeWrite32(&FAV3p[id]->aux.idelay_control_2, ADC_Chan | LdIdelayValueArray);
+
+      IdelayValInRom[ADC_Chan] = vmeRead32(&FAV3p[id]->aux.idelay_status_1) & 0x7FF;
+
+    }
+  /// Read current IdelAy count from FPGA to InitIdelyCountValue
+  for(ADC_Chan = 0; ADC_Chan < 8; ++ADC_Chan)
+    {
+      uint32_t status1 = 0, status2 = 0;
+      IDELAY_CONTROL_1_VAL = ADC_Chan << SelCntValOutShift;
+      vmeWrite32(&FAV3p[id]->aux.idelay_control_1, IDELAY_CONTROL_1_VAL);
+
+      status1 = vmeRead32(&FAV3p[id]->aux.idelay_status_1);
+      status2 = vmeRead32(&FAV3p[id]->aux.idelay_status_2);
+      InitIdelyCountValue[ADC_Chan] =
+	(status1 & IDECntValOutCh0_7_Mask) >> IDE_CntValOutCH0_7_Shift;
+
+      InitIdelyCountValue[ADC_Chan + 8] =
+	(status1 & IDECntValOutCh15_8_Mask) >> IDE_CntValOutCH16_8_Shift;
+
+      InitOdelyCountValue[ADC_Chan] =
+	(status2 & IDECntValOutCh0_7_Mask) >> IDE_CntValOutCH0_7_Shift;
+
+      InitOdelyCountValue[ADC_Chan + 8] =
+	(status2 & IDECntValOutCh15_8_Mask) >> IDE_CntValOutCH16_8_Shift;
+
+    }
+
   FAV3UNLOCK;
 
-  printf("%s: status1 = 0x%08x  status2 = 0x%08x\n",
-	 __func__, status1, status2);
+  int jj;
+  // print arrays
+  // ----------------------------------------------------------
+  printf("%s(%d): alreadyLoaded = %d\n", __func__, id, alreadyLoaded);
+  printf("  Ch  InRom     Init      Init0 \n");
+  printf("--------------------------------------------------------------------------\n");
 
-  return rval;
+  for(jj = 0; jj < 16; jj++)
+    {
+      printf(" %2d   ", jj);
+      printf("%4d      ", IdelayValInRom[jj]);
+      printf("%4d      ", InitIdelyCountValue[jj]);
+      printf("%4d      ", InitOdelyCountValue[jj]);
+      printf("\n");
+
+    }
+  printf("\n\n");
+
+  return (rval);
+
 }
 
 /***************************************************************************************

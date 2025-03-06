@@ -23,11 +23,12 @@
 #include "dmaBankTools.h"
 #include "tiprimary_list.c" /* source required for CODA */
 #include "faV3Lib.h"        /* library of FADC250 routines */
+#include "faV3-HallD.h"     /* Hall D firmware */
+#include "faV3Config.h"
 
 #define BUFFERLEVEL 1
 
 /* FADC Library Variables */
-extern uint32_t faV3A32Base;
 extern int nfaV3;
 
 /* Number of fadc250 to initialize */
@@ -37,11 +38,12 @@ extern int nfaV3;
 /* Increment address to find next fADC250 (increment by 1 slot) */
 #define FADC_INCR (1 << 19)
 
-#define FADC_BANK 0x3
+#define FADC_BANK 0x250
 
-#define FADC_WINDOW_LAT    375
-#define FADC_WINDOW_WIDTH   24
-#define FADC_MODE           10
+#define FAV3_READ_CONF_FILE {			\
+    if(rol->usrConfig)				\
+      faV3Config(rol->usrConfig);		\
+  }
 
 /* for the calculation of maximum data words in the block transfer */
 unsigned int MAXFADCWORDS=0;
@@ -106,54 +108,23 @@ rocDownload()
   iflag |= FAV3_INIT_FP_TRIG;  /* Front Panel Input trigger source */
   iflag |= FAV3_INIT_FP_CLKSRC;  /* Internal 250MHz Clock source */
 
+  extern uint32_t faV3A32Base;
   faV3A32Base = 0x09000000;
 
   vmeSetQuietFlag(1);
   faV3Init(FADC_ADDR, FADC_INCR, NFAV3, iflag);
   vmeSetQuietFlag(0);
 
+  /* configure all modules based on config file */
+  FAV3_READ_CONF_FILE;
+
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
+      /* Bus errors to terminate block transfers (preferred) */
       faV3EnableBusError(faV3Slot(ifa));
-
-      /* Set input DAC level */
-      faV3SetDAC(faV3Slot(ifa), 3250, 0);
-
-      /*  Set All channel thresholds to 150 */
-      faV3SetThreshold(faV3Slot(ifa), 150, 0xffff);
-
-      /*********************************************************************************
-       * faV3SetProcMode(int id, int pmode, unsigned int PL, unsigned int PTW,
-       *    int NSB, unsigned int NSA, unsigned int NP,
-       *    unsigned int NPED, unsigned int MAXPED, unsigned int NSAT);
-       *
-       *   id Slot number
-       *   pmode  Processing Mode
-       *     -     1 - Raw Window
-       *     -     2 - Pulse Raw Window
-       *     -     3 - Pulse Integral
-       *     -     4 - High-resolution time
-       *     -     7 - Mode 3 + Mode 4
-       *     -     8 - Mode 1 + Mode 4
-       *    PL  Window Latency
-       *   PTW  Window Width
-       *   NSB  Number of samples before pulse over threshold
-       *   NSA  Number of samples after pulse over threshold
-       *   NP   Number of pulses processed per window
-       *   bank Ignored
-       */
-      faV3SetProcMode(faV3Slot(ifa),
-		    FADC_MODE,   /* Processing Mode */
-		    FADC_WINDOW_LAT, /* PL */
-		    FADC_WINDOW_WIDTH,  /* PTW */
-		    3,   /* NSB */
-		    6,   /* NSA */
-		    1,   /* NP */
-		    0);  /* not used */
-
-
     }
 
+  tiStatus(0);
   faV3SDC_Status(0);
   faV3GStatus(0);
 
@@ -167,11 +138,11 @@ rocPrestart()
   int ifa;
 
   /* Program/Init VME Modules Here */
+  faV3GEnableSyncSrc();
   for(ifa=0; ifa < nfaV3; ifa++)
     {
       faV3SoftReset(faV3Slot(ifa),0);
       faV3ResetTriggerCount(faV3Slot(ifa));
-      faV3EnableSyncReset(faV3Slot(ifa));
     }
 
   /* Set number of events per block (broadcasted to all connected TI Slaves)*/
@@ -191,7 +162,6 @@ rocPrestart()
 void
 rocGo()
 {
-  int fadc_mode = 0, pl=0, ptw=0, nsb=0, nsa=0, np=0;
 
   /* Get the current block level */
   blockLevel = tiGetCurrentBlockLevel();
@@ -199,6 +169,12 @@ rocGo()
 	 __FUNCTION__,blockLevel);
 
   faV3GSetBlockLevel(blockLevel);
+
+  int fadc_mode = 0;
+  uint32_t pl=0, ptw=0, nsb=0, nsa=0, np=0, nped=0, maxped=0, nsat=0;
+  faV3HallDGetProcMode(0, &fadc_mode, &pl, &ptw,
+		       &nsb, &nsa, &np,
+		       &nped, &maxped, &nsat);
 
   /* Set Max words from fadc (proc mode == 1 produces the most)
      nfaV3 * ( Block Header + Trailer + 2  # 2 possible filler words
@@ -210,7 +186,7 @@ rocGo()
   MAXFADCWORDS = nfaV3 * (4 + blockLevel * (4 + 16 * (1 + (ptw / 2))) + 18);
 
   /*  Enable FADC */
-  faV3GEnable(0, 0);
+  faV3GEnable(0);
 
   /* Interrupts/Polling enabled after conclusion of rocGo() */
 }

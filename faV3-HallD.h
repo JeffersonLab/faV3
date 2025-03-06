@@ -45,8 +45,8 @@ typedef struct
   /* 0x01A4 */ volatile uint32_t rogue_ptw_fall_back;
 } faV3_halld_adc_t;
 
-#define FAV3_HALLD_SUPPORTED_CTRL_FIRMWARE 0x0E
-#define FAV3_HALLD_SUPPORTED_PROC_FIRMWARE 0xE02
+#define FAV3_HALLD_SUPPORTED_CTRL_FIRMWARE 0x20E
+#define FAV3_HALLD_SUPPORTED_PROC_FIRMWARE 0xE05
 
 #define FAV3_HALLD_PROC_MODE_PULSE_PARAM  9
 #define FAV3_HALLD_PROC_MODE_DEBUG       10
@@ -84,13 +84,13 @@ extern const char *faV3_halld_mode_names[FAV3_MAX_PROC_MODE + 1];
 int faV3HallDInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag);
 int faV3HallDCalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np);
 int faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
-			 int NSB, uint32_t NSA, uint32_t NP,
+			 uint32_t NSB, uint32_t NSA, uint32_t NP,
 			 uint32_t NPED, uint32_t MAXPED, uint32_t NSAT);
 void faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
-			   int NSB, uint32_t NSA, uint32_t NP,
+			   uint32_t NSB, uint32_t NSA, uint32_t NP,
 			   uint32_t NPED, uint32_t MAXPED, uint32_t NSAT);
 int32_t faV3HallDGetProcMode(int id, int *pmode, uint32_t *PL, uint32_t *PTW,
-			     int *NSB, uint32_t *NSA, uint32_t *NP,
+			     uint32_t *NSB, uint32_t *NSA, uint32_t *NP,
 			     uint32_t *NPED, uint32_t *MAXPED, uint32_t *NSAT);
 int faV3HallDProcPedConfig(int id, int nsamples, int maxvalue);
 int faV3HallDGProcPedConfig(int nsamples, int maxvalue);

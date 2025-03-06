@@ -74,20 +74,22 @@ faV3HallDInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
   int32_t ifa;
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_CTRL] != FAV3_HALLD_SUPPORTED_CTRL_FIRMWARE)
+      if((iFlag & FAV3_INIT_SKIP_FIRMWARE_CHECK) == 0)
 	{
-	  printf("%s: Slot %d control fw not compatible with Hall D library\n",
-		 __func__, faV3Slot(ifa));
-	  continue;
-	}
+	  if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_CTRL] != FAV3_HALLD_SUPPORTED_CTRL_FIRMWARE)
+	    {
+	      printf("%s: Slot %d control fw not compatible with Hall D library\n",
+		     __func__, faV3Slot(ifa));
+	      continue;
+	    }
 
-      if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_PROC] != FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
-	{
-	  printf("%s: Slot %d processing fw not compatible with Hall D library\n",
-		 __func__, faV3Slot(ifa));
-	  continue;
+	  if(faV3FwRev[faV3Slot(ifa)][FAV3_FW_PROC] != FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
+	    {
+	      printf("%s: Slot %d processing fw not compatible with Hall D library\n",
+		     __func__, faV3Slot(ifa));
+	      continue;
+	    }
 	}
-
       HallDp[faV3Slot(ifa)] = (faV3_halld_adc_t *)((u_long)FAV3p[faV3Slot(ifa)] + 0x100);
       printf("%s: Slot %d: CTRL 0x%x PROC 0x%x\n",
 	     __func__, faV3Slot(ifa),
@@ -209,7 +211,7 @@ faV3HallDCalcMaxUnAckTriggers(int mode, int ptw, int nsa, int nsb, int np)
  */
 int
 faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
-		     int NSB, uint32_t NSA, uint32_t NP,
+		     uint32_t NSB, uint32_t NSA, uint32_t NP,
 		     uint32_t NPED, uint32_t MAXPED, uint32_t NSAT)
 {
   int rval = OK;
@@ -384,7 +386,7 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 
 void
 faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
-		      int NSB, uint32_t NSA, uint32_t NP,
+		      uint32_t NSB, uint32_t NSA, uint32_t NP,
 		      uint32_t NPED, uint32_t MAXPED, uint32_t NSAT)
 {
   int ii, res;
@@ -399,7 +401,7 @@ faV3HallDGSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 
 int32_t
 faV3HallDGetProcMode(int id, int *pmode, uint32_t *PL, uint32_t *PTW,
-		     int *NSB, uint32_t *NSA, uint32_t *NP,
+		     uint32_t *NSB, uint32_t *NSA, uint32_t *NP,
 		     uint32_t *NPED, uint32_t *MAXPED, uint32_t *NSAT)
 {
   int32_t rval = OK;

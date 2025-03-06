@@ -23,7 +23,7 @@ int32_t faV3FirmwareLoad(int32_t id, int32_t pFlag);
 int32_t faV3FirmwareDownload(int32_t id, int32_t pFlag);
 int32_t faV3FirmwareVerify(int32_t id, int32_t pFlag);
 int32_t faV3FirmwareDone(int32_t pFlag);
-int32_t faV3FirmwareGLoad(int32_t pFlag);
+int32_t faV3FirmwareGLoad(int32_t pFlag, int32_t force);
 int32_t faV3FirmwareReadFile(char *filename);
 int32_t faV3FirmwareWriteFile(char *filename);
 int32_t faV3FirmwareReadMcsFile(char *filename);
