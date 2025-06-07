@@ -48,11 +48,12 @@ typedef struct
 #define FAV3_HALLD_SUPPORTED_CTRL_FIRMWARE 0x20E
 #define FAV3_HALLD_SUPPORTED_PROC_FIRMWARE 0xE05
 
+#define FAV3_HALLD_PROC_MODE_RAW          1
 #define FAV3_HALLD_PROC_MODE_PULSE_PARAM  9
 #define FAV3_HALLD_PROC_MODE_DEBUG       10
 
-#define FAV3_HALLD_SUPPORTED_MODES                   9,10
-#define FAV3_HALLD_SUPPORTED_NMODES                     2
+#define FAV3_HALLD_SUPPORTED_MODES                 1,9,10
+#define FAV3_HALLD_SUPPORTED_NMODES                     3
 
 extern const char *faV3_halld_mode_names[FAV3_MAX_PROC_MODE + 1];
 

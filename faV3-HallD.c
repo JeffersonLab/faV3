@@ -48,7 +48,7 @@ int faV3AlignmentDebug=0;                            /* Flag to send alignment s
 const char *fa_halld_mode_names[FAV3_MAX_PROC_MODE+1] =
   {
     "NOT DEFINED", // 0
-    "NOT DEFINED",
+    "RAW WINDOW", // 1
     "NOT DEFINED",
     "NOT DEFINED",
     "NOT DEFINED",
@@ -313,6 +313,8 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
     mode_bit = 0;
   else if(pmode == FAV3_HALLD_PROC_MODE_DEBUG)
     mode_bit = 1;
+  else if(pmode == FAV3_HALLD_PROC_MODE_RAW)
+    mode_bit = 3;
   else
     {
       printf("%s: ERROR: Unsupported mode (%d)\n",
