@@ -407,14 +407,15 @@ faV3HallDGetProcMode(int id, int *pmode, uint32_t *PL, uint32_t *PTW,
 		     uint32_t *NPED, uint32_t *MAXPED, uint32_t *NSAT)
 {
   int32_t rval = OK;
-  uint32_t config1 = 0, config7 = 0, nsb = 0;
+  uint32_t config1 = 0, config7 = 0, nsb = 0, mode = 0;
   CHECKID;
 
   FAV3LOCK;
 
 
   config1 = vmeRead32(&HallDp[id]->config1);
-  *pmode = ((config1 & FAV3_ADC_CONFIG1_MODE_MASK) >> 8) + 9;
+  mode = (config1 & FAV3_ADC_CONFIG1_MODE_MASK) >> 8;
+  *pmode = (mode == 3) ? 1 : (mode + 9);
   *NP = ((config1 & FAV3_ADC_CONFIG1_NP_MASK) >> 4) + 1;
   *NSAT = ((config1 & FAV3_ADC_CONFIG1_NSAT_MASK) >> 10) + 1;
 
@@ -1180,7 +1181,9 @@ faV3HallDGStatus(int sflag)
 
       printf("%3d    ", st[id].blocklevel & FAV3_BLOCK_LEVEL_MASK);
 
-      printf("%2d   ", (hd_st[id].config1 & FAV3_ADC_PROC_MASK) + 1);
+      uint32_t mode = (hd_st[id].config1 & FAV3_ADC_CONFIG1_MODE_MASK) >> 8;
+
+      printf("%2d   ", (mode == 3) ? 1 : (mode + 9));
 
       printf("%4d  ", (hd_st[id].pl & 0xFFFF) * FAV3_ADC_NS_PER_CLK);
 
