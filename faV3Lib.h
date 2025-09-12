@@ -41,42 +41,47 @@
 #define LABEL_(a) MERGE_(uint32_t faV3blank, a)
 #define BLANK LABEL_(__LINE__)
 
-typedef struct
-{
-  /* 0x0100 */ volatile uint32_t status0;
-  /* 0x0104 */ volatile uint32_t status1;
-  /* 0x0108 */ volatile uint32_t status2;
-  /* 0x010C */ volatile uint32_t config1;
-  /* 0x0110 */ volatile uint32_t config2;
-  /* 0x0114 */ volatile uint32_t config4;
-  /* 0x0118 */ volatile uint32_t config5;
-  /* 0x011C */ volatile uint32_t ptw;
-  /* 0x0120 */ volatile uint32_t pl;
-  /* 0x0124 */ volatile uint32_t nsb;
-  /* 0x0128 */ volatile uint32_t nsa;
-  /* 0x012C */ volatile uint32_t thres[8];
-  /* 0x014C */ volatile uint32_t ptw_last_adr;
-  /* 0x0150 */ volatile uint32_t ptw_max_buf;
-  /* 0x0154 */ volatile uint32_t test_wave;
-  /* 0x0158 */ volatile uint32_t pedestal[16];
-  /* 0x0198 */ volatile uint32_t config3;
-  /* 0x019C */ volatile uint32_t status3;
-} faV3_adc_t;
+#define SLABEL_(a) MERGE_(uint16_t faV3blank, a)
+#define SBLANK LABEL_(__LINE__)
 
 typedef struct
 {
-  /* 0x0200 */ volatile uint32_t status;
-  /* 0x0204 */ volatile uint32_t cfg;
-  /* 0x0208 */ volatile uint32_t hit_width;
-  /* 0x020C */ volatile uint32_t trig_delay;
-  /* 0x0210 */ volatile uint32_t trig_width;
-  /* 0x0214 */ volatile uint32_t window_bits;
-  /* 0x0218 */ volatile uint32_t window_width;
-  /* 0x021C */ volatile uint32_t coin_bits;
-  /* 0x0220 */ volatile uint32_t pattern;
-  /* 0x0224 */ volatile uint32_t fifo;
-  /* 0x0228 */ volatile uint32_t sum_thresh;
-} faV3_hitsum_t;
+  /* 0x0100 */ volatile uint16_t status0;
+  /* 0x0102 */ volatile uint16_t status1;
+  /* 0x0104 */ volatile uint16_t status2;
+  /* 0x0106 */ volatile uint16_t config1;
+  /* 0x0108 */ volatile uint16_t config2;
+  /* 0x010A */ volatile uint16_t config4;
+  /* 0x010C */ volatile uint16_t config5;
+  /* 0x010E */ volatile uint16_t ptw;
+  /* 0x0110 */ volatile uint16_t pl;
+  /* 0x0112 */ volatile uint16_t nsb;
+  /* 0x0114 */ volatile uint16_t nsa;
+  /* 0x0116 */ volatile uint16_t thres[FAV3_MAX_ADC_CHANNELS/2];
+  /* 0x0136 */ volatile uint16_t config6;
+  /* 0x0138 */ volatile uint16_t config7;
+  /* 0x013A */ volatile uint16_t test_wave;
+  /* 0x013C */ volatile uint16_t pedestal[FAV3_MAX_ADC_CHANNELS];
+  /* 0x015C */ volatile uint16_t config3;
+  /* 0x015E */ volatile uint16_t status3;
+  /* 0x0160 */ volatile uint16_t status4;
+  /* 0x0162 */ volatile uint16_t rogue_ptw_fall_back;
+  /* 0x0164 */ volatile uint16_t trig_gain[FAV3_MAX_ADC_CHANNELS];
+  /* 0x0184 */ volatile uint16_t trig_delay[FAV3_MAX_ADC_CHANNELS];
+  /* 0x01A4 */ volatile uint16_t live_trig_mask;
+  /* 0x01A6 */ volatile uint16_t live_trig_width;
+  /* 0x01A* */ volatile uint16_t hitbit_config;
+  /* 0x01AA */ volatile uint16_t la_rden;
+  /* 0x01AC */ volatile uint16_t la_ctrl_reg;
+  /* 0x01AE */ volatile uint16_t cmp_mode[FAV3_MAX_ADC_CHANNELS];
+  /* 0x01CE */ volatile uint16_t cmp_thr[FAV3_MAX_ADC_CHANNELS];
+  /* 0x01EE */ volatile uint16_t scaler_latch;
+  /* 0x01F0 */ SBLANK[(0x210 - 0x1F0) >> 1];
+  /* 0x0210 */ volatile uint16_t la_dat[FAV3_MAX_ADC_CHANNELS];
+  /* 0x0230 */ volatile uint16_t acc0[FAV3_MAX_ADC_CHANNELS];
+  /* 0x0250 */ volatile uint16_t acc1[FAV3_MAX_ADC_CHANNELS];
+  /* 0x0270 */ volatile uint16_t acc2[FAV3_MAX_ADC_CHANNELS];
+} faV3_adc_t;
 
 typedef struct
 {
@@ -181,10 +186,7 @@ typedef struct
   /* 0x00FC */ volatile uint32_t sys_mon;
 
   /* 0x0100 */ volatile faV3_adc_t adc;
-  /* 0x01A0 */ BLANK[(0x200 - 0x1A0) >> 2];
-
-  /* 0x0200 */ volatile faV3_hitsum_t hitsum;
-  /* 0x022C */ BLANK[(0x300 - 0x22C) >> 2];
+  /* 0x01A0 */ BLANK[(0x300 - 0x290) >> 2];
 
   /* 0x0300 */ volatile faV3_scalers_t scalers;
   /* 0x0344 */ BLANK[(0x400 - 0x344) >> 2];
