@@ -338,7 +338,7 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 
 		  /* Check Processing FPGA firmware version */
 		  proc_version =
-		    (uint16_t) (vmeRead32(&fa->adc.status0) &
+		    (uint16_t) (vmeRead16(&fa->adc.status0) &
 				FAV3_ADC_VERSION_MASK);
 
 		  FAV3p[boardID] = (faV3_t *) (laddr_inc);
@@ -1003,17 +1003,17 @@ faV3Status(int id, int sflag)
   ambMax = (addrMB & FAV3_AMB_MAX_MASK);
   berr_count = vmeRead32(&(FAV3p[id]->aux.berr_driven_count));
 
-  adcStat[0] = (vmeRead32(&(FAV3p[id]->adc.status0)) & 0xFFFF);
-  adcStat[1] = (vmeRead32(&(FAV3p[id]->adc.status1)) & 0xFFFF);
-  adcStat[2] = (vmeRead32(&(FAV3p[id]->adc.status2)) & 0xFFFF);
-  adcConf[0] = (vmeRead32(&(FAV3p[id]->adc.config1)) & 0xFFFF);
-  adcConf[1] = (vmeRead32(&(FAV3p[id]->adc.config2)) & 0xFFFF);
-  adcConf[2] = (vmeRead32(&(FAV3p[id]->adc.config4)) & 0xFFFF);
+  adcStat[0] = (vmeRead16(&(FAV3p[id]->adc.status0)) & 0xFFFF);
+  adcStat[1] = (vmeRead16(&(FAV3p[id]->adc.status1)) & 0xFFFF);
+  adcStat[2] = (vmeRead16(&(FAV3p[id]->adc.status2)) & 0xFFFF);
+  adcConf[0] = (vmeRead16(&(FAV3p[id]->adc.config1)) & 0xFFFF);
+  adcConf[1] = (vmeRead16(&(FAV3p[id]->adc.config2)) & 0xFFFF);
+  adcConf[2] = (vmeRead16(&(FAV3p[id]->adc.config4)) & 0xFFFF);
 
-  PTW = (vmeRead32(&(FAV3p[id]->adc.ptw)) & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
-  PL = (vmeRead32(&(FAV3p[id]->adc.pl)) & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
-  NSB = (vmeRead32(&(FAV3p[id]->adc.nsb)) & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
-  NSA = (vmeRead32(&(FAV3p[id]->adc.nsa)) & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
+  PTW = (vmeRead16(&(FAV3p[id]->adc.ptw)) & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
+  PL = (vmeRead16(&(FAV3p[id]->adc.pl)) & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
+  NSB = (vmeRead16(&(FAV3p[id]->adc.nsb)) & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
+  NSA = (vmeRead16(&(FAV3p[id]->adc.nsa)) & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
   adc_version = adcStat[0] & FAV3_ADC_VERSION_MASK;
   adc_option = (adcConf[0] & FAV3_ADC_PROC_MASK) + 1;
   NP = (adcConf[0] & FAV3_ADC_PEAK_MASK) >> 4;
@@ -1335,23 +1335,23 @@ faV3GStatus(int sflag)
       st[id].sys_mon = vmeRead32(&FAV3p[id]->sys_mon);
 
       st[id].adc.status0 =
-	vmeRead32(&FAV3p[id]->adc.status0) & 0xFFFF;
+	vmeRead16(&FAV3p[id]->adc.status0) & 0xFFFF;
       st[id].adc.status1 =
-	vmeRead32(&FAV3p[id]->adc.status0) & 0xFFFF;
+	vmeRead16(&FAV3p[id]->adc.status0) & 0xFFFF;
       st[id].adc.status2 =
-	vmeRead32(&FAV3p[id]->adc.status0) & 0xFFFF;
+	vmeRead16(&FAV3p[id]->adc.status0) & 0xFFFF;
 
       st[id].adc.config1 =
-	vmeRead32(&FAV3p[id]->adc.config1) & 0xFFFF;
+	vmeRead16(&FAV3p[id]->adc.config1) & 0xFFFF;
       st[id].adc.config2 =
-	vmeRead32(&FAV3p[id]->adc.config2) & 0xFFFF;
+	vmeRead16(&FAV3p[id]->adc.config2) & 0xFFFF;
       st[id].adc.config4 =
-	vmeRead32(&FAV3p[id]->adc.config4) & 0xFFFF;
+	vmeRead16(&FAV3p[id]->adc.config4) & 0xFFFF;
 
-      st[id].adc.ptw = vmeRead32(&FAV3p[id]->adc.ptw);
-      st[id].adc.pl = vmeRead32(&FAV3p[id]->adc.pl);
-      st[id].adc.nsb = vmeRead32(&FAV3p[id]->adc.nsb);
-      st[id].adc.nsa = vmeRead32(&FAV3p[id]->adc.nsa);
+      st[id].adc.ptw = vmeRead16(&FAV3p[id]->adc.ptw);
+      st[id].adc.pl = vmeRead16(&FAV3p[id]->adc.pl);
+      st[id].adc.nsb = vmeRead16(&FAV3p[id]->adc.nsb);
+      st[id].adc.nsa = vmeRead16(&FAV3p[id]->adc.nsa);
 
       st[id].blk_count = vmeRead32(&FAV3p[id]->blk_count);
       st[id].blocklevel = vmeRead32(&FAV3p[id]->blocklevel);
@@ -1367,12 +1367,12 @@ faV3GStatus(int sflag)
 
       for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
 	{
-	  st[id].adc.pedestal[ii] = vmeRead32(&FAV3p[id]->adc.pedestal[ii]);
+	  st[id].adc.pedestal[ii] = vmeRead16(&FAV3p[id]->adc.pedestal[ii]);
 	}
 
       for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS/2; ii++)
 	{
-	  uint32_t data = vmeRead32(&FAV3p[id]->adc.thres[ii]);
+	  uint32_t data = vmeRead16(&FAV3p[id]->adc.thres[ii]);
 	  st[id].adc.thres[ii] = data & 0xFFFF;
 	  st[id].adc.thres[ii+1] = (data & 0xFFFF0000) >> 16;
 	}
@@ -1679,7 +1679,7 @@ faV3GetFirmwareVersions(int id, int pflag)
   cntl = vmeRead32(&FAV3p[id]->version) & 0xFFFF;
 
   /* Processing FPGA firmware version */
-  proc = vmeRead32(&(FAV3p[id]->adc.status0)) & FAV3_ADC_VERSION_MASK;
+  proc = vmeRead16(&(FAV3p[id]->adc.status0)) & FAV3_ADC_VERSION_MASK;
   FAV3UNLOCK;
 
   rval = (cntl) | (proc << 16);
@@ -1781,16 +1781,15 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 
   FAV3LOCK;
   /* Disable ADC processing while writing window info */
-  vmeWrite32(&(FAV3p[id]->adc.config1), ((pmode - 1) | (NP << 4)));
-  vmeWrite32(&(FAV3p[id]->adc.config2), faV3ChanDisableMask[id]);
-  vmeWrite32(&(FAV3p[id]->adc.pl), PL);
-  vmeWrite32(&(FAV3p[id]->adc.ptw), PTW);
-  vmeWrite32(&(FAV3p[id]->adc.nsb), NSB);
-  vmeWrite32(&(FAV3p[id]->adc.nsa), NSA);
-  vmeWrite32(&(FAV3p[id]->adc.ptw_max_buf), ptw_max_buf);
-  vmeWrite32(&(FAV3p[id]->adc.ptw_last_adr), ptw_last_adr);
+  vmeWrite16(&(FAV3p[id]->adc.config1), ((pmode - 1) | (NP << 4)));
+  vmeWrite16(&(FAV3p[id]->adc.config2), faV3ChanDisableMask[id]);
+  vmeWrite16(&(FAV3p[id]->adc.pl), PL);
+  vmeWrite16(&(FAV3p[id]->adc.ptw), PTW);
+  vmeWrite16(&(FAV3p[id]->adc.nsb), NSB);
+  vmeWrite16(&(FAV3p[id]->adc.nsa), NSA);
+
   /* Enable ADC processing */
-  vmeWrite32(&(FAV3p[id]->adc.config1),
+  vmeWrite16(&(FAV3p[id]->adc.config1),
 	     ((pmode - 1) | (NP << 4) | FAV3_ADC_PROC_ENABLE));
 
   FAV3UNLOCK;
@@ -1840,12 +1839,12 @@ faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 
   CHECKID;
 
-  *PTW = (vmeRead32(&(FAV3p[id]->adc.ptw)) & 0xFFFF);
-  *PL = (vmeRead32(&(FAV3p[id]->adc.pl)) & 0xFFFF);
-  *NSB = (vmeRead32(&(FAV3p[id]->adc.nsb)) & 0xFFFF);
-  *NSA = (vmeRead32(&(FAV3p[id]->adc.nsa)) & 0xFFFF);
+  *PTW = (vmeRead16(&(FAV3p[id]->adc.ptw)) & 0xFFFF);
+  *PL = (vmeRead16(&(FAV3p[id]->adc.pl)) & 0xFFFF);
+  *NSB = (vmeRead16(&(FAV3p[id]->adc.nsb)) & 0xFFFF);
+  *NSA = (vmeRead16(&(FAV3p[id]->adc.nsa)) & 0xFFFF);
 
-  tmp = (vmeRead32(&(FAV3p[id]->adc.config1)) & 0xFFFF);
+  tmp = (vmeRead16(&(FAV3p[id]->adc.config1)) & 0xFFFF);
   *pmode = (tmp & FAV3_ADC_PROC_MASK) + 1;
   *NP = (tmp & FAV3_ADC_PEAK_MASK) >> 4;
 
@@ -1989,11 +1988,11 @@ faV3SetTriggerPathSamples(int id, uint32_t TNSA, uint32_t TNSAT)
 
   FAV3LOCK;
 
-  readback_nsa = vmeRead32(&FAV3p[id]->adc.nsa) & FAV3_ADC_NSA_READBACK_MASK;
-  readback_config1 = vmeRead32(&FAV3p[id]->adc.config1) & ~FAV3_ADC_CONFIG1_TNSAT_MASK;
+  readback_nsa = vmeRead16(&FAV3p[id]->adc.nsa) & FAV3_ADC_NSA_READBACK_MASK;
+  readback_config1 = vmeRead16(&FAV3p[id]->adc.config1) & ~FAV3_ADC_CONFIG1_TNSAT_MASK;
 
-  vmeWrite32(&FAV3p[id]->adc.nsa, (TNSA << 9) | readback_nsa);
-  vmeWrite32(&FAV3p[id]->adc.config1, ((TNSAT - 1) << 12) | readback_config1);
+  vmeWrite16(&FAV3p[id]->adc.nsa, (TNSA << 9) | readback_nsa);
+  vmeWrite16(&FAV3p[id]->adc.config1, ((TNSAT - 1) << 12) | readback_config1);
 
   FAV3UNLOCK;
 
@@ -2031,8 +2030,8 @@ faV3GetTriggerPathSamples(int id, uint32_t *TNSA, uint32_t *TNSAT)
 
   FAV3LOCK;
 
-  *TNSA = (vmeRead32(&FAV3p[id]->adc.nsa) & FAV3_ADC_TNSA_MASK) >> 9;
-  *TNSAT = (vmeRead32(&FAV3p[id]->adc.config1) & FAV3_ADC_CONFIG1_TNSAT_MASK) >> 12;
+  *TNSA = (vmeRead16(&FAV3p[id]->adc.nsa) & FAV3_ADC_TNSA_MASK) >> 9;
+  *TNSAT = (vmeRead16(&FAV3p[id]->adc.config1) & FAV3_ADC_CONFIG1_TNSAT_MASK) >> 12;
 
   FAV3UNLOCK;
 
@@ -2060,8 +2059,8 @@ faV3SetTriggerPathThreshold(int id, uint32_t TPT)
     }
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->adc.config3,
-	     (vmeRead32(&FAV3p[id]->adc.config3) & ~FAV3_ADC_CONFIG3_TPT_MASK) | TPT);
+  vmeWrite16(&FAV3p[id]->adc.config3,
+	     (vmeRead16(&FAV3p[id]->adc.config3) & ~FAV3_ADC_CONFIG3_TPT_MASK) | TPT);
   FAV3UNLOCK;
 
   return OK;
@@ -2094,7 +2093,7 @@ faV3GetTriggerPathThreshold(int id, uint32_t *TPT)
   CHECKID;
 
   FAV3LOCK;
-  *TPT = vmeRead32(&FAV3p[id]->adc.config3) & FAV3_ADC_CONFIG3_TPT_MASK;
+  *TPT = vmeRead16(&FAV3p[id]->adc.config3) & FAV3_ADC_CONFIG3_TPT_MASK;
   FAV3UNLOCK;
 
   return OK;
@@ -2118,7 +2117,7 @@ faV3ADCTestReady(int id)
 
   for(ii=1; ii<=100; ii++)
     {
-      test = vmeRead32(&FAV3p[id]->adc.status0) & 0x8000;
+      test = vmeRead16(&FAV3p[id]->adc.status0) & 0x8000;
       if( test == 0x8000 )
 	{
 	  adc_ready = ii;
@@ -2141,19 +2140,19 @@ faV3ADCWriteAll(int id, uint32_t value)
   if(debug)
     printf("+++++ adc_ready (start) = %d\n", adc_ready);
 
-  vmeWrite32(&FAV3p[id]->adc.config5, value);		/* set up address & data */
+  vmeWrite16(&FAV3p[id]->adc.config5, value);		/* set up address & data */
 
-  vmeWrite32(&FAV3p[id]->adc.config4, 0x40);		/* write all */
+  vmeWrite16(&FAV3p[id]->adc.config4, 0x40);		/* write all */
   adc_ready = faV3ADCTestReady(id);
   if(debug)
     printf("+++++ adc_ready (1) = %d\n", adc_ready);
 
-  vmeWrite32(&FAV3p[id]->adc.config4, 0xC0);
+  vmeWrite16(&FAV3p[id]->adc.config4, 0xC0);
   adc_ready = faV3ADCTestReady(id);
   if(debug)
     printf("+++++ adc_ready (2) = %d\n", adc_ready);
 
-  vmeWrite32(&FAV3p[id]->adc.config4, 0x40);
+  vmeWrite16(&FAV3p[id]->adc.config4, 0x40);
   adc_ready = faV3ADCTestReady(id);
   if(debug)
     printf("+++++ adc_ready (end) = %d\n", adc_ready);
@@ -2192,13 +2191,13 @@ faV3SetupADC(int id, int32_t mode)
 	   __func__, id);
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->adc.config4, 0x0);			/* reset adc chip */
+  vmeWrite16(&FAV3p[id]->adc.config4, 0x0);			/* reset adc chip */
   taskDelay(1);
 
-  vmeWrite32(&FAV3p[id]->adc.config4, 0x10);			/* reset adc chip */
+  vmeWrite16(&FAV3p[id]->adc.config4, 0x10);			/* reset adc chip */
   taskDelay(1);
 
-  vmeWrite32(&FAV3p[id]->adc.config4, 0x0);			/* reset adc chip */
+  vmeWrite16(&FAV3p[id]->adc.config4, 0x0);			/* reset adc chip */
   taskDelay(1);
 
   faV3ADCWriteAll(id, 0x0F02);			/* CML enable */
@@ -2261,29 +2260,29 @@ faV3SetPPG(int id, uint16_t *sdata, int nsamples)
   FAV3LOCK;
   for(ii = 0; ii < (nsamples - 2); ii++)
     {
-      vmeWrite32(&FAV3p[id]->adc.test_wave, (sdata[ii] | FAV3_PPG_WRITE_VALUE));
-      rval = vmeRead32(&FAV3p[id]->adc.test_wave);
+      vmeWrite16(&FAV3p[id]->adc.test_wave, (sdata[ii] | FAV3_PPG_WRITE_VALUE));
+      rval = vmeRead16(&FAV3p[id]->adc.test_wave);
       if((rval & FAV3_PPG_SAMPLE_MASK) != sdata[ii])
 	printf("faV3SetPPG: ERROR: Write error %x != %x (ii=%d)\n", rval,
 	       sdata[ii], ii);
 
     }
 
-  vmeWrite32(&FAV3p[id]->adc.test_wave,
+  vmeWrite16(&FAV3p[id]->adc.test_wave,
 	     (sdata[(nsamples - 2)] & FAV3_PPG_SAMPLE_MASK));
-  rval = vmeRead32(&FAV3p[id]->adc.test_wave);
+  rval = vmeRead16(&FAV3p[id]->adc.test_wave);
   if(rval != sdata[(nsamples - 2)])
     printf("faV3SetPPG: ERROR: Write error %x != %x\n",
 	   rval, sdata[nsamples - 2]);
-  vmeWrite32(&FAV3p[id]->adc.test_wave,
+  vmeWrite16(&FAV3p[id]->adc.test_wave,
 	     (sdata[(nsamples - 1)] & FAV3_PPG_SAMPLE_MASK));
-  rval = vmeRead32(&FAV3p[id]->adc.test_wave);
+  rval = vmeRead16(&FAV3p[id]->adc.test_wave);
   if(rval != sdata[(nsamples - 1)])
     printf("faV3SetPPG: ERROR: Write error %x != %x\n",
 	   rval, sdata[nsamples - 1]);
 
-  /*   vmeWrite32(&FAV3p[id]->adc.test_wave, (sdata[(nsamples-2)]&FAV3_PPG_SAMPLE_MASK)); */
-  /*   vmeWrite32(&FAV3p[id]->adc.test_wave, (sdata[(nsamples-1)]&FAV3_PPG_SAMPLE_MASK)); */
+  /*   vmeWrite16(&FAV3p[id]->adc.test_wave, (sdata[(nsamples-2)]&FAV3_PPG_SAMPLE_MASK)); */
+  /*   vmeWrite16(&FAV3p[id]->adc.test_wave, (sdata[(nsamples-1)]&FAV3_PPG_SAMPLE_MASK)); */
 
   FAV3UNLOCK;
 
@@ -2305,9 +2304,9 @@ faV3PPGEnable(int id)
   CHECKID;
 
   FAV3LOCK;
-  val1 = (vmeRead32(&FAV3p[id]->adc.config1) & 0xFFFF);
+  val1 = (vmeRead16(&FAV3p[id]->adc.config1) & 0xFFFF);
   val1 |= (FAV3_PPG_ENABLE | 0xff00);
-  vmeWrite32(&FAV3p[id]->adc.config1, val1);
+  vmeWrite16(&FAV3p[id]->adc.config1, val1);
   FAV3UNLOCK;
 
   return OK;
@@ -2328,10 +2327,10 @@ faV3PPGDisable(int id)
   CHECKID;
 
   FAV3LOCK;
-  val1 = (vmeRead32(&FAV3p[id]->adc.config1) & 0xFFFF);
+  val1 = (vmeRead16(&FAV3p[id]->adc.config1) & 0xFFFF);
   val1 &= ~FAV3_PPG_ENABLE;
   val1 &= ~(0xff00);
-  vmeWrite32(&FAV3p[id]->adc.config1, val1);
+  vmeWrite16(&FAV3p[id]->adc.config1, val1);
   FAV3UNLOCK;
 
   return OK;
@@ -3132,7 +3131,7 @@ faV3SetChanDisableMask(int id, uint16_t cmask)
 
   FAV3LOCK;
   /* Write New Disable Mask */
-  vmeWrite32(&(FAV3p[id]->adc.config2), cmask);
+  vmeWrite16(&(FAV3p[id]->adc.config2), cmask);
   FAV3UNLOCK;
 
   return OK;
@@ -3154,7 +3153,7 @@ faV3GetChanDisableMask(int id)
   CHECKID;
 
   FAV3LOCK;
-  tmp = vmeRead32(&(FAV3p[id]->adc.config2)) & 0xFFFF;
+  tmp = vmeRead16(&(FAV3p[id]->adc.config2)) & 0xFFFF;
   cmask = (tmp & FAV3_ADC_CHAN_MASK);
   faV3ChanDisableMask[id] = cmask;	/* Set Global Variable */
   FAV3UNLOCK;
@@ -4437,12 +4436,12 @@ faV3SetThreshold(int id, int chan, uint16_t tvalue)
   uint32_t regval = 0;
 
   FAV3LOCK;
-  regval = vmeRead32(&FAV3p[id]->adc.thres[index]);
+  regval = vmeRead16(&FAV3p[id]->adc.thres[index]);
   if(hibyte)
-    vmeWrite32(&FAV3p[id]->adc.thres[index],
+    vmeWrite16(&FAV3p[id]->adc.thres[index],
 	       (regval & 0xFFFF) | (tvalue << 16));
   else
-    vmeWrite32(&FAV3p[id]->adc.thres[index],
+    vmeWrite16(&FAV3p[id]->adc.thres[index],
 	       (regval & 0xFFFF0000) | tvalue);
 
   FAV3UNLOCK;
@@ -4462,7 +4461,7 @@ faV3GetThreshold(int id, int chan)
   uint32_t regval = 0;
 
   FAV3LOCK;
-  regval = vmeRead32(&FAV3p[id]->adc.thres[index]);
+  regval = vmeRead16(&FAV3p[id]->adc.thres[index]);
   FAV3UNLOCK;
 
   if(hibyte)
@@ -4492,7 +4491,7 @@ faV3PrintThreshold(int id)
   FAV3LOCK;
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS/2; ii++)
     {
-      reg = vmeRead32(&FAV3p[id]->adc.thres[ii]);
+      reg = vmeRead16(&FAV3p[id]->adc.thres[ii]);
       tval[2*ii] = reg & 0xFFFF;
       tval[2*ii + 1] = (reg & 0xFFFF0000) >> 16;
     }
@@ -4747,7 +4746,7 @@ faV3SetPedestal(int id, uint32_t chan, uint32_t ped)
     }
 
   FAV3LOCK;
-  vmeWrite32(&FAV3p[id]->adc.pedestal[chan], ped);
+  vmeWrite16(&FAV3p[id]->adc.pedestal[chan], ped);
   FAV3UNLOCK;
 
   return (OK);
@@ -4776,7 +4775,7 @@ faV3GetPedestal(int id, uint32_t chan)
     }
 
   FAV3LOCK;
-  rval = vmeRead32(&FAV3p[id]->adc.pedestal[chan]) & FAV3_ADC_PEDESTAL_MASK;
+  rval = vmeRead16(&FAV3p[id]->adc.pedestal[chan]) & FAV3_ADC_PEDESTAL_MASK;
   FAV3UNLOCK;
 
   return (rval);
@@ -4793,7 +4792,7 @@ faV3PrintPedestal(int id)
   FAV3LOCK;
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
     {
-      tval[ii] = vmeRead32(&(FAV3p[id]->adc.pedestal[ii]));
+      tval[ii] = vmeRead16(&(FAV3p[id]->adc.pedestal[ii]));
     }
   FAV3UNLOCK;
 
@@ -6152,8 +6151,8 @@ faV3ForceEndOfBlock(int id, int scalers)
 
   FAV3LOCK;
   /* Disable triggers to Processing FPGA (if enabled) */
-  proc_config = vmeRead32(&FAV3p[id]->adc.config1);
-  vmeWrite32(&FAV3p[id]->adc.config1, proc_config & ~(FAV3_ADC_PROC_ENABLE));
+  proc_config = vmeRead16(&FAV3p[id]->adc.config1);
+  vmeWrite16(&FAV3p[id]->adc.config1, proc_config & ~(FAV3_ADC_PROC_ENABLE));
 
   csr = FAV3_CSR_FORCE_EOB_INSERT;
   if(scalers > 0)
@@ -6189,7 +6188,7 @@ faV3ForceEndOfBlock(int id, int scalers)
     }
 
   /* Restore the original state of the Processing FPGA */
-  vmeWrite32(&FAV3p[id]->adc.config1, proc_config);
+  vmeWrite16(&FAV3p[id]->adc.config1, proc_config);
 
   FAV3UNLOCK;
 
