@@ -468,6 +468,7 @@ typedef struct faV3_sdc_struct
 extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 #define FAV3_ADC_CONFIG1_TNSAT_MASK 0x3000
+#define FAV3_ADC_CONFIG1_CHAN_READ_ENABLE (1<<15)
 
 #define FAV3_ADC_STATUS1_TRIG_RCV_DONE (1<<15)
 #define FAV3_ADC_STATUS1_TRIGNUM_MASK  0x0FFF
@@ -912,6 +913,10 @@ int faV3ForceEndOfBlock(int id, int scalers);
 void faV3GForceEndOfBlock(int scalers);
 int32_t faV3LoadIdelay(int32_t id, int32_t pflag);
 int32_t faV3IDelayPrint(int32_t id);
+
+int faV3SampleConfig(int id, int nsamples, int maxvalue);
+int faV3GSampleConfig(int nsamples, int maxvalue);
+int faV3ReadAllChannelSamples(int id, uint16_t data[16]);
 
 /* SDC prototypes */
 int faV3SDC_Config(uint16_t cFlag, uint16_t bMask);

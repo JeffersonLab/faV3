@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include "jvme.h"
 #include "faV3Lib.h"
-#include "faV3-HallD.h"
 #include "faV3Config.h"
 
 #define NDAC 40
@@ -35,12 +34,12 @@ Usage()
 }
 
 int32_t
-faV3HallDDACScan(int32_t id, uint16_t dac_value[NDAC], uint16_t channel_data[NDAC][16])
+faV3DACScan(int32_t id, uint16_t dac_value[NDAC], uint16_t channel_data[NDAC][16])
 {
   int32_t ichan = 0, idac = 0, rval = OK;
 
   /* Setup the sample monitor, 4 samples with max 12 bits */
-  if(faV3HallDSampleConfig(id, 4, 0x3ff) != OK)
+  if(faV3SampleConfig(id, 4, 0x3ff) != OK)
     {
       printf("%s(id = %d): ERROR from faV3HallDSampleConfig\n", __func__, id);
       return ERROR;
@@ -54,7 +53,7 @@ faV3HallDDACScan(int32_t id, uint16_t dac_value[NDAC], uint16_t channel_data[NDA
 	  faV3DACSet(id, ichan, dac_value[idac]);
 	}
       taskDelay(1);
-      faV3HallDReadAllChannelSamples(id, channel_data[idac]);
+      faV3ReadAllChannelSamples(id, channel_data[idac]);
     }
 
 
@@ -103,7 +102,7 @@ main(int argc, char *argv[])
       ninit = 1;
     }
 
-  faV3HallDInit(vme_addr, 1<<19, ninit, 0);
+  faV3Init(vme_addr, 1<<19, ninit, 0);
   if(nfaV3 <= 0)
     goto CLOSE;
 
@@ -119,7 +118,7 @@ main(int argc, char *argv[])
     {
       id = faV3Slot(ifa);
 
-      faV3HallDDACScan(id, dac_value, channel_data);
+      faV3DACScan(id, dac_value, channel_data);
       faV3GetSerialNumber(id, (char **)&serial_number);
 
       sprintf(output_filename, "output/slot%d_%s.txt", id, serial_number);

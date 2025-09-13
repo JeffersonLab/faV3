@@ -7281,6 +7281,118 @@ faV3IDelayPrint(int32_t id)
 
 }
 
+/**
+ *  @ingroup Readout
+ *  @brief Configure output of sample data from @faReadAllChannelSamples
+ *  @param id Slot number
+ *  @param nsamples Number of samples to contribute to sum
+ *  @param maxvalue Maximum sample value to be included in the sum
+ *  @return OK if successful, otherwise ERROR.
+ */
+
+int
+faV3SampleConfig(int id, int nsamples, int maxvalue)
+{
+  CHECKID;
+
+  if((nsamples < FAV3_ADC_MIN_MNPED) || (nsamples > FAV3_ADC_MAX_MNPED))
+    {
+      printf("%s: ERROR: Invalid nsamples (%d)\n",
+	     __func__, nsamples);
+      return ERROR;
+    }
+
+  if((maxvalue < 0) || (maxvalue > 0x3ff))
+    {
+      printf("%s: ERROR: Invalid maxvalue (%d)\n",
+	     __func__, maxvalue);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  vmeWrite16(&FAV3p[id]->adc.config6,
+	     (nsamples - 1)<<10 | maxvalue);
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+/**
+ *  @ingroup Readout
+ *  @brief Configure output of sample data from @faReadAllChannelSamples
+ *    for all initialized modules.
+ *  @param nsamples Number of samples to contribute to sum
+ *  @param maxvalue Maximum sample value to be included in the sum
+ *  @return OK if successful, otherwise ERROR.
+ */
+
+int
+faV3GSampleConfig(int nsamples, int maxvalue)
+{
+  int ifa=0, rval=OK;
+
+
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    rval |= faV3SampleConfig(faV3Slot(ifa), nsamples, maxvalue);
+
+  return rval;
+}
+
+/**
+ *  @ingroup Readout
+ *  @brief Read the current sample data from the specified channel and module.
+ *  @param id     Slot number
+ *  @param data   local memory address to place data
+ *                * Least significant 16bits contain lesser channel number data
+ *  @return Number of words stored in data if successful, otherwise ERROR.
+ *         Sums in 'data' are valid up to 16383 (0x3fff).  Bit 15 will be high
+ *         if a sample in the sum in less than zero, or greater than maxvalue
+ *         configured with @faSampleConfig
+ */
+int
+faV3ReadAllChannelSamples(int id, uint16_t data[16])
+{
+  int ichan=0, iwait = 0;
+  const int nwait = 10;
+  uint32_t config1 = 0, status2 = 0;
+
+  CHECKID;
+
+  FAV3LOCK;
+
+  config1 = vmeRead16(&FAV3p[id]->adc.config1);
+  // Set request bit
+  vmeWrite16(&FAV3p[id]->adc.config1, (config1 |  FAV3_ADC_CONFIG1_CHAN_READ_ENABLE) );
+
+  // reset request bit
+  vmeWrite16(&FAV3p[id]->adc.config1, config1);
+
+
+  status2 = vmeRead16(&FAV3p[id]->adc.status2);
+  while( ((status2 & (1<<15)) == 0) && (iwait++ < nwait))
+    status2 = vmeRead16(&FAV3p[id]->adc.status2);
+
+  if((status2 & (1<<15)) == 0)
+    {
+      printf("%s(id = %d): Timeout waiting for Channel Samples\n",
+	     __func__, id);
+      FAV3UNLOCK;
+      return ERROR;
+    }
+
+  data[0] = status2 & 0x7FFF;
+  for(ichan=1; ichan<FAV3_MAX_ADC_CHANNELS; ichan++)
+    {
+      status2 = vmeRead16(&FAV3p[id]->adc.status2);
+      data[ichan] = status2 & 0x7FFF;
+    }
+  FAV3UNLOCK;
+
+  return (FAV3_MAX_ADC_CHANNELS);
+}
+
+
+
 /***************************************************************************************
    JLAB FADC Signal Distribution Card (SDC) Routines
 ***************************************************************************************/
