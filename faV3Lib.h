@@ -31,18 +31,15 @@
 #define FAV3_VME_INT_LEVEL           3
 #define FAV3_VME_INT_VEC          0xFA
 
-#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x20E
+#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x20F
 #define FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER 1
-#define FAV3_SUPPORTED_PROC_FIRMWARE 0xE06
+#define FAV3_SUPPORTED_PROC_FIRMWARE 0xF01
 #define FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER 1
 
 /* Macros to help with register spacers */
 #define MERGE_(a,b)  a##b
 #define LABEL_(a) MERGE_(uint32_t faV3blank, a)
 #define BLANK LABEL_(__LINE__)
-
-#define SLABEL_(a) MERGE_(uint16_t faV3blank, a)
-#define SBLANK LABEL_(__LINE__)
 
 typedef struct
 {
@@ -76,7 +73,7 @@ typedef struct
   /* 0x01AE */ volatile uint16_t cmp_mode[FAV3_MAX_ADC_CHANNELS];
   /* 0x01CE */ volatile uint16_t cmp_thr[FAV3_MAX_ADC_CHANNELS];
   /* 0x01EE */ volatile uint16_t scaler_latch;
-  /* 0x01F0 */ SBLANK[(0x210 - 0x1F0) >> 1];
+  /* 0x01F0 */ BLANK[(0x210 - 0x1F0) >> 2];
   /* 0x0210 */ volatile uint16_t la_dat[FAV3_MAX_ADC_CHANNELS];
   /* 0x0230 */ volatile uint16_t acc0[FAV3_MAX_ADC_CHANNELS];
   /* 0x0250 */ volatile uint16_t acc1[FAV3_MAX_ADC_CHANNELS];
@@ -85,7 +82,7 @@ typedef struct
 
 typedef struct
 {
-  /* 0x0300 */ volatile uint32_t scaler[16];
+  /* 0x0300 */ volatile uint32_t scaler[FAV3_MAX_ADC_CHANNELS];
   /* 0x0340 */ volatile uint32_t time_count;
 } faV3_scalers_t;
 

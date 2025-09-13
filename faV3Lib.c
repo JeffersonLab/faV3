@@ -1719,7 +1719,6 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 {
   int rval = OK;
   int err = 0;
-  uint32_t ptw_last_adr, ptw_max_buf;
 
 
   CHECKID;
@@ -1768,10 +1767,6 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
       err++;
       printf("faV3SetProcMode: ERROR: NSB+NSA must be an odd number\n");
     }
-
-  /* Calculate Proc parameters */
-  ptw_max_buf = (uint32_t) (2016 / (PTW + 8));
-  ptw_last_adr = ptw_max_buf * (PTW + 8) - 1;
 
   rval = faV3SetupADC(id, 0);
 
