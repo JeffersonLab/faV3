@@ -743,6 +743,62 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 
 }				//End of faInit
 
+int32_t
+faV3CheckAddresses()
+{
+  faV3_t baseregs;
+  u_long offset = 0, expected = 0, base = 0;
+
+  faV3_t *v3p = (faV3_t *) &baseregs;
+
+  base = (u_long) v3p;
+
+  offset = ((u_long) &v3p->adc.status0) - base;
+  expected = 0x100;
+  if(offset != expected)
+    printf("%s: ERROR: status0 not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  offset = ((u_long) &v3p->adc.config6) - base;
+  expected = 0x136;
+  if(offset != expected)
+    printf("%s: ERROR: adc.config6 not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  offset = ((u_long) &v3p->adc.rogue_ptw_fall_back) - base;
+  expected = 0x162;
+  if(offset != expected)
+    printf("%s: ERROR: adc.rogue_ptw_fall_back not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  offset = ((u_long) &v3p->adc.la_dat[0]) - base;
+  expected = 0x210;
+  if(offset != expected)
+    printf("%s: ERROR: adc.la_dat[0] not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  offset = ((u_long) &v3p->scalers.scaler[0]) - base;
+  expected = 0x300;
+  if(offset != expected)
+    printf("%s: ERROR: scalers.scaler[0] not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  offset = ((u_long) &v3p->system_test.testbit) - base;
+  expected = 0x400;
+  if(offset != expected)
+    printf("%s: ERROR: system_test.testbit not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  offset = ((u_long) &v3p->aux.state_level) - base;
+  expected = 0x500;
+  if(offset != expected)
+    printf("%s: ERROR: aux.state_level not at expected offset 0x%lx (@ 0x%lx)\n",
+	   __func__,expected,offset);
+
+  return 0;
+}
+
+
 void
 faV3SetA32BaseAddress(uint32_t addr)
 {

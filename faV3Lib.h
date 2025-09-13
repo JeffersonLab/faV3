@@ -54,7 +54,7 @@ typedef struct
   /* 0x0110 */ volatile uint16_t pl;
   /* 0x0112 */ volatile uint16_t nsb;
   /* 0x0114 */ volatile uint16_t nsa;
-  /* 0x0116 */ volatile uint16_t thres[FAV3_MAX_ADC_CHANNELS/2];
+  /* 0x0116 */ volatile uint16_t thres[FAV3_MAX_ADC_CHANNELS];
   /* 0x0136 */ volatile uint16_t config6;
   /* 0x0138 */ volatile uint16_t config7;
   /* 0x013A */ volatile uint16_t test_wave;
@@ -67,7 +67,7 @@ typedef struct
   /* 0x0184 */ volatile uint16_t trig_delay[FAV3_MAX_ADC_CHANNELS];
   /* 0x01A4 */ volatile uint16_t live_trig_mask;
   /* 0x01A6 */ volatile uint16_t live_trig_width;
-  /* 0x01A* */ volatile uint16_t hitbit_config;
+  /* 0x01A8 */ volatile uint16_t hitbit_config;
   /* 0x01AA */ volatile uint16_t la_rden;
   /* 0x01AC */ volatile uint16_t la_ctrl_reg;
   /* 0x01AE */ volatile uint16_t cmp_mode[FAV3_MAX_ADC_CHANNELS];
