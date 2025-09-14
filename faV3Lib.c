@@ -1774,75 +1774,112 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 		uint32_t NSB, uint32_t NSA, uint32_t NP)
 {
   int rval = OK;
-  int err = 0;
+  int imode = 0, supported_modes[FAV3_SUPPORTED_NMODES] = {FAV3_SUPPORTED_MODES};
+  int mode_supported = 0, mode_bit = 0;
 
 
   CHECKID;
 
-  if((pmode <= 0) || (pmode > 8))
+  for(imode=0; imode<FAV3_SUPPORTED_NMODES; imode++)
     {
-      printf("faV3SetProcMode: ERROR: Processing mode (%d) out of range (pmode= 1-8)\n",
-	     pmode);
-      return (ERROR);
+      if(pmode == supported_modes[imode])
+	mode_supported=1;
     }
-  else
+  if(!mode_supported)
     {
-      /*       if((pmode>3)&&(pmode<8))  */
-      /*        { */
-      /*          printf("faV3SetProcMode: ERROR: Processing mode (%d) not implemented \n",pmode); */
-      /*        } */
+      printf("%s: ERROR: Processing Mode (%d) not supported\n",
+	     __func__, pmode);
+      return ERROR;
     }
 
-  if(NP > 4)
+  /* Set Min/Max parameters if specified values are out of bounds */
+  if((PL < FAV3_ADC_MIN_PL) || (PL > FAV3_ADC_MAX_PL))
     {
-      printf("faV3SetProcMode: ERROR: Invalid Peak count %d (must be 0-4)\n",
-	     NP);
-      return (ERROR);
+      printf("%s: WARN: PL (%d) out of bounds.  ", __func__, PL);
+      PL  = (PL < FAV3_ADC_MIN_PL) ? FAV3_ADC_MIN_PL : FAV3_ADC_MAX_PL;
+      printf("Setting to %d.\n", PL);
     }
 
-  /*Defaults */
-  if((PL == 0) || (PL > FAV3_ADC_MAX_PL))
-    PL = FAV3_ADC_DEFAULT_PL;
-  if((PTW == 0) || (PTW > FAV3_ADC_MAX_PTW))
-    PTW = FAV3_ADC_DEFAULT_PTW;
-  if((NSB == 0) || (NSB > FAV3_ADC_MAX_NSB))
-    NSB = FAV3_ADC_DEFAULT_NSB;
-  if((NSA == 0) || (NSA > FAV3_ADC_MAX_NSA))
-    NSA = FAV3_ADC_DEFAULT_NSA;
-  if((NP == 0) && (pmode != FAV3_ADC_PROC_MODE_WINDOW))
-    NP = FAV3_ADC_DEFAULT_NP;
-
-  /* Consistancy check */
-  if(PTW > PL)
+  if((PTW < FAV3_ADC_MIN_PTW) || (PTW > FAV3_ADC_MAX_PTW))
     {
-      err++;
-      printf("faV3SetProcMode: ERROR: Window must be <= Latency\n");
+      printf("%s: WARN: PTW (%d) out of bounds.  ", __func__, PTW);
+      PTW = (PTW < FAV3_ADC_MIN_PTW) ? FAV3_ADC_MIN_PTW : FAV3_ADC_MAX_PTW;
+      printf("Setting to %d.\n", PTW);
     }
-  if(((NSB + NSA) % 2) == 0)
+
+  if((NSB < FAV3_ADC_MIN_NSB) || (NSB > FAV3_ADC_MAX_NSB))
     {
-      err++;
-      printf("faV3SetProcMode: ERROR: NSB+NSA must be an odd number\n");
+      printf("%s: WARN: NSB (%d) out of bounds.  ", __func__, NSB);
+      NSB = (NSB < FAV3_ADC_MIN_NSB) ? FAV3_ADC_MIN_NSB : FAV3_ADC_MAX_NSB;
+      printf("Setting to %d.\n", NSB);
+    }
+
+  if((NSA < FAV3_ADC_MIN_NSA) || (NSA > FAV3_ADC_MAX_NSA))
+    {
+      printf("%s: WARN: NSA (%d) out of bounds.  ", __func__, NSA);
+      NSA = (NSA < FAV3_ADC_MIN_NSA) ? FAV3_ADC_MIN_NSA : FAV3_ADC_MAX_NSA;
+      if(((NSB + NSA) % 2)==0) /* Make sure NSA+NSB is an odd number */
+	NSA = (NSA==FAV3_ADC_MIN_NSA) ? NSA + 1 : NSA - 1;
+      printf("Setting to %d.\n", NSA);
+    }
+
+  if( (NSB < 0) && ((NSA - (NSB & 0x3)) < 3))
+    {
+      printf("%s: ERROR: NSB is negative and (NSA - (NSB & 0x3)) < 3\n",
+	     __func__);
+    }
+
+  if((NP < FAV3_ADC_MIN_NP) || (NP > FAV3_ADC_MAX_NP))
+    {
+      printf("%s: WARN: NP (%d) out of bounds.  ",__func__,NP);
+      NP = (NP < FAV3_ADC_MIN_NP) ? FAV3_ADC_MIN_NP : FAV3_ADC_MAX_NP;
+      printf("Setting to %d.\n",NP);
     }
 
   rval = faV3SetupADC(id, 0);
 
-  if(err)
-    rval = ERROR;
-
-
   FAV3LOCK;
   /* Disable ADC processing while writing window info */
-  vmeWrite16(&(FAV3p[id]->adc.config1), ((pmode - 1) | (NP << 4)));
-  vmeWrite16(&(FAV3p[id]->adc.config2), faV3ChanDisableMask[id]);
-  vmeWrite16(&(FAV3p[id]->adc.pl), PL);
-  vmeWrite16(&(FAV3p[id]->adc.ptw), PTW);
-  vmeWrite16(&(FAV3p[id]->adc.nsb), NSB);
-  vmeWrite16(&(FAV3p[id]->adc.nsa), NSA);
+  if(pmode == FAV3_PROC_MODE_PULSE_PARAM)
+    mode_bit = 0;
+  else if(pmode == FAV3_PROC_MODE_DEBUG)
+    mode_bit = 1;
+  else if(pmode == FAV3_PROC_MODE_RAW)
+    mode_bit = 3;
+  else
+    {
+      printf("%s: ERROR: Unsupported mode (%d)\n",
+	     __func__, pmode);
+      return ERROR;
+    }
+
+  /* Configure the mode (mode_bit), # of pulses (NP), # samples above TET (NSAT)
+     keep TNSAT, if it's already been configured */
+  vmeWrite16(&FAV3p[id]->adc.config1,
+	     (vmeRead16(&FAV3p[id]->adc.config1) & (FAV3_ADC_CONFIG1_TNSAT_MASK | FAV3_ADC_CONFIG1_TNSAT_MASK)) |
+	     (mode_bit << 8) | ((NP-1) << 4) );
+  /* Disable user-requested channels */
+  vmeWrite16(&FAV3p[id]->adc.config2, faV3ChanDisableMask[id]);
+
+  /* Set window parameters */
+  vmeWrite16(&FAV3p[id]->adc.pl, PL);
+  vmeWrite16(&FAV3p[id]->adc.ptw, PTW - 1);
+
+  /* Set Readback NSB, NSA */
+  if(NSB < 0) /* Convert value if negative */
+    NSB = ((-1) * NSB) | FAV3_ADC_NSB_NEGATIVE;
+
+  vmeWrite16(&FAV3p[id]->adc.nsb, NSB);
+  vmeWrite16(&FAV3p[id]->adc.nsa,
+	     (vmeRead16(&FAV3p[id]->adc.nsa) & FAV3_ADC_TNSA_MASK) |
+	     NSA );
 
   /* Enable ADC processing */
-  vmeWrite16(&(FAV3p[id]->adc.config1),
-	     ((pmode - 1) | (NP << 4) | FAV3_ADC_PROC_ENABLE));
+  vmeWrite16(&FAV3p[id]->adc.config1,
+	     vmeRead16(&FAV3p[id]->adc.config1) | FAV3_ADC_PROC_ENABLE );
 
+  /* Set default value of trigger path threshold (TPT) */
+  vmeWrite16(&FAV3p[id]->adc.config3, FAV3_ADC_DEFAULT_TPT);
   FAV3UNLOCK;
 
   return (rval);

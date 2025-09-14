@@ -462,6 +462,10 @@ typedef struct faV3_sdc_struct
 #define FAV3_ADC_PROC_MODE_SUM      3
 #define FAV3_ADC_PROC_MODE_TIME     7
 
+#define FAV3_PROC_MODE_RAW          1
+#define FAV3_PROC_MODE_PULSE_PARAM  9
+#define FAV3_PROC_MODE_DEBUG       10
+
 #define FAV3_SUPPORTED_MODES                   9,10
 #define FAV3_SUPPORTED_NMODES                     2
 
