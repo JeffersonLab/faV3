@@ -887,15 +887,16 @@ int32_t faV3DACSet(int id, int chan, uint32_t dac_value);
 int32_t faV3DACGet(int id, int chan, uint32_t *dac_value);
 int32_t faV3DACPrint(int id);
 
-int faV3SetPedestal(int id, uint32_t chan, uint32_t ped);
-int faV3GetPedestal(int id, uint32_t chan);
+int faV3SetPedestal(int id, int chan, uint32_t ped);
+int faV3GetPedestal(int id, int chan);
 int faV3PrintPedestal(int id);
 int faV3SetChannelDelay(int id, int chan, uint16_t delay);
 int faV3GetChannelDelay(int id, int chan);
+int faV3SetChannelGain(int id, int chan, float gain);
+float faV3GetChannelGain(int id, int chan);
 
 /* scaler routine prototypes */
-int faV3ReadScalers(int id, volatile uint32_t * data, uint32_t chmask,
-		  int rflag);
+int faV3ReadScalers(int id, volatile uint32_t * data, uint32_t chmask, int rflag);
 int faV3PrintScalers(int id, int rflag);
 int faV3ClearScalers(int id);
 int faV3LatchScalers(int id);

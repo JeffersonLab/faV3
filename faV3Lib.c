@@ -4832,7 +4832,7 @@ faV3DACPrint(int id)
  */
 
 int
-faV3SetPedestal(int id, uint32_t chan, uint32_t ped)
+faV3SetPedestal(int id, int chan, uint32_t ped)
 {
   uint32_t lovalue = 0, hivalue = 0;
   CHECKID;
@@ -4867,7 +4867,7 @@ faV3SetPedestal(int id, uint32_t chan, uint32_t ped)
  */
 
 int
-faV3GetPedestal(int id, uint32_t chan)
+faV3GetPedestal(int id, int chan)
 {
   uint32_t rval = 0;
 
@@ -4961,6 +4961,58 @@ faV3GetChannelDelay(int id, int chan)
   FAV3UNLOCK;
 
   return(rval);
+}
+
+int
+faV3SetChannelGain(int id, int chan, float gain)
+{
+  uint16_t rval=0;
+  int igain;
+
+  CHECKID;
+  if(chan>16)
+    {
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
+      return(ERROR);
+    }
+
+  if(gain>=127.0 || gain<0.0)
+    {
+      printf("%s: ERROR : GAIN value (%f) out of range (0.0-127.0) \n",
+	     __func__, gain);
+      return(ERROR);
+    }
+
+  igain = (int)(gain*256.0);
+
+  FAV3LOCK;
+  rval = vmeRead16(&FAV3p[id]->adc.trig_gain[chan]) & 0x8000;
+  rval |= igain & 0x7FFF;
+  vmeWrite16(&FAV3p[id]->adc.trig_gain[chan], igain);
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+float
+faV3GetChannelGain(int id, int chan)
+{
+  unsigned int rval=0;
+  CHECKID;
+
+  if(chan>16)
+    {
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
+      return(ERROR);
+    }
+
+  FAV3LOCK;
+  rval = vmeRead16(&FAV3p[id]->adc.trig_gain[chan]) & 0x7FFF;
+  FAV3UNLOCK;
+
+  return( ((float)rval)/256.0 );
 }
 
 
