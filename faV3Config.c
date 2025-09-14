@@ -257,6 +257,11 @@ faV3DownloadAll()
 			  faV3[slot].nsa / FAV3_ADC_NS_PER_CLK,
 			  faV3[slot].npeak);
 
+	  faV3SetPulseParameterConfig(slot,
+				      faV3[slot].nped,
+				      faV3[slot].max_ped,
+				      faV3[slot].nsat / FAV3_ADC_NS_PER_CLK);
+
 	  faV3SetRoguePTWFallBack(slot, faV3[slot].ptw_fallback_mask);
 	}
 
@@ -335,6 +340,11 @@ faV3GetModulesConfig()
 	  faV3[slot].winWidth *= FAV3_ADC_NS_PER_CLK;
 	  faV3[slot].nsb *= FAV3_ADC_NS_PER_CLK;
 	  faV3[slot].nsa *= FAV3_ADC_NS_PER_CLK;
+
+	  faV3GetPulseParameterConfig(slot,
+				      &faV3[slot].nped,
+				      &faV3[slot].max_ped,
+				      &faV3[slot].nsat);
 	  faV3[slot].nsat *= FAV3_ADC_NS_PER_CLK;
 
 	  faV3GetRoguePTWFallBack(slot, &faV3[slot].ptw_fallback_mask);

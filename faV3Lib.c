@@ -1902,6 +1902,56 @@ faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
   return (0);
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Configure the processing type/mode
+ *
+ *  @param id Slot number
+ *  @param NPED  Number of samples to sum for pedestal
+ *  @param MAXPED Maximum value of sample to be included in pedestal sum
+ *  @param NSAT Number of consecutive samples over threshold for valid pulse
+ *
+ *  @return OK if successful, otherwise ERROR.
+ */
+int32_t
+faV3SetPulseParameterConfig(int32_t id, uint32_t NPED, uint32_t MAXPED, uint32_t NSAT)
+{
+  CHECKID;
+  int32_t rval = OK;
+
+  FAV3LOCK;
+
+  vmeWrite16(&FAV3p[id]->adc.config1,
+	     (vmeRead16(&FAV3p[id]->adc.config1) & FAV3_ADC_CONFIG1_NSAT_MASK) |
+	     ((NSAT-1) << 10) );
+
+  vmeWrite16(&FAV3p[id]->adc.config7, (NPED-1)<<10 | (MAXPED));
+
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+int32_t
+faV3GetPulseParameterConfig(int32_t id, uint32_t *NPED, uint32_t *MAXPED, uint32_t *NSAT)
+{
+  CHECKID;
+  uint16_t config1 = 0, config7 = 0;
+  int32_t rval = OK;
+
+  FAV3LOCK;
+
+  config1 = vmeRead16(&FAV3p[id]->adc.config1);
+  *NSAT = ((config1 & FAV3_ADC_CONFIG1_NSAT_MASK) >> 10) + 1;
+
+  config7 = vmeRead16(&FAV3p[id]->adc.config7);
+  *NPED = (config7 & FAV3_ADC_CONFIG7_NPED_MASK) >> 10;
+  *MAXPED = (config7 & FAV3_ADC_CONFIG7_MAXPED_MASK);
+
+  FAV3UNLOCK;
+
+  return rval;
+}
 
 /**
  *  @ingroup Config

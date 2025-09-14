@@ -478,6 +478,16 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 #define FAV3_ADC_CONFIG3_TPT_MASK   0x0FFF
 
+#define FAV3_ADC_CONFIG1_NSAT_MASK  0x0C00
+
+#define FAV3_ADC_CONFIG1_CHAN_READ_ENABLE (1<<15)
+
+#define FAV3_ADC_CONFIG6_MNPED_MASK   0x00003C00
+#define FAV3_ADC_CONFIG6_PMAXPED_MASK 0x000003FF
+
+#define FAV3_ADC_CONFIG7_NPED_MASK    0x00003C00
+#define FAV3_ADC_CONFIG7_MAXPED_MASK  0x000003FF
+
 #define FAV3_ROGUE_PTW_FALL_BACK_MASK 0x0000FFFF
 
 #define FAV3_ENABLE_ADC_PARAMETERS_DATA        0x8000
@@ -764,6 +774,8 @@ void faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 int faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 		  uint32_t * NSB, uint32_t * NSA, uint32_t * NP);
 
+int32_t faV3SetPulseParameterConfig(int32_t id, uint32_t NPED, uint32_t MAXPED, uint32_t NSAT);
+int32_t faV3GetPulseParameterConfig(int32_t id, uint32_t *NPED, uint32_t *MAXPED, uint32_t *NSAT);
 
 int faV3SetTriggerStopCondition(int id, int trigger_max);
 int faV3GetTriggerStopCondition(int id, int *trigger_max);
