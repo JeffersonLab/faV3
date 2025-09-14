@@ -1426,11 +1426,9 @@ faV3GStatus(int sflag)
 	  st[id].adc.pedestal[ii] = vmeRead16(&FAV3p[id]->adc.pedestal[ii]);
 	}
 
-      for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS/2; ii++)
+      for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
 	{
-	  uint32_t data = vmeRead16(&FAV3p[id]->adc.thres[ii]);
-	  st[id].adc.thres[ii] = data & 0xFFFF;
-	  st[id].adc.thres[ii+1] = (data & 0xFFFF0000) >> 16;
+	  st[id].adc.thres[ii] = vmeRead16(&FAV3p[id]->adc.thres[ii]);
 	}
 
     }
@@ -4560,18 +4558,8 @@ faV3SetThreshold(int id, int chan, uint16_t tvalue)
 {
   CHECKID;
 
-  int index = chan / 2;
-  int hibyte = chan % 2;
-  uint32_t regval = 0;
-
   FAV3LOCK;
-  regval = vmeRead16(&FAV3p[id]->adc.thres[index]);
-  if(hibyte)
-    vmeWrite16(&FAV3p[id]->adc.thres[index],
-	       (regval & 0xFFFF) | (tvalue << 16));
-  else
-    vmeWrite16(&FAV3p[id]->adc.thres[index],
-	       (regval & 0xFFFF0000) | tvalue);
+  vmeWrite16(&FAV3p[id]->adc.thres[chan], tvalue);
 
   FAV3UNLOCK;
 
@@ -4585,18 +4573,9 @@ faV3GetThreshold(int id, int chan)
 
   CHECKID;
 
-  int index = chan / 2;
-  int hibyte = chan % 2;
-  uint32_t regval = 0;
-
   FAV3LOCK;
-  regval = vmeRead16(&FAV3p[id]->adc.thres[index]);
+  rval = vmeRead16(&FAV3p[id]->adc.thres[chan]);
   FAV3UNLOCK;
-
-  if(hibyte)
-    rval = (regval >> 16) & 0xFFFF;
-  else
-    rval = (regval & 0xFFFF);
 
   return rval;
 }
@@ -4618,15 +4597,13 @@ faV3PrintThreshold(int id)
   CHECKID;
 
   FAV3LOCK;
-  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS/2; ii++)
+  for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
     {
-      reg = vmeRead16(&FAV3p[id]->adc.thres[ii]);
-      tval[2*ii] = reg & 0xFFFF;
-      tval[2*ii + 1] = (reg & 0xFFFF0000) >> 16;
+      tval[ii] = vmeRead16(&FAV3p[id]->adc.thres[ii]);
     }
   FAV3UNLOCK;
 
-  printf(" Threshold Settings for FADC in slot %d:", id);
+  printf(" Threshold Settings for FAV3 in slot %d:", id);
   for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
     {
       if((ii % 4) == 0)
@@ -4939,6 +4916,53 @@ faV3PrintPedestal(int id)
 
   return (OK);
 }
+
+int
+faV3SetChannelDelay(int id, int chan, uint16_t delay)
+{
+  CHECKID;
+
+  if(chan>16)
+    {
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
+      return(ERROR);
+    }
+
+  if(delay>512)
+    {
+      printf("%s: ERROR : Delay value (%d) out of range (0-511) \n",
+	     __func__, delay);
+      return(ERROR);
+    }
+
+  FAV3LOCK;
+  vmeWrite16(&FAV3p[id]->adc.trig_delay[chan], delay);
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+int
+faV3GetChannelDelay(int id, int chan)
+{
+  unsigned int rval=0;
+  CHECKID;
+
+  if(chan>16)
+    {
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
+      return(ERROR);
+    }
+
+  FAV3LOCK;
+  rval = vmeRead16(&FAV3p[id]->adc.trig_delay[chan]) & FAV3_ADC_DELAY_MASK;
+  FAV3UNLOCK;
+
+  return(rval);
+}
+
 
 /**
  *  @ingroup Readout
