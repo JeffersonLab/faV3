@@ -1885,26 +1885,6 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   return (rval);
 }
 
-/**
- *  @ingroup Config
- *  @brief Configure the processing type/mode for all initialized fADC250s
- *
- *  @param id Slot number
- *  @param pmode  Processing Mode
- *  @param  PL  Window Latency
- *  @param PTW  Window Width
- *  @param NSB  If NSB > 0: Number of samples before pulse over threshold included in sum
- *                 NSB < 0: Number of samples after threshold excluded from sum
- *  @param NSA  Number of samples after pulse over threshold to be included in sum
- *  @param NP   Number of pulses processed per window
- *
- *    Note:
- *     - PL must be greater than PTW
- *     - NSA+NSB must be an odd number
- *
- *  @return OK if successful, otherwise ERROR.
- */
-
 void
 faV3GSetProcMode(int pmode, uint32_t PL, uint32_t PTW,
 		 uint32_t NSB, uint32_t NSA, uint32_t NP)
@@ -1923,25 +1903,36 @@ int
 faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
 		uint32_t * NSB, uint32_t * NSA, uint32_t * NP)
 {
-  uint32_t tmp;
+  uint32_t config1 = 0, mode_bits = 0;
 
   CHECKID;
 
+  FAV3LOCK;
   *PTW = (vmeRead16(&(FAV3p[id]->adc.ptw)) & 0xFFFF);
   *PL = (vmeRead16(&(FAV3p[id]->adc.pl)) & 0xFFFF);
   *NSB = (vmeRead16(&(FAV3p[id]->adc.nsb)) & 0xFFFF);
   *NSA = (vmeRead16(&(FAV3p[id]->adc.nsa)) & 0xFFFF);
 
-  tmp = (vmeRead16(&(FAV3p[id]->adc.config1)) & 0xFFFF);
-  *pmode = (tmp & FAV3_ADC_PROC_MASK) + 1;
-  *NP = (tmp & FAV3_ADC_PEAK_MASK) >> 4;
+  config1 = (vmeRead16(&(FAV3p[id]->adc.config1)) & 0xFFFF);
+
+  mode_bits = (config1 & FAV3_ADC_PROC_MASK);
+  if(mode_bits == 0)
+    *pmode = FAV3_PROC_MODE_PULSE_PARAM;
+  else if(mode_bits == 1)
+    *pmode = FAV3_PROC_MODE_DEBUG;
+  if(mode_bits == 3)
+    *pmode = FAV3_PROC_MODE_RAW;
+
+  *NP = ((config1 & FAV3_ADC_PEAK_MASK) >> 4) + 1;
+
+  FAV3UNLOCK;
 
   return (0);
 }
 
 /**
  *  @ingroup Config
- *  @brief Configure the processing type/mode
+ *  @brief Configure the pulse parameter processing configuration
  *
  *  @param id Slot number
  *  @param NPED  Number of samples to sum for pedestal
@@ -7726,6 +7717,136 @@ faV3GetDataFormat(int id)
   FAV3UNLOCK;
 
   return rval;
+}
+
+int
+faV3SetHitbitTrigMask(int id, uint16_t chmask)
+{
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite16(&FAV3p[id]->adc.live_trig_mask, chmask);
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+uint16_t
+faV3GetHitbitTrigMask(int id)
+{
+  uint16_t rvalue = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  rvalue = vmeRead16(&FAV3p[id]->adc.live_trig_mask) & 0xFFFF;
+  FAV3UNLOCK;
+
+  return(rvalue);
+}
+
+int
+faV3SetHitbitMinTOT(int id, uint16_t width)
+{
+  uint16_t val;
+  CHECKID;
+
+  FAV3LOCK;
+  val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
+  val = (val & 0xFFFFFF00) | (width & 0xFF);
+  vmeWrite16(&FAV3p[id]->adc.hitbit_config, val);
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+int
+faV3GetHitbitMinTOT(int id)
+{
+  uint16_t val;
+  CHECKID;
+
+  FAV3LOCK;
+  val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
+  FAV3UNLOCK;
+
+  return (val & 0xFF);
+}
+
+int
+faGSetHitbitMinTOT(uint16_t width)
+{
+  int ii;
+
+  for(ii=0;ii<nfaV3;ii++)
+    faV3SetHitbitMinTOT(faV3ID[ii], width);
+
+  return(OK);
+}
+
+
+int
+faV3SetHitbitMinMultiplicity(int id, uint16_t mult)
+{
+  uint16_t val;
+  CHECKID;
+
+  FAV3LOCK;
+  val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
+  val = (val & 0xFFFFE0FF) | ((mult & 0x1F)<<8);
+  vmeWrite16(&FAV3p[id]->adc.hitbit_config, val);
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+int
+faV3GetHitbitMinMultiplicity(int id)
+{
+  uint16_t val;
+  CHECKID;
+
+  FAV3LOCK;
+  val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
+  FAV3UNLOCK;
+
+  return(val>>8)&0x1F;
+}
+
+int
+faGSetHitbitMinMultiplicity(uint16_t mult)
+{
+  int ii;
+
+  for(ii=0;ii<nfaV3;ii++)
+    faV3SetHitbitMinMultiplicity(faV3ID[ii], mult);
+
+  return OK;
+}
+
+
+int
+faV3SetHitbitTrigWidth(int id, uint16_t width)
+{
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite16(&FAV3p[id]->adc.live_trig_width, width);
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+uint16_t
+faV3GetHitbitTrigWidth(int id)
+{
+  uint16_t rvalue = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  rvalue = vmeRead16(&FAV3p[id]->adc.live_trig_width) & 0xFFFF;
+  FAV3UNLOCK;
+
+  return(rvalue);
 }
 
 /***************************************************************************************

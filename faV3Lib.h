@@ -961,6 +961,17 @@ int faV3SetDataFormat(int id, int format);
 void faV3GSetDataFormat(int format);
 int faV3GetDataFormat(int id);
 
+int faV3SetHitbitTrigMask(int id, uint16_t chmask);
+uint16_t faV3GetHitbitTrigMask(int id);
+int faV3SetHitbitMinTOT(int id, uint16_t width);
+int faV3GetHitbitMinTOT(int id);
+int faGSetHitbitMinTOT(uint16_t width);
+int faV3SetHitbitMinMultiplicity(int id, uint16_t mult);
+int faV3GetHitbitMinMultiplicity(int id);
+int faGSetHitbitMinMultiplicity(uint16_t mult);
+int faV3SetHitbitTrigWidth(int id, uint16_t width);
+uint16_t faV3GetHitbitTrigWidth(int id);
+
 typedef struct
 {
   double avg;
