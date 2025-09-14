@@ -478,6 +478,12 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 #define FAV3_ADC_CONFIG3_TPT_MASK   0x0FFF
 
+#define FAV3_ROGUE_PTW_FALL_BACK_MASK 0x0000FFFF
+
+#define FAV3_ENABLE_ADC_PARAMETERS_DATA        0x8000
+#define FAV3_SUPPRESS_TRIGGER_TIME_DATA       0x10000
+#define FAV3_SUPPRESS_TRIGGER_TIME_WORD2_DATA 0x20000
+#define FAV3_SUPPRESS_TRIGGER_TIME_MASK       0x30000
 
 #define FAV3_ADC_VERSION_MASK  0x7fff
 #define FAV3_ADC_PLAYBACK_MODE 0x0080
@@ -926,6 +932,18 @@ void faV3SDC_Disable();
 void faV3SDC_Sync();
 void faV3SDC_Trig();
 int faV3SDC_Busy();
+
+int faV3SetRoguePTWFallBack(int id, uint16_t enablemask);
+int faV3GetRoguePTWFallBack(int id, uint16_t *enablemask);
+int faV3DataInsertAdcParameters(int id, int enable);
+void faV3GDataInsertAdcParameters(int enable);
+int faV3DataGetInsertAdcParameters(int id);
+int faV3DataSuppressTriggerTime(int id, int suppress);
+void faV3GDataSuppressTriggerTime(int suppress);
+int faV3DataGetSuppressTriggerTime(int id);
+int faV3SetDataFormat(int id, int format);
+void faV3GSetDataFormat(int format);
+int faV3GetDataFormat(int id);
 
 typedef struct
 {

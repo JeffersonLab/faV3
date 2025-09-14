@@ -7391,7 +7391,255 @@ faV3ReadAllChannelSamples(int id, uint16_t data[16])
   return (FAV3_MAX_ADC_CHANNELS);
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Enable / Disable Rogue PTW Fall Back for specified channel mask
+ *
+ *    When enabled, send raw data when any of the first 4 samples is
+ *    above threshold.  When disabled, proceed to calculate SUM and TDC
+ *
+ *  @param id Slot number
+ *  @param enablemask Enabled Channel Mask [0,0xffff]
+ *  @return OK if successful, otherwise ERROR.
+ */
 
+int
+faV3SetRoguePTWFallBack(int id, uint16_t enablemask)
+{
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite16(&FAV3p[id]->adc.rogue_ptw_fall_back, enablemask);
+  FAV3UNLOCK;
+
+  return (OK);
+}
+
+/**
+ *  @ingroup Status
+ *  @brief Return mask of channels with Rogue PTW Fall Back enabled
+ *
+ *    When enabled, send raw data when any of the first 4 samples is
+ *    above threshold.  When disabled, proceed to calculate SUM and TDC
+ *
+ *  @param id Slot number
+ *  @return Enabled Channel Mask if successful, otherwise ERROR.
+ */
+
+int
+faV3GetRoguePTWFallBack(int id, uint16_t *enablemask)
+{
+  int rval = OK;
+  CHECKID;
+
+  FAV3LOCK;
+  *enablemask = vmeRead16(&FAV3p[id]->adc.rogue_ptw_fall_back) & FAV3_ROGUE_PTW_FALL_BACK_MASK;
+  FAV3UNLOCK;
+
+  return (rval);
+}
+
+
+/**
+ *  @ingroup Config
+ *  @brief Insert ADC parameter word into datastream.
+ *     The data word appears as a block header continuation word.
+ *  @param id Slot number
+ *  @param enable Enable flag
+ *      -  0: Disable
+ *      - !0: Enable
+ *  @return OK if successful, otherwise ERROR.
+ */
+int
+faV3DataInsertAdcParameters(int id, int enable)
+{
+  CHECKID;
+
+  FAV3LOCK;
+  if(enable)
+    vmeWrite32(&FAV3p[id]->ctrl1, vmeRead32(&FAV3p[id]->ctrl1) | FAV3_ENABLE_ADC_PARAMETERS_DATA);
+  else
+    vmeWrite32(&FAV3p[id]->ctrl1, vmeRead32(&FAV3p[id]->ctrl1) & ~FAV3_ENABLE_ADC_PARAMETERS_DATA);
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Insert ADC parameter word into datastream. For all initialized modules.
+ *     The data word appears as a block header continuation word.
+ *  @param enable Enable flag
+ *      -  0: Disable
+ *      - !0: Enable
+ */
+void
+faV3GDataInsertAdcParameters(int enable)
+{
+  int ifadc;
+
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
+    faV3DataInsertAdcParameters(faV3Slot(ifadc), enable);
+
+}
+
+/**
+ *  @ingroup Status
+ *  @brief Get the status of Insert ADC parameter word into datastream.
+ *     The data word appears as a block header continuation word.
+ *  @param id Slot number
+ *  @return 1 if enabled, 0 if disabled, otherwise ERROR.
+ */
+int
+faV3DataGetInsertAdcParameters(int id)
+{
+  int rval = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  rval = (vmeRead32(&FAV3p[id]->ctrl1) & FAV3_ENABLE_ADC_PARAMETERS_DATA) ? 1 : 0;
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable suppression of one or both of the trigger time words
+ *    in the data stream.
+ *  @param id Slot number
+ *  @param suppress Suppression Flag
+ *      -  0: Trigger time words are enabled in datastream
+ *      -  1: Suppress BOTH trigger time words
+ *      -  2: Suppress trigger time word 2 (that with most significant bytes)
+ *  @return OK if successful, otherwise ERROR.
+ */
+int
+faV3DataSuppressTriggerTime(int id, int suppress)
+{
+  unsigned int suppress_bits = 0;
+  CHECKID;
+
+  switch (suppress)
+    {
+    case 0:			/* Enable trigger time words */
+      suppress_bits = FAV3_SUPPRESS_TRIGGER_TIME_DATA;
+      break;
+
+    case 1:			/* Suppress both trigger time words */
+      suppress_bits = FAV3_SUPPRESS_TRIGGER_TIME_DATA;
+      break;
+
+    case 2:			/* Suppress trigger time word 2 */
+      suppress_bits = FAV3_SUPPRESS_TRIGGER_TIME_WORD2_DATA;
+      break;
+
+    default:
+      printf("%s(%d): ERROR: Invalid suppress (%d)\n", __func__, id, suppress);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  if(suppress)
+    vmeWrite32(&FAV3p[id]->ctrl1, vmeRead32(&FAV3p[id]->ctrl1) | suppress_bits);
+  else
+    vmeWrite32(&FAV3p[id]->ctrl1, vmeRead32(&FAV3p[id]->ctrl1) & ~suppress_bits);
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable suppression of one or both of the trigger time words
+ *    in the data stream for all initialized modules.
+ *  @param suppress Suppression Flag
+ *      -  0: Trigger time words are enabled in datastream
+ *      -  1: Suppress BOTH trigger time words
+ *      -  2: Suppress trigger time word 2 (that with most significant bytes)
+ */
+void
+faV3GDataSuppressTriggerTime(int suppress)
+{
+  int ifadc;
+
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
+    faV3DataSuppressTriggerTime(faV3Slot(ifadc), suppress);
+
+}
+
+int
+faV3DataGetSuppressTriggerTime(int id)
+{
+  int rval = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  rval = (vmeRead32(&FAV3p[id]->ctrl1) & FAV3_SUPPRESS_TRIGGER_TIME_MASK) >> 16;
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Set the readout data form which allows for suppression of
+ *         repetitious data words
+ *  @param id Slot number
+ *  @param format Data Format
+ *      -  0: Standard Format - No data words suppressed
+ *      -  1: Intermediate compression - Event headers suppressed if no data
+ *      -  2: Full compression - Only first event header in the block.
+ *  @return OK if successful, otherwise ERROR.
+ */
+int
+faV3SetDataFormat(int id, int format)
+{
+  CHECKID;
+
+  if((format < 0) || (format > 2))
+    {
+      printf("%s: ERROR: Invalid format (%d) \n", __func__, format);
+      return ERROR;
+    }
+
+  FAV3LOCK;
+  vmeWrite32(&FAV3p[id]->ctrl1,
+	     (vmeRead32(&FAV3p[id]->ctrl1) & ~FAV3_CTRL1_DATAFORMAT_MASK) | (format << 26));
+  FAV3UNLOCK;
+
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Set the readout data form for all initialized modules.
+ *  @param format Data Format
+ *      -  0: Standard Format - No data words suppressed
+ *      -  1: Intermediate compression - Event headers suppressed if no data
+ *      -  2: Full compression - Only first event header in the block.
+ */
+void
+faV3GSetDataFormat(int format)
+{
+  int ifadc;
+
+  for(ifadc = 0; ifadc < nfaV3; ifadc++)
+    faV3SetDataFormat(faV3Slot(ifadc), format);
+}
+
+int
+faV3GetDataFormat(int id)
+{
+  int32_t rval = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  rval = (vmeRead32(&FAV3p[id]->ctrl1) & FAV3_CTRL1_DATAFORMAT_MASK) >> 26;
+  FAV3UNLOCK;
+
+  return rval;
+}
 
 /***************************************************************************************
    JLAB FADC Signal Distribution Card (SDC) Routines

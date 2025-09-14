@@ -41,7 +41,7 @@ typedef struct {
   int32_t busy;
   int32_t stop;
 
-  uint32_t ptw_fallback_mask;
+  uint16_t ptw_fallback_mask;
 
   int32_t data_format;
   int32_t suppress_trig_time;

@@ -246,11 +246,23 @@ faV3DownloadAll()
 			  faV3[slot].nsat / FAV3_ADC_NS_PER_CLK);
 
 	  faV3HallDSetRoguePTWFallBack(slot, faV3[slot].ptw_fallback_mask);
-
-	  faV3HallDSetDataFormat(slot, faV3[slot].data_format);
-	  faV3HallDDataSuppressTriggerTime(slot, faV3[slot].suppress_trig_time);
-	  faV3HallDDataInsertAdcParameters(slot, faV3[slot].insert_adc_params);
 	}
+      else
+	{
+	  faV3SetProcMode(slot,
+			  faV3[slot].mode,
+			  faV3[slot].winOffset / FAV3_ADC_NS_PER_CLK,
+			  faV3[slot].winWidth / FAV3_ADC_NS_PER_CLK,
+			  faV3[slot].nsb / FAV3_ADC_NS_PER_CLK,
+			  faV3[slot].nsa / FAV3_ADC_NS_PER_CLK,
+			  faV3[slot].npeak);
+
+	  faV3SetRoguePTWFallBack(slot, faV3[slot].ptw_fallback_mask);
+	}
+
+      faV3SetDataFormat(slot, faV3[slot].data_format);
+      faV3DataSuppressTriggerTime(slot, faV3[slot].suppress_trig_time);
+      faV3DataInsertAdcParameters(slot, faV3[slot].insert_adc_params);
 
       faV3SetTriggerPathSamples(slot, faV3[slot].trig_nsa / FAV3_ADC_NS_PER_CLK,
 				faV3[slot].trig_nsat / FAV3_ADC_NS_PER_CLK);
@@ -302,16 +314,35 @@ faV3GetModulesConfig()
 			       &faV3[slot].nped,
 			       &faV3[slot].max_ped,
 			       &faV3[slot].nsat);
-	  faV3[slot].insert_adc_params = faV3HallDDataGetInsertAdcParameters(slot);
-	  faV3[slot].suppress_trig_time = faV3HallDDataGetSuppressTriggerTime(slot);
-	  faV3[slot].data_format = faV3HallDGetDataFormat(slot);
-
 	  faV3[slot].winOffset *= FAV3_ADC_NS_PER_CLK;
 	  faV3[slot].winWidth *= FAV3_ADC_NS_PER_CLK;
 	  faV3[slot].nsb *= FAV3_ADC_NS_PER_CLK;
 	  faV3[slot].nsa *= FAV3_ADC_NS_PER_CLK;
 	  faV3[slot].nsat *= FAV3_ADC_NS_PER_CLK;
+
+	  faV3HallDGetRoguePTWFallBack(slot, &faV3[slot].ptw_fallback_mask);
 	}
+      else
+	{
+	  faV3GetProcMode(slot,
+			  &faV3[slot].mode,
+			  &faV3[slot].winOffset,
+			  &faV3[slot].winWidth,
+			  &faV3[slot].nsb,
+			  &faV3[slot].nsa,
+			  &faV3[slot].npeak);
+	  faV3[slot].winOffset *= FAV3_ADC_NS_PER_CLK;
+	  faV3[slot].winWidth *= FAV3_ADC_NS_PER_CLK;
+	  faV3[slot].nsb *= FAV3_ADC_NS_PER_CLK;
+	  faV3[slot].nsa *= FAV3_ADC_NS_PER_CLK;
+	  faV3[slot].nsat *= FAV3_ADC_NS_PER_CLK;
+
+	  faV3GetRoguePTWFallBack(slot, &faV3[slot].ptw_fallback_mask);
+	}
+
+      faV3[slot].insert_adc_params = faV3DataGetInsertAdcParameters(slot);
+      faV3[slot].suppress_trig_time = faV3DataGetSuppressTriggerTime(slot);
+      faV3[slot].data_format = faV3GetDataFormat(slot);
 
       faV3GetTriggerPathSamples(slot, &faV3[slot].trig_nsa, &faV3[slot].trig_nsat);
       faV3[slot].trig_nsa *= FAV3_ADC_NS_PER_CLK;
