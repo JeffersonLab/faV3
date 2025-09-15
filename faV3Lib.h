@@ -892,6 +892,10 @@ int faV3GetPedestal(int id, int chan);
 int faV3PrintPedestal(int id);
 int faV3SetChannelDelay(int id, int chan, uint16_t delay);
 int faV3GetChannelDelay(int id, int chan);
+int faV3SetInvertMask(int id, uint16_t chmask);
+uint16_t faV3GetInvertMask(int id);
+int faV3SetTriggerProcessingMode(int id, int chan, int mode);
+int faV3GetTriggerProcessingMode(int id, int chan);
 int faV3SetChannelGain(int id, int chan, float gain);
 float faV3GetChannelGain(int id, int chan);
 

@@ -4963,6 +4963,100 @@ faV3GetChannelDelay(int id, int chan)
   return(rval);
 }
 
+
+int
+faV3SetInvertMask(int id, uint16_t chmask)
+{
+  int ii;
+  uint16_t thres = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
+    {
+      thres = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+      if((1 << ii) & chmask)
+	thres |= FAV3_THR_INVERT_MASK;
+      else
+	thres &=~FAV3_THR_INVERT_MASK;
+
+      vmeWrite16(&FAV3p[id]->adc.thres[ii], thres);
+    }
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+uint16_t
+faV3GetInvertMask(int id)
+{
+  int ii;
+  uint16_t tmp = 0, cmask = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
+    {
+      tmp = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+      if(tmp & FAV3_THR_INVERT_MASK)
+	cmask |= (1<<ii);
+    }
+  FAV3UNLOCK;
+
+  return(cmask);
+}
+
+int
+faV3SetTriggerProcessingMode(int id, int chan, int mode)
+{
+  uint16_t rval=0;
+  CHECKID;
+
+  if(chan>16)
+    {
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
+      return(ERROR);
+    }
+
+  FAV3LOCK;
+  rval = vmeRead16(&FAV3p[id]->adc.trig_gain[chan]);
+
+  if(mode)
+    rval |= 0x8000;
+  else
+    rval &= 0x7FFF;
+
+  vmeWrite16(&FAV3p[id]->adc.trig_gain[chan], rval);
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+int
+faV3GetTriggerProcessingMode(int id, int chan)
+{
+  uint16_t rval=0;
+  CHECKID;
+
+  if(chan>16)
+    {
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
+      return(ERROR);
+    }
+
+  FAV3LOCK;
+  rval = vmeRead16(&FAV3p[id]->adc.trig_gain[chan]);
+  if(rval & 0x8000)
+    rval = 1;
+  else
+    rval = 0;
+  FAV3UNLOCK;
+
+  return(rval);
+}
+
 int
 faV3SetChannelGain(int id, int chan, float gain)
 {
