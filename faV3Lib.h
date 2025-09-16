@@ -940,21 +940,25 @@ int faV3SetScalerBlockInterval(int id, uint32_t nblock);
 int faV3GetScalerBlockInterval(int id);
 int faV3ForceEndOfBlock(int id, int scalers);
 void faV3GForceEndOfBlock(int scalers);
+
+int faV3SetSparsificationMode(int id, int mode);
+void faV3GSetSparsificationMode(int mode);
+int faV3GetSparsificationMode(int id);
+int faV3GetSparsificationStatus(int id);
+int faV3ClearSparsificationStatus(int id);
+void faV3GClearSparsificationStatus();
+
+int faV3PrintAuxScal(int id);
+uint32_t faV3GetFirstTriggerMismatch(int id);
+uint32_t faV3GetMismatchTriggerCount(int id);
+uint32_t faV3GetTriggersProcessedCount(int id);
+
 int32_t faV3LoadIdelay(int32_t id, int32_t pflag);
 int32_t faV3IDelayPrint(int32_t id);
 
 int faV3SampleConfig(int id, int nsamples, int maxvalue);
 int faV3GSampleConfig(int nsamples, int maxvalue);
 int faV3ReadAllChannelSamples(int id, uint16_t data[16]);
-
-/* SDC prototypes */
-int faV3SDC_Config(uint16_t cFlag, uint16_t bMask);
-void faV3SDC_Status(int sFlag);
-void faV3SDC_Enable(int nsync);
-void faV3SDC_Disable();
-void faV3SDC_Sync();
-void faV3SDC_Trig();
-int faV3SDC_Busy();
 
 int faV3SetRoguePTWFallBack(int id, uint16_t enablemask);
 int faV3GetRoguePTWFallBack(int id, uint16_t *enablemask);
@@ -988,3 +992,12 @@ typedef struct
 } faV3Ped;
 
 int faV3MeasureChannelPedestal(int id, uint32_t chan, faV3Ped *ped);
+
+/* SDC prototypes */
+int faV3SDC_Config(uint16_t cFlag, uint16_t bMask);
+void faV3SDC_Status(int sFlag);
+void faV3SDC_Enable(int nsync);
+void faV3SDC_Disable();
+void faV3SDC_Sync();
+void faV3SDC_Trig();
+int faV3SDC_Busy();
