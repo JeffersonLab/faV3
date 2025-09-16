@@ -983,6 +983,13 @@ int faGSetHitbitMinMultiplicity(uint16_t mult);
 int faV3SetHitbitTrigWidth(int id, uint16_t width);
 uint16_t faV3GetHitbitTrigWidth(int id);
 
+int faV3ThresholdIgnore(int id, uint16_t chmask);
+uint16_t faV3GetThresholdIgnoreMask(int id);
+int faV3PlaybackDisable(int id, uint16_t chmask);
+uint16_t faV3GetPlaybackDisableMask(int id);
+int faV3SetAccumulatorScalerMode(int id, uint16_t chmask);
+uint16_t faV3GetAccumulatorScalerMode(int id);
+
 typedef struct
 {
   double avg;

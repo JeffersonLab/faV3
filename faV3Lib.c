@@ -8019,6 +8019,143 @@ faV3GetHitbitTrigWidth(int id)
   return(rvalue);
 }
 
+int
+faV3ThresholdIgnore(int id, uint16_t chmask)
+{
+  int ii;
+  uint16_t thres = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
+    {
+      thres = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+
+      if((1<<ii)&chmask)
+	thres |= FAV3_THR_IGNORE_MASK;
+      else
+	thres &= ~FAV3_THR_IGNORE_MASK;
+
+      vmeWrite16(&FAV3p[id]->adc.thres[ii], thres);
+    }
+  FAV3UNLOCK;
+  return(OK);
+}
+
+uint16_t
+faV3GetThresholdIgnoreMask(int id)
+{
+  int ii;
+  uint16_t tmp, cmask = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
+    {
+      tmp = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+      if(tmp & FAV3_THR_IGNORE_MASK)
+	cmask |= (1<<ii);
+    }
+  FAV3UNLOCK;
+
+  return(cmask);
+}
+
+int
+faV3PlaybackDisable(int id, uint16_t chmask)
+{
+  int ii;
+  uint16_t thres = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
+    {
+      thres = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+
+      if((1<<ii)&chmask)
+	thres |= FAV3_PLAYBACK_DIS_MASK;
+      else
+	thres &= ~FAV3_PLAYBACK_DIS_MASK;
+
+      vmeWrite16(&FAV3p[id]->adc.thres[ii], thres);
+    }
+  FAV3UNLOCK;
+  return(OK);
+}
+
+uint16_t
+faV3GetPlaybackDisableMask(int id)
+{
+  int ii;
+  uint16_t tmp, cmask = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
+    {
+      tmp = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+      if(tmp & FAV3_PLAYBACK_DIS_MASK)
+	cmask |= (1<<ii);
+    }
+  FAV3UNLOCK;
+
+  return(cmask);
+}
+
+
+/**
+ * @brief Set the scaler mode
+ * @details Set the scaler mode using a channel mask for the specified module
+ * @param[in] id fadc slot number
+ * @param[in] chmask Channel Mask, (bit=0, chan=0; bit 15, chan=15),
+ * If the bit is set, using the accumulator mode to summ alal samples.
+ * If the bit is not set, use the default TET based pulse integration.
+ * @return OK if successful, otherwise ERROR
+ */
+int
+faV3SetAccumulatorScalerMode(int id, uint16_t chmask)
+{
+  int ii;
+  uint16_t thres = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
+    {
+      thres = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+
+      if((1<<ii)&chmask)
+	thres |= FAV3_THR_ACCUMULATOR_SCALER_MODE_MASK;
+      else
+	thres &= ~FAV3_THR_ACCUMULATOR_SCALER_MODE_MASK;
+
+      vmeWrite16(&FAV3p[id]->adc.thres[ii], thres);
+    }
+  FAV3UNLOCK;
+
+  return(OK);
+}
+
+uint16_t
+faV3GetAccumulatorScalerMode(int id)
+{
+  int ii;
+  uint16_t tmp, cmask = 0;
+  CHECKID;
+
+  FAV3LOCK;
+  for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
+    {
+      tmp = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+      if(tmp & FAV3_THR_ACCUMULATOR_SCALER_MODE_MASK)
+	cmask |= (1<<ii);
+    }
+  FAV3UNLOCK;
+
+  return(cmask);
+}
+
 /***************************************************************************************
    JLAB FADC Signal Distribution Card (SDC) Routines
 ***************************************************************************************/
