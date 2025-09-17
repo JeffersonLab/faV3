@@ -17,8 +17,6 @@ typedef struct {
   uint32_t chDisMask;
 
   int32_t mode;
-  int32_t compression;
-  int32_t vxsReadout;
 
   uint32_t winOffset;
   uint32_t winWidth;
@@ -57,6 +55,8 @@ typedef struct {
   int32_t data_format;
   int32_t suppress_trig_time;
   int32_t insert_adc_params;
+  int32_t compression;
+  int32_t vxsReadout;
 
 } FAV3_CONF;
 

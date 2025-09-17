@@ -176,9 +176,6 @@ faV3ReadConfigFile(char *filename_in)
 
       SCAN_INT("FAV3_MODE", faV3[slot].mode, slot_min, slot_max);
 
-      SCAN_INT("FAV3_COMPRESSION", faV3[slot].compression, slot_min, slot_max);
-      SCAN_INT("FAV3_VXSREADOUT", faV3[slot].vxsReadout, slot_min, slot_max);
-
       SCAN_INT("FAV3_W_OFFSET", faV3[slot].winOffset, slot_min, slot_max);
       SCAN_INT("FAV3_W_WIDTH", faV3[slot].winWidth, slot_min, slot_max);
       SCAN_INT("FAV3_NSA", faV3[slot].nsa, slot_min, slot_max);
@@ -227,10 +224,12 @@ faV3ReadConfigFile(char *filename_in)
       SCAN_INT_CH("FAV3_CH_DELAY", faV3[slot].delay, slot_min, slot_max);
       SCAN_INT_ALLCH("FAV3_ALLCH_DELAY", faV3[slot].delay, slot_min, slot_max);
 
-
       SCAN_INT("FAV3_DATA_FORMAT",  faV3[slot].data_format, slot_min, slot_max);
       SCAN_INT("FAV3_SUPPRESS_TRIG_TIME",  faV3[slot].suppress_trig_time, slot_min, slot_max);
       SCAN_INT("FAV3_INSERT_ADC_PARAMS",  faV3[slot].insert_adc_params, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPRESSION", faV3[slot].compression, slot_min, slot_max);
+      SCAN_INT("FAV3_VXSREADOUT", faV3[slot].vxsReadout, slot_min, slot_max);
+
 
       if(active)
 	{
@@ -259,6 +258,9 @@ faV3DownloadAll()
   for(ifa=0; ifa<nfadc; ifa++)
     {
       slot = faV3Slot(ifa);
+
+      faV3SetChanDisableMask(slot, faV3[slot].chDisMask);
+
 
       if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
 	{
@@ -291,27 +293,47 @@ faV3DownloadAll()
 				      faV3[slot].nsat / FAV3_ADC_NS_PER_CLK);
 
 	  faV3SetRoguePTWFallBack(slot, faV3[slot].ptw_fallback_mask);
-	}
 
-      faV3SetDataFormat(slot, faV3[slot].data_format);
-      faV3DataSuppressTriggerTime(slot, faV3[slot].suppress_trig_time);
-      faV3DataInsertAdcParameters(slot, faV3[slot].insert_adc_params);
+
+	}
 
       faV3SetTriggerPathSamples(slot, faV3[slot].trig_nsa / FAV3_ADC_NS_PER_CLK,
 				faV3[slot].trig_nsat / FAV3_ADC_NS_PER_CLK);
       faV3SetTriggerPathThreshold(slot, faV3[slot].trig_thr);
 
-      faV3SetChanDisableMask(slot, faV3[slot].chDisMask);
+      if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_SUPPORTED_PROC_FIRMWARE)
+	{
+	  faV3SetHitbitTrigMask(slot, faV3[slot].trigMask);
+	  faV3SetHitbitTrigWidth(slot, faV3[slot].trigWidth);
+	  faV3SetHitbitMinTOT(slot, faV3[slot].trigMinTOT);
+	  faV3SetHitbitMinMultiplicity(slot, faV3[slot].trigMinMult);
+
+	  faV3ThresholdIgnore(slot, faV3[slot].thrIgnoreMask);
+	  faV3SetInvertMask(slot, faV3[slot].invertMask);
+	  faV3PlaybackDisable(slot, faV3[slot].playbackDisableMask);
+	  faV3SetSparsificationMode(slot, faV3[slot].sparsification);
+	  faV3SetAccumulatorScalerMode(slot, faV3[slot].accumulatorMask);
+	}
+
+      faV3SetDataFormat(slot, faV3[slot].data_format);
+      faV3DataSuppressTriggerTime(slot, faV3[slot].suppress_trig_time);
+      faV3DataInsertAdcParameters(slot, faV3[slot].insert_adc_params);
       faV3SetCompression(slot,faV3[slot].compression);
       faV3SetVXSReadout(slot,faV3[slot].vxsReadout);
 
+
       for(ichan=0; ichan<NCHAN; ichan++)
 	{
-	  faV3DACSet(slot, ichan, faV3[slot].dac[ichan]);
-
+	  if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_SUPPORTED_PROC_FIRMWARE)
+	    {
+	      faV3SetTriggerProcessingMode(slot, ichan,
+					   (faV3[slot].trigModeMask & (1 << ichan)) ? 1 : 0);
+	      faV3SetChannelGain(slot, ichan, faV3[slot].gain[ichan]);
+	      faV3SetChannelDelay(slot, ichan, faV3[slot].delay[ichan]);
+	    }
 	  faV3SetPedestal(slot, ichan, (int) faV3[slot].pedestal[ichan]);
-
 	  faV3SetThreshold(slot, ichan, faV3[slot].thr[ichan]);
+	  faV3DACSet(slot, ichan, faV3[slot].dac[ichan]);
 	}
     }
 
