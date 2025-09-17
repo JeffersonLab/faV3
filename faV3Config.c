@@ -351,9 +351,13 @@ faV3GetModulesConfig()
 
   nfadc = faV3GetN();
 
+
   for(ifa = 0; ifa < nfadc; ifa++)
     {
       slot = faV3Slot(ifa);
+
+      faV3[slot].chDisMask = faV3GetChanDisableMask(slot);
+
       if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_HALLD_SUPPORTED_PROC_FIRMWARE)
 	{
 	  faV3HallDGetProcMode(slot,
@@ -397,27 +401,44 @@ faV3GetModulesConfig()
 	  faV3GetRoguePTWFallBack(slot, &faV3[slot].ptw_fallback_mask);
 	}
 
-      faV3[slot].insert_adc_params = faV3DataGetInsertAdcParameters(slot);
-      faV3[slot].suppress_trig_time = faV3DataGetSuppressTriggerTime(slot);
-      faV3[slot].data_format = faV3GetDataFormat(slot);
-
       faV3GetTriggerPathSamples(slot, &faV3[slot].trig_nsa, &faV3[slot].trig_nsat);
       faV3[slot].trig_nsa *= FAV3_ADC_NS_PER_CLK;
       faV3[slot].trig_nsat *= FAV3_ADC_NS_PER_CLK;
       faV3GetTriggerPathThreshold(slot, &faV3[slot].trig_thr);
 
+      if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_SUPPORTED_PROC_FIRMWARE)
+	{
+	  faV3[slot].trigMask = faV3GetHitbitTrigMask(slot);
+	  faV3[slot].trigWidth = faV3GetHitbitTrigWidth(slot);
+	  faV3[slot].trigMinTOT = faV3GetHitbitMinTOT(slot);
+	  faV3[slot].trigMinMult = faV3GetHitbitMinMultiplicity(slot);
 
-      faV3[slot].chDisMask = faV3GetChanDisableMask(slot);
+	  faV3[slot].thrIgnoreMask = faV3GetThresholdIgnoreMask(slot);
+	  faV3[slot].invertMask = faV3GetInvertMask(slot);
+	  faV3[slot].playbackDisableMask = faV3GetPlaybackDisableMask(slot);
+	  faV3[slot].sparsification = faV3GetSparsificationMode(slot);
+	  faV3[slot].accumulatorMask = faV3GetAccumulatorScalerMode(slot);
+	}
+
+      faV3[slot].data_format = faV3GetDataFormat(slot);
+      faV3[slot].suppress_trig_time = faV3DataGetSuppressTriggerTime(slot);
+      faV3[slot].insert_adc_params = faV3DataGetInsertAdcParameters(slot);
       faV3[slot].compression = faV3GetCompression(slot);
       faV3[slot].vxsReadout = faV3GetVXSReadout(slot);
 
+
       for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
 	{
-	  faV3DACGet(slot, ichan, &faV3[slot].dac[ichan]);
+	  if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_SUPPORTED_PROC_FIRMWARE)
+	    {
+	      faV3[slot].trigModeMask |= (faV3GetTriggerProcessingMode(slot, ichan) << ichan);
+	      faV3[slot].gain[ichan] = faV3GetChannelGain(slot, ichan);
+	      faV3[slot].delay[ichan] = faV3GetChannelDelay(slot, ichan);
+	    }
 
 	  faV3[slot].pedestal[ichan] = (float) faV3GetPedestal(slot, ichan);
-
 	  faV3[slot].thr[ichan] = faV3GetThreshold(slot, ichan);;
+	  faV3DACGet(slot, ichan, &faV3[slot].dac[ichan]);
 	}
     }
   return 0;
@@ -442,13 +463,18 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"FAV3_SLOT %d\n",slot);
       ADD_TO_STRING;
 
+      adcChanEnabled = ~faV3[slot].chDisMask & 0xFFFF;
+      sprintf(sss,"FAV3_ADC_MASK");
+      ADD_TO_STRING;
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %d",(adcChanEnabled>>ichan)&0x1);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
       sprintf(sss,"FAV3_MODE %d\n",      faV3[slot].mode);
-      ADD_TO_STRING;
-
-      sprintf(sss,"FAV3_COMPRESSION %d\n", faV3[slot].compression);
-      ADD_TO_STRING;
-
-      sprintf(sss,"FAV3_VXSREADOUT %d\n", faV3[slot].vxsReadout);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_W_OFFSET %d\n", faV3[slot].winOffset);
@@ -475,6 +501,15 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"FAV3_MAXPED %d\n", faV3[slot].max_ped);
       ADD_TO_STRING;
 
+      sprintf(sss,"FAV3_PTW_FALLBACK_MASK");
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %d",(faV3[slot].ptw_fallback_mask >> ichan) & 0x1);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
       sprintf(sss,"FAV3_TRIG_NSA %d\n", faV3[slot].trig_nsa);
       ADD_TO_STRING;
 
@@ -484,22 +519,77 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"FAV3_TRIG_THR %d\n", faV3[slot].trig_thr);
       ADD_TO_STRING;
 
-      adcChanEnabled = ~faV3[slot].chDisMask & 0xFFFF;
-      sprintf(sss,"FAV3_ADC_MASK");
-      ADD_TO_STRING;
+      sprintf(sss,"FAV3_TRIG_MASK");
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
-	  sprintf(sss," %d",(adcChanEnabled>>ichan)&0x1);
+	  sprintf(sss," %d",(faV3[slot].trigMask >> ichan) & 0x1);
 	  ADD_TO_STRING;
 	}
       sprintf(sss,"\n");
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_ALLCH_DAC");
+      sprintf(sss,"FAV3_TRIG_WIDTH %d\n", faV3[slot].trigWidth);
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_TRIG_MINTOT %d\n", faV3[slot].trigMinTOT);
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_TRIG_MINMULT %d\n", faV3[slot].trigMinMult);
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_TET_IGNORE_MASK");
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %d",(faV3[slot].thrIgnoreMask >> ichan) & 0x1);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_INVERT_MASK");
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %d",(faV3[slot].invertMask >> ichan) & 0x1);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_PLAYBACK_DISABLE_MASK");
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %d",(faV3[slot].playbackDisableMask >> ichan) & 0x1);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_SPARSIFICATION %d\n", faV3[slot].sparsification);
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_ACCUMULATOR_MASK");
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %d",(faV3[slot].accumulatorMask >> ichan) & 0x1);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_TRIG_MODE_MASK");
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %d",(faV3[slot].trigModeMask >> ichan) & 0x1);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_ALLCH_PED");
       ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
-	  sprintf(sss," %d",faV3[slot].dac[ichan]);
+	  sprintf(sss," %.1f",faV3[slot].pedestal[ichan]);
 	  ADD_TO_STRING;
 	}
       sprintf(sss,"\n");
@@ -515,15 +605,52 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"\n");
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_ALLCH_PED");
+      sprintf(sss,"FAV3_ALLCH_DAC");
       ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
-	  sprintf(sss," %.1f",faV3[slot].pedestal[ichan]);
+	  sprintf(sss," %d",faV3[slot].dac[ichan]);
 	  ADD_TO_STRING;
 	}
       sprintf(sss,"\n");
       ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_ALLCH_GAIN");
+      ADD_TO_STRING;
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %.1f",faV3[slot].gain[ichan]);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_ALLCH_DELAY");
+      ADD_TO_STRING;
+      for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
+	{
+	  sprintf(sss," %d",faV3[slot].delay[ichan]);
+	  ADD_TO_STRING;
+	}
+      sprintf(sss,"\n");
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_DATA_FORMAT %d\n", faV3[slot].data_format);
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_SUPPRESS_TRIG_TIME %d\n", faV3[slot].suppress_trig_time);
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_INSERT_ADC_PARAMS %d\n", faV3[slot].insert_adc_params);
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_COMPRESSION %d\n", faV3[slot].compression);
+      ADD_TO_STRING;
+
+      sprintf(sss,"FAV3_VXSREADOUT %d\n", faV3[slot].vxsReadout);
+      ADD_TO_STRING;
+
+
     }
 
   CLOSE_STRING;
