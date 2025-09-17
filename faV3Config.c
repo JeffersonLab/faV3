@@ -304,7 +304,7 @@ faV3DownloadAll()
       if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_SUPPORTED_PROC_FIRMWARE)
 	{
 	  faV3SetHitbitTrigMask(slot, faV3[slot].trigMask);
-	  faV3SetHitbitTrigWidth(slot, faV3[slot].trigWidth);
+	  faV3SetHitbitTrigWidth(slot, faV3[slot].trigWidth / FAV3_ADC_NS_PER_CLK);
 	  faV3SetHitbitMinTOT(slot, faV3[slot].trigMinTOT);
 	  faV3SetHitbitMinMultiplicity(slot, faV3[slot].trigMinMult);
 
@@ -329,10 +329,16 @@ faV3DownloadAll()
 	      faV3SetTriggerProcessingMode(slot, ichan,
 					   (faV3[slot].trigModeMask & (1 << ichan)) ? 1 : 0);
 	      faV3SetChannelGain(slot, ichan, faV3[slot].gain[ichan]);
-	      faV3SetChannelDelay(slot, ichan, faV3[slot].delay[ichan]);
+	      faV3SetChannelDelay(slot, ichan, faV3[slot].delay[ichan]  / FAV3_ADC_NS_PER_CLK);
 	    }
-	  faV3SetPedestal(slot, ichan, (int) faV3[slot].pedestal[ichan]);
-	  faV3SetThreshold(slot, ichan, faV3[slot].thr[ichan]);
+
+	  float ped = faV3[slot].pedestal[ichan] * (float) (faV3[slot].nsa + faV3[slot].nsb) / FAV3_ADC_NS_PER_CLK;
+	  faV3SetPedestal(slot, ichan, (int) ped);
+
+	  int thr = (faV3[slot].thr[ichan] > 0) ?
+	    faV3[slot].pedestal[ichan] + faV3[slot].thr[ichan] : 0;
+	  faV3SetThreshold(slot, ichan, thr);
+
 	  faV3DACSet(slot, ichan, faV3[slot].dac[ichan]);
 	}
     }
@@ -409,7 +415,7 @@ faV3GetModulesConfig()
       if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_SUPPORTED_PROC_FIRMWARE)
 	{
 	  faV3[slot].trigMask = faV3GetHitbitTrigMask(slot);
-	  faV3[slot].trigWidth = faV3GetHitbitTrigWidth(slot);
+	  faV3[slot].trigWidth = faV3GetHitbitTrigWidth(slot) * FAV3_ADC_NS_PER_CLK;
 	  faV3[slot].trigMinTOT = faV3GetHitbitMinTOT(slot);
 	  faV3[slot].trigMinMult = faV3GetHitbitMinMultiplicity(slot);
 
@@ -436,8 +442,13 @@ faV3GetModulesConfig()
 	      faV3[slot].delay[ichan] = faV3GetChannelDelay(slot, ichan);
 	    }
 
-	  faV3[slot].pedestal[ichan] = (float) faV3GetPedestal(slot, ichan);
-	  faV3[slot].thr[ichan] = faV3GetThreshold(slot, ichan);;
+	  faV3[slot].pedestal[ichan] =  (float) faV3GetPedestal(slot, ichan) *
+	    FAV3_ADC_NS_PER_CLK / (faV3[slot].nsa + faV3[slot].nsb);
+
+	  int thr = faV3GetThreshold(slot, ichan);
+	  if (thr > 0)
+	    faV3[slot].thr[ichan] = thr - (int)faV3[slot].pedestal[ichan];
+
 	  faV3DACGet(slot, ichan, &faV3[slot].dac[ichan]);
 	}
     }

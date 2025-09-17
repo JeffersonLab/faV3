@@ -520,7 +520,7 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_DEFAULT_TNSAT   1
 #define FAV3_ADC_DEFAULT_TPT     0
 #define FAV3_ADC_DEFAULT_TET    10
-#define FAV3_ADC_DEFAULT_DAC  3200
+#define FAV3_ADC_DEFAULT_DAC  3000
 
 
 #define FAV3_ADC_MAX_PL       2000
