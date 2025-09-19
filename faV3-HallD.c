@@ -220,6 +220,7 @@ faV3HallDSetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   int mode_bit=0;
 
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_HALLD_SUPPORTED_PROC_FIRMWARE);
 
   for(imode=0; imode<FAV3_SUPPORTED_NMODES; imode++)
     {
@@ -409,6 +410,7 @@ faV3HallDGetProcMode(int id, int *pmode, uint32_t *PL, uint32_t *PTW,
   int32_t rval = OK;
   uint32_t config1 = 0, config7 = 0, nsb = 0, mode = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_HALLD_SUPPORTED_PROC_FIRMWARE);
 
   FAV3LOCK;
 
@@ -626,6 +628,7 @@ int
 faV3SetMGTTestMode(int id, uint32_t mode)
 {
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_HALLD_SUPPORTED_PROC_FIRMWARE);
 
   FAV3LOCK;
   if(mode)
@@ -649,6 +652,7 @@ faV3SetMGTTestMode(int id, uint32_t mode)
 int
 faV3SyncResetMode(int id, uint32_t mode)
 {
+  CHECK_PROC_SUPPORTED(FAV3_HALLD_SUPPORTED_PROC_FIRMWARE);
   return faV3SetMGTTestMode(id, mode);
 }
 
@@ -678,6 +682,7 @@ int
 faV3SetHitbitsMode(int id, int enable)
 {
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_HALLD_SUPPORTED_PROC_FIRMWARE);
 
   FAV3LOCK;
   if(enable)
@@ -723,6 +728,7 @@ faV3GetHitbitsMode(int id)
 {
   int rval;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_HALLD_SUPPORTED_PROC_FIRMWARE);
 
   FAV3LOCK;
   rval = (vmeRead32(&FAV3p[id]->ctrl_mgt)&FAV3_MGT_HITBITS_TO_CTP)>>3;

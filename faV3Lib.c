@@ -1545,8 +1545,8 @@ faV3GStatus(int sflag)
       printf(" %2d    ", id);
 
       printf("%3d    ", st[id].blocklevel & FAV3_BLOCK_LEVEL_MASK);
-
-      printf("%2d   ", (st[id].adc.config1 & FAV3_ADC_PROC_MASK) + 1);
+      int proc_bits = (st[id].adc.config1 & FAV3_ADC_PROC_MASK) >> 8;
+      printf("%2d   ", proc_bits == 3 ? 1 : (proc_bits + 9));
 
       printf("%4d  ", (st[id].adc.pl & 0xFFFF) * FAV3_ADC_NS_PER_CLK);
 
@@ -4950,6 +4950,7 @@ int
 faV3SetChannelDelay(int id, int chan, uint16_t delay)
 {
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   if(chan>16)
     {
@@ -4977,6 +4978,7 @@ faV3GetChannelDelay(int id, int chan)
 {
   unsigned int rval=0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   if(chan>16)
     {
@@ -4999,6 +5001,7 @@ faV3SetInvertMask(int id, uint16_t chmask)
   int ii;
   uint16_t thres = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
@@ -5022,6 +5025,7 @@ faV3GetInvertMask(int id)
   int ii;
   uint16_t tmp = 0, cmask = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
@@ -5040,6 +5044,7 @@ faV3SetTriggerProcessingMode(int id, int chan, int mode)
 {
   uint16_t rval=0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   if(chan>16)
     {
@@ -5067,6 +5072,7 @@ faV3GetTriggerProcessingMode(int id, int chan)
 {
   uint16_t rval=0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   if(chan>16)
     {
@@ -5093,6 +5099,7 @@ faV3SetChannelGain(int id, int chan, float gain)
   int igain;
 
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
   if(chan>16)
     {
       printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
@@ -5123,6 +5130,7 @@ faV3GetChannelGain(int id, int chan)
 {
   unsigned int rval=0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   if(chan>16)
     {
@@ -7922,6 +7930,7 @@ int
 faV3SetHitbitTrigMask(int id, uint16_t chmask)
 {
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   vmeWrite16(&FAV3p[id]->adc.live_trig_mask, chmask);
@@ -7935,6 +7944,7 @@ faV3GetHitbitTrigMask(int id)
 {
   uint16_t rvalue = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   rvalue = vmeRead16(&FAV3p[id]->adc.live_trig_mask) & 0xFFFF;
@@ -7948,6 +7958,7 @@ faV3SetHitbitMinTOT(int id, uint16_t width)
 {
   uint16_t val;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
@@ -7963,6 +7974,7 @@ faV3GetHitbitMinTOT(int id)
 {
   uint16_t val;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
@@ -7988,6 +8000,7 @@ faV3SetHitbitMinMultiplicity(int id, uint16_t mult)
 {
   uint16_t val;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
@@ -8003,6 +8016,7 @@ faV3GetHitbitMinMultiplicity(int id)
 {
   uint16_t val;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
@@ -8027,6 +8041,7 @@ int
 faV3SetHitbitTrigWidth(int id, uint16_t width)
 {
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   vmeWrite16(&FAV3p[id]->adc.live_trig_width, width);
@@ -8040,6 +8055,7 @@ faV3GetHitbitTrigWidth(int id)
 {
   uint16_t rvalue = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   rvalue = vmeRead16(&FAV3p[id]->adc.live_trig_width) & 0xFFFF;
@@ -8054,6 +8070,7 @@ faV3ThresholdIgnore(int id, uint16_t chmask)
   int ii;
   uint16_t thres = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
@@ -8077,6 +8094,7 @@ faV3GetThresholdIgnoreMask(int id)
   int ii;
   uint16_t tmp, cmask = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
@@ -8096,6 +8114,7 @@ faV3PlaybackDisable(int id, uint16_t chmask)
   int ii;
   uint16_t thres = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
@@ -8119,6 +8138,7 @@ faV3GetPlaybackDisableMask(int id)
   int ii;
   uint16_t tmp, cmask = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
@@ -8148,6 +8168,7 @@ faV3SetAccumulatorScalerMode(int id, uint16_t chmask)
   int ii;
   uint16_t thres = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
@@ -8172,6 +8193,7 @@ faV3GetAccumulatorScalerMode(int id)
   int ii;
   uint16_t tmp, cmask = 0;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   FAV3LOCK;
   for(ii=0;ii<FAV3_MAX_ADC_CHANNELS;ii++)
@@ -8195,6 +8217,7 @@ faV3MeasureChannelPedestal(int id, unsigned int chan, faV3Ped *ped)
   double adc_val, nsamples;
   faV3Ped p;
   CHECKID;
+  CHECK_PROC_SUPPORTED(FAV3_PROC_PRAD_FIRMWARE);
 
   p.avg = 0.0;
   p.rms = 0.0;

@@ -63,7 +63,7 @@ CC			+= -m32
 endif
 AR                      = ar
 RANLIB                  = ranlib
-CFLAGS			= -L. -L${LINUXVME_LIB} ${LIB_CODA}
+CFLAGS			= -std=gnu99 -L. -L${LINUXVME_LIB} ${LIB_CODA}
 INCS			= -I. -I${LINUXVME_INC} ${INC_CODA}
 
 LIBS			= lib${BASENAME}.a lib${BASENAME}.so

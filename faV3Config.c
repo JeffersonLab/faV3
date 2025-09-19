@@ -200,7 +200,7 @@ faV3ReadConfigFile(char *filename_in)
       SCAN_MASK("FAV3_TET_IGNORE_MASK", faV3[slot].thrIgnoreMask, slot_min, slot_max);
       SCAN_MASK("FAV3_INVERT_MASK", faV3[slot].invertMask, slot_min, slot_max);
       SCAN_MASK("FAV3_PLAYBACK_DISABLE_MASK", faV3[slot].playbackDisableMask, slot_min, slot_max);
-      SCAN_INT("FAV3_SPARISIFICATION", faV3[slot].sparsification, slot_min, slot_max);
+      SCAN_INT("FAV3_SPARSIFICATION", faV3[slot].sparsification, slot_min, slot_max);
       SCAN_MASK("FAV3_ACCUMULATOR_MASK", faV3[slot].accumulatorMask, slot_min, slot_max);
       SCAN_MASK("FAV3_TRIG_MODE_MASK", faV3[slot].trigModeMask, slot_min, slot_max);
 
@@ -531,7 +531,7 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"FAV3_TRIG_THR %d\n", faV3[slot].trig_thr);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_TRIG_MASK");
+      sprintf(sss,"FAV3_TRG_MASK");
       ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
@@ -541,13 +541,13 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss,"\n");
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_TRIG_WIDTH %d\n", faV3[slot].trigWidth);
+      sprintf(sss,"FAV3_TRG_WIDTH %d\n", faV3[slot].trigWidth);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_TRIG_MINTOT %d\n", faV3[slot].trigMinTOT);
+      sprintf(sss,"FAV3_TRG_MINTOT %d\n", faV3[slot].trigMinTOT);
       ADD_TO_STRING;
 
-      sprintf(sss,"FAV3_TRIG_MINMULT %d\n", faV3[slot].trigMinMult);
+      sprintf(sss,"FAV3_TRG_MINMULT %d\n", faV3[slot].trigMinMult);
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_TET_IGNORE_MASK");

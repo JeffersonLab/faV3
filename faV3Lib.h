@@ -31,10 +31,29 @@
 #define FAV3_VME_INT_LEVEL           3
 #define FAV3_VME_INT_VEC          0xFA
 
-#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x20F
-#define FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER 1
-#define FAV3_SUPPORTED_PROC_FIRMWARE 0xF01
-#define FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER 1
+#define FAV3_CTRL_PRAD_FIRMWARE 0x20F
+#define FAV3_PROC_PRAD_FIRMWARE 0xF01
+
+#define FAV3_SUPPORTED_CTRL_FIRMWARE 0x20E,0x20F
+#define FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER 2
+#define FAV3_SUPPORTED_PROC_FIRMWARE 0xE06,0xF01
+#define FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER 2
+
+
+
+#define CHECK_PROC_SUPPORTED(...) {					\
+  int __found = -1;							\
+  const int __proc_supported[] = {__VA_ARGS__};				\
+  for (int i = 0; i < sizeof(__proc_supported) / sizeof(int); ++i) {	\
+    if (faV3FwRev[id][FAV3_FW_PROC] == __proc_supported[i]) {		\
+      __found = 1; break;						\
+    }									\
+  }									\
+  if(__found == -1) {							\
+    printf("%s: ERROR: Not supported with proc firmware 0x%0x\n",	\
+	   __func__, faV3FwRev[id][FAV3_FW_PROC]);			\
+    return ERROR;							\
+  }}
 
 /* Macros to help with register spacers */
 #define MERGE_(a,b)  a##b
