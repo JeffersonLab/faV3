@@ -423,11 +423,13 @@ typedef struct faV3_sdc_struct
 #define FAV3_INT_LEVEL_MASK      0x700
 #define FAV3_SLOT_ID_MASK        0x1f0000
 #define FAV3_DAC_VALUE_MASK      0x0fff
+
 #define FAV3_THR_VALUE_MASK      0x0fff
+
 #define FAV3_THR_ACCUMULATOR_SCALER_MODE_MASK     0x1000
+#define FAV3_PLAYBACK_DIS_MASK   0x2000
 #define FAV3_THR_INVERT_MASK     0x4000
 #define FAV3_THR_IGNORE_MASK     0x8000
-#define FAV3_PLAYBACK_DIS_MASK   0x2000
 
 #define FAV3_REF_CLK_SEL_MASK        0x7
 #define FAV3_TRIG_SEL_MASK          0x70
