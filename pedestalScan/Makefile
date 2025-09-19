@@ -3,7 +3,7 @@
 #    Makefile
 #
 # Description:
-#    Makefile for fadc250 config file format checking program
+#    Makefile for fadc250 test programs
 #
 #
 DEBUG	?= 1
@@ -36,7 +36,7 @@ ifeq ($(DEBUG),1)
 	CFLAGS		+= -Wall -Wno-unused -g
 endif
 
-SRC			= faCheckConfigfile.c faWriteConfigFile.c
+SRC			= $(wildcard *.c)
 DEPS			= $(SRC:.c=.d)
 PROGS			= $(SRC:.c=)
 

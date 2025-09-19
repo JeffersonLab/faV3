@@ -1481,8 +1481,8 @@ faV3GStatus(int sflag)
 
 
   printf("\n");
-  printf("      .Signal Sources..                        ..Channel...\n");
-  printf("Slot  Clk   Trig   Sync     MBlk  Token  BERR  Enabled Mask\n");
+  printf("      .Signal Sources..                        ..Channel...  ..Channel.\n");
+  printf("Slot  Clk   Trig   Sync     MBlk  Token  BERR  Enabled Mask  Rogue Mask\n");
   printf("--------------------------------------------------------------------------------\n");
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
@@ -1523,7 +1523,11 @@ faV3GStatus(int sflag)
 
       printf("%s     ", st[id].ctrl1 & FAV3_ENABLE_BERR ? "YES" : " NO");
 
-      printf("0x%04X", ~(st[id].adc.config2 & FAV3_ADC_CHAN_MASK) & 0xFFFF);
+      printf("0x%04X        ",
+	     ~(st[id].adc.config2 & FAV3_ADC_CHAN_MASK) & 0xFFFF);
+
+      printf("0x%04X",
+	     st[id].adc.rogue_ptw_fall_back & FAV3_ADC_CHAN_MASK);
 
       printf("\n");
     }
@@ -1531,8 +1535,8 @@ faV3GStatus(int sflag)
 
   printf("\n");
   printf("                         fADC250 Processing Mode Config\n\n");
-  printf("      Block          ...[nanoseconds]...     \n");
-  printf("Slot  Level  Mode    PL   PTW   NSB  NSA  NP   Compression  Playback  Sparse\n");
+  printf("      Block          ...[nanoseconds]...       [ns]\n");
+  printf("Slot  Level  Mode    PL   PTW   NSB  NSA  NP   NPED  MAXPED  NSAT   Playback   \n");
   printf("--------------------------------------------------------------------------------\n");
 
   for(ifa = 0; ifa < nfaV3; ifa++)
@@ -1560,26 +1564,14 @@ faV3GStatus(int sflag)
       printf("%1d      ",
 	     ((st[id].adc.config1 & FAV3_ADC_PEAK_MASK) >> 4) + 1);
 
+      printf("%2d    ", (((st[id].adc.config7 & FAV3_ADC_CONFIG7_NPED_MASK)>>10) + 1)*FAV3_ADC_NS_PER_CLK);
 
-      printf("%s  ",
-	     ((st[id].ctrl2 & FAV3_CTRL_COMPRESS_MASK) == FAV3_CTRL_COMPRESS_DISABLE) ?
-	     "Disabled" :
+      printf("%4d     ", st[id].adc.config7 & FAV3_ADC_CONFIG7_MAXPED_MASK);
 
-	     ((st[id].ctrl2 & FAV3_CTRL_COMPRESS_MASK) == FAV3_CTRL_COMPRESS_ENABLE) ?
-	     " Enabled" :
+      printf("%d   ", ((st[id].adc.config1 & FAV3_ADC_CONFIG1_NSAT_MASK)>>10) + 1);
 
-	     ((st[id].ctrl2 & FAV3_CTRL_COMPRESS_MASK) == FAV3_CTRL_COMPRESS_VERIFY) ?
-	     "  Verify" :
-
-	     "UNKNOWN");
-
-      printf("%s ",
-	     (st[id].adc.config1 & FAV3_ADC_PLAYBACK_MODE) >> 7 ? " Enabled" :
-	     "Disabled");
-
-      printf("%s",
-	     (st[id].aux.sparsify_control & FAV3_SPARSE_CONTROL_BYPASS) ? "Bypassed" :
-	     " Enabled");
+      printf("%s   ",
+	     (st[id].adc.config1 &FAV3_ADC_PLAYBACK_MODE)>>7 ?" Enabled":"Disabled");
 
       printf("\n");
     }
@@ -1625,9 +1617,8 @@ faV3GStatus(int sflag)
 
   printf("\n");
   printf("                              fADC250 Data Status\n\n");
-  printf("                                                  .......Error Status.......\n");
-  printf("      Trigger   Block                             Local   ....... MGT ......\n");
-  printf("Slot  Source    Ready  Blocks In Fifo  RAM Level   Bus    Reset  Lane  Chan\n");
+  printf("      Trigger   Block                              Error Status\n");
+  printf("Slot  Source    Ready  Blocks In Fifo  RAM Level   CSR     MGT\n");
   printf("--------------------------------------------------------------------------------\n");
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
@@ -1645,60 +1636,24 @@ faV3GStatus(int sflag)
 
       printf("%s     ", st[id].csr & FAV3_CSR_ERROR_MASK ? "ERROR" : "  OK ");
 
-      /* printf("%s  ", (st[id].gtx_ctrl & 0x1) ? " ON" : "OFF"); */
-
-      /* printf("%s  ", ((st[id].gtx_status & 0x1) != 0x1) ? "Down" : " Up "); */
-
-      /* printf("%s ", ((st[id].gtx_status & 0x6) != 0x6) ? "Down" : " Up "); */
+      printf("%s  ",
+	     st[id].status_mgt &
+	     (FAV3_MGT_GTX1_HARD_ERROR | FAV3_MGT_GTX1_SOFT_ERROR |
+	      FAV3_MGT_GTX2_HARD_ERROR | FAV3_MGT_GTX2_SOFT_ERROR) ? "ERROR" : "  OK " );
 
       printf("\n");
     }
   printf("--------------------------------------------------------------------------------\n");
 
   printf("\n");
-  printf("                      fADC250 Trigger Path Processing\n\n");
+  printf("       ----- Trigger Path -----     ------------- Data Format ------------- \n\n");
+  printf("       Chan   Trig    Min   Min     Compression   TrigTime  ADC\n");
+  printf("Slot   Mask   Width   TOT   Mult    HallB  HallD  Suppress  Params  Sparse\n");
+  printf("--------------------------------------------------------------------------------\n");
+
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      printf("           .......TET.......                                           \n");
-      printf("Slot  Ch   Readout   Trigger      Ped\n");
-      printf("--------------------------------------------------------------------------------\n");
-
       id = faV3Slot(ifa);
-
-      int ichan;
-      for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
-	{
-	  if(ichan == 0)
-	    printf(" %2d", id);
-	  else
-	    printf("   ");
-
-	  printf("   ");
-	  printf("%2d      ", ichan);
-
-	  int NSB = (st[id].adc.nsb & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
-	  int NSA = (st[id].adc.nsa & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
-
-	  float ped_trg =
-	    4.0 *
-	    ((float) (st[id].adc.pedestal[ichan] & FAV3_ADC_PEDESTAL_MASK)) /
-	    ((float) (NSA + NSB));
-
-	  int tet_trg =
-	    (st[id].adc.thres[ichan] & FAV3_THR_VALUE_MASK) - (int) ped_trg;
-
-	  int tet_readout = (st[id].adc.thres[ichan] & FAV3_THR_IGNORE_MASK) ? 0
-	    : ((st[id].adc.thres[ichan] & FAV3_THR_VALUE_MASK) - (int) ped_trg);
-
-	  printf("%4d      ", tet_readout);
-
-	  printf("%4d   ", tet_trg);
-
-	  printf("%8.3f     ", ped_trg);
-
-
-	  printf("\n");
-	}
 
       printf("\n");
     }
@@ -1708,6 +1663,80 @@ faV3GStatus(int sflag)
   printf("\n");
 
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Print summary of per channel trigger path configuration
+ *  @param sflag reserved for future use
+ */
+
+int
+faV3ChannelStatus(int id, int sflag)
+{
+  faV3_t st;
+  int ichan;
+  CHECKID;
+
+  FAV3LOCK;
+  st.adc.nsb = vmeRead16(&FAV3p[id]->adc.nsb);
+  st.adc.nsa = vmeRead16(&FAV3p[id]->adc.nsa);
+
+  for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
+    {
+      st.adc.pedestal[ichan] = vmeRead16(&FAV3p[id]->adc.pedestal[ichan]);
+    }
+
+  for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
+    {
+      st.adc.thres[ichan] = vmeRead16(&FAV3p[id]->adc.thres[ichan]);
+    }
+  FAV3UNLOCK;
+
+  printf("           .......TET....... \n");
+  printf("Slot  Ch   Readout   Trigger      Ped    gain    delay   mode\n");
+  printf("--------------------------------------------------------------------------------\n");
+
+  for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
+    {
+      if(ichan == 0)
+	printf(" %2d", id);
+      else
+	printf("   ");
+
+      printf("   ");
+      printf("%2d      ", ichan);
+
+      int NSB = (st.adc.nsb & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
+      int NSA = (st.adc.nsa & 0xFFFF) * FAV3_ADC_NS_PER_CLK;
+
+      float ped_trg =
+	4.0 *
+	((float) (st.adc.pedestal[ichan] & FAV3_ADC_PEDESTAL_MASK)) /
+	((float) (NSA + NSB));
+
+      int tet_trg =
+	(st.adc.thres[ichan] & FAV3_THR_VALUE_MASK) - (int) ped_trg;
+
+      int tet_readout = (st.adc.thres[ichan] & FAV3_THR_IGNORE_MASK) ? 0
+	: ((st.adc.thres[ichan] & FAV3_THR_VALUE_MASK) - (int) ped_trg);
+
+      printf("%4d      ", tet_readout);
+
+      printf("%4d   ", tet_trg);
+
+      printf("%8.3f     ", ped_trg);
+
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("\n");
+
+  return OK;
+}
+
 
 /**
  *  @ingroup Status
@@ -8154,6 +8183,92 @@ faV3GetAccumulatorScalerMode(int id)
   FAV3UNLOCK;
 
   return(cmask);
+}
+
+#define FAV3_MEASURE_PED_NTIMES		10
+
+int
+faV3MeasureChannelPedestal(int id, unsigned int chan, faV3Ped *ped)
+{
+  int status, i, n;
+  unsigned int sample0, sample1;
+  double adc_val, nsamples;
+  faV3Ped p;
+  CHECKID;
+
+  p.avg = 0.0;
+  p.rms = 0.0;
+  p.min = 4095.0;
+  p.max = 0.0;
+
+  if(chan>16)
+    {
+      printf("%s: ERROR : Channel (%d) out of range (0-15) \n",
+	     __func__, chan);
+      return(ERROR);
+    }
+
+  for(n = 0; n < FAV3_MEASURE_PED_NTIMES; n++)
+    {
+      FAV3LOCK;
+      vmeWrite16(&FAV3p[id]->adc.la_ctrl_reg, 0);       /* disable logic analyzer */
+      for(i=0;i<16;i++)
+	{
+	  vmeWrite16(&FAV3p[id]->adc.cmp_mode[i], 0);	/* setup a don't care trigger */
+	  vmeWrite16(&FAV3p[id]->adc.cmp_thr[i], 0);	/* setup a don't care trigger */
+	}
+      vmeWrite16(&FAV3p[id]->adc.la_ctrl_reg, 1); /* enable logic analyzer */
+      FAV3UNLOCK;
+
+      taskDelay(1);
+
+      FAV3LOCK;
+      status = vmeRead16(&FAV3p[id]->adc.la_rden);
+      vmeWrite16(&FAV3p[id]->adc.la_ctrl_reg, 0);       /* disable logic analyzer */
+      FAV3UNLOCK;
+
+      if(!status)
+	{
+	  printf("%s: ERROR : timeout 0x%x\n", __func__, status);
+	  return(ERROR);
+	}
+
+      FAV3LOCK;
+      for(i = 0; i < 512; i++)
+	{
+	  unsigned int idx   = (chan*13)/16;
+	  unsigned int shift = (chan*13)%16;
+	  sample0 = (unsigned int)vmeRead16(&FAV3p[id]->adc.la_dat[idx]);
+	  if(idx<12) sample1 = (unsigned int)vmeRead16(&FAV3p[id]->adc.la_dat[idx+1]);
+
+	  adc_val = (double)(((sample0>>shift) | (sample1<<(16-shift))) & 0xFFF);
+
+	  p.avg+= adc_val;
+
+	  p.rms+= adc_val*adc_val;
+
+	  if(adc_val < p.min)
+	    p.min = adc_val;
+
+	  if(adc_val > p.max)
+	    p.max = adc_val;
+	}
+      FAV3UNLOCK;
+    }
+
+  nsamples = 512.0 * (double)FAV3_MEASURE_PED_NTIMES;
+
+  p.avg /= nsamples;
+  p.rms = sqrt(p.rms / nsamples - p.avg*p.avg);
+
+  printf("%s: slot %d, chan %d => avg %6.3f, rms %6.3f, min %.0f, max %.0f\n",
+	 __func__,
+	 id, chan, p.avg, p.rms, p.min, p.max);
+
+  if(ped)
+    *ped = p;
+
+  return(OK);
 }
 
 /***************************************************************************************

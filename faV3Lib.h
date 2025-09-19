@@ -523,12 +523,12 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_DEFAULT_DAC  3000
 
 
-#define FAV3_ADC_MAX_PL       2000
-#define FAV3_ADC_MAX_PTW       512
-#define FAV3_ADC_MAX_NSB       500
-#define FAV3_ADC_MAX_NSA       500
-#define FAV3_ADC_MAX_NP          1
-#define FAV3_ADC_MAX_THRESH   1023
+#define FAV3_ADC_MAX_PL       4096
+#define FAV3_ADC_MAX_PTW      1024
+#define FAV3_ADC_MAX_NSB        16
+#define FAV3_ADC_MAX_NSA       512
+#define FAV3_ADC_MAX_NP          4
+#define FAV3_ADC_MAX_THRESH   8191
 #define FAV3_ADC_MAX_NPED       15
 #define FAV3_ADC_MAX_MAXPED   1023
 #define FAV3_ADC_MAX_NSAT        4
@@ -537,18 +537,18 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_ADC_MAX_TNSAT       4
 #define FAV3_ADC_MAX_TPT      4095
 
-#define FAV3_ADC_MIN_PL          1
-#define FAV3_ADC_MIN_PTW         1
-#define FAV3_ADC_MIN_NSB         1
-#define FAV3_ADC_MIN_NSA         1
+#define FAV3_ADC_MIN_PL          0
+#define FAV3_ADC_MIN_PTW         6
+#define FAV3_ADC_MIN_NSB         0
+#define FAV3_ADC_MIN_NSA         2
 #define FAV3_ADC_MIN_NP          1
 #define FAV3_ADC_MIN_THRESH      0
 #define FAV3_ADC_MIN_NPED        4
 #define FAV3_ADC_MIN_MAXPED      0
 #define FAV3_ADC_MIN_NSAT        1
 #define FAV3_ADC_MIN_MNPED       4
-#define FAV3_ADC_MIN_TNSA        2
-#define FAV3_ADC_MIN_TNSAT       2
+#define FAV3_ADC_MIN_TNSA        0
+#define FAV3_ADC_MIN_TNSAT       1
 #define FAV3_ADC_MIN_TPT         0
 
 #define FAV3_ADC_NSB_READBACK_MASK    0x0000000F

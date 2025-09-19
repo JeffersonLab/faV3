@@ -67,13 +67,14 @@ typedef struct {
 extern "C" {
 #endif
 
-void faV3SetExpid(char *string);
-void faV3Sethost(char *host);
+int faV3Config(char *fname);
 void faV3InitGlobals();
 int faV3ReadConfigFile(char *filename);
 int faV3DownloadAll();
-int faV3Config(char *fname);
+int32_t faV3GetModulesConfig();
+int32_t faV3ConfigToString(char *string, int32_t length);
 int faV3UploadAll(char *string, int length);
+int faV3UploadAllPrint();
 
 #ifdef	__cplusplus
 }

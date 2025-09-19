@@ -513,6 +513,7 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_PTW_FALLBACK_MASK");
+      ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",(faV3[slot].ptw_fallback_mask >> ichan) & 0x1);
@@ -531,6 +532,7 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_TRIG_MASK");
+      ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",(faV3[slot].trigMask >> ichan) & 0x1);
@@ -549,6 +551,7 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_TET_IGNORE_MASK");
+      ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",(faV3[slot].thrIgnoreMask >> ichan) & 0x1);
@@ -558,6 +561,7 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_INVERT_MASK");
+      ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",(faV3[slot].invertMask >> ichan) & 0x1);
@@ -567,6 +571,7 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_PLAYBACK_DISABLE_MASK");
+      ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",(faV3[slot].playbackDisableMask >> ichan) & 0x1);
@@ -579,6 +584,7 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_ACCUMULATOR_MASK");
+      ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",(faV3[slot].accumulatorMask >> ichan) & 0x1);
@@ -588,6 +594,7 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss,"FAV3_TRIG_MODE_MASK");
+      ADD_TO_STRING;
       for(ichan = 0; ichan < MAX_FAV3_CH; ichan++)
 	{
 	  sprintf(sss," %d",(faV3[slot].trigModeMask >> ichan) & 0x1);
