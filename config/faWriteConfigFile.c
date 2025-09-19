@@ -39,9 +39,3 @@ main(int argc, char *argv[])
 
   exit(0);
 }
-
-/*
-  Local Variables:
-  compile-command: "make -k faWriteConfigFile "
-  End:
-*/

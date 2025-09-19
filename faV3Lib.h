@@ -473,23 +473,25 @@ typedef struct faV3_sdc_struct
 
 #define FAV3_ADC_NS_PER_CLK      4
 
-#define FAV3_MAX_PROC_MODE         10
-#define FAV3_ADC_PROC_MASK        0x7
+#define FAV3_ADC_PROC_MASK      0x300
 #define FAV3_ADC_PROC_ENABLE      0x8
-#define FAV3_ADC_PROC_MODE_WINDOW   1
-#define FAV3_ADC_PROC_MODE_PEAK     2
-#define FAV3_ADC_PROC_MODE_SUM      3
-#define FAV3_ADC_PROC_MODE_TIME     7
 
+#define FAV3_MAX_PROC_MODE         10
 #define FAV3_PROC_MODE_RAW          1
 #define FAV3_PROC_MODE_PULSE_PARAM  9
 #define FAV3_PROC_MODE_DEBUG       10
 
-#define FAV3_SUPPORTED_MODES                   9,10
-#define FAV3_SUPPORTED_NMODES                     2
+#define FAV3_SUPPORTED_MODES                 1,9,10
+#define FAV3_SUPPORTED_NMODES                     3
 
 extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
+#define FAV3_ADC_PTW_MASK 0x01FF
+#define FAV3_ADC_PL_MASK  0x07FF
+#define FAV3_ADC_NSB_MASK 0x000F
+#define FAV3_ADC_NSA_MASK 0x01FF
+
+#define FAV3_ADC_CONFIG1_NSAT_MASK  0x0C00
 #define FAV3_ADC_CONFIG1_TNSAT_MASK 0x3000
 #define FAV3_ADC_CONFIG1_CHAN_READ_ENABLE (1<<15)
 
@@ -501,9 +503,6 @@ extern const char *faV3_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 #define FAV3_ADC_CONFIG3_TPT_MASK   0x0FFF
 
-#define FAV3_ADC_CONFIG1_NSAT_MASK  0x0C00
-
-#define FAV3_ADC_CONFIG1_CHAN_READ_ENABLE (1<<15)
 
 #define FAV3_ADC_CONFIG6_MNPED_MASK   0x00003C00
 #define FAV3_ADC_CONFIG6_PMAXPED_MASK 0x000003FF

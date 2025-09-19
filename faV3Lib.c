@@ -108,6 +108,21 @@ int faV3BlockError = FAV3_BLOCKERROR_NO_ERROR;	/* Whether (>0) or not (0) Block 
       printf("%s: ERROR : ADC in slot %d is not initialized \n", __func__, id); \
       return ERROR; }}
 
+const char *faV3_mode_names[FAV3_MAX_PROC_MODE+1] =
+  {
+    "NOT DEFINED", // 0
+    "RAW WINDOW", // 1
+    "NOT DEFINED",
+    "NOT DEFINED",
+    "NOT DEFINED",
+    "NOT DEFINED", // 5
+    "NOT DEFINED",
+    "NOT DEFINED",
+    "NOT DEFINED",
+    "PULSE PARAMETER",      // 9
+    "RAW + PULSE PARAMETER" // 10
+  };
+
 
 /**
  * @defgroup Config Initialization/Configuration
@@ -1802,7 +1817,7 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 {
   int rval = OK;
   int imode = 0, supported_modes[FAV3_SUPPORTED_NMODES] = {FAV3_SUPPORTED_MODES};
-  int mode_supported = 0, mode_bit = 0;
+  int mode_supported = 0, mode_bits = 0;
 
 
   CHECKID;
@@ -1868,11 +1883,11 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
   FAV3LOCK;
   /* Disable ADC processing while writing window info */
   if(pmode == FAV3_PROC_MODE_PULSE_PARAM)
-    mode_bit = 0;
+    mode_bits = 0;
   else if(pmode == FAV3_PROC_MODE_DEBUG)
-    mode_bit = 1;
+    mode_bits = 1;
   else if(pmode == FAV3_PROC_MODE_RAW)
-    mode_bit = 3;
+    mode_bits = 3;
   else
     {
       printf("%s: ERROR: Unsupported mode (%d)\n",
@@ -1882,9 +1897,9 @@ faV3SetProcMode(int id, int pmode, uint32_t PL, uint32_t PTW,
 
   /* Configure the mode (mode_bit), # of pulses (NP), # samples above TET (NSAT)
      keep TNSAT, if it's already been configured */
-  vmeWrite16(&FAV3p[id]->adc.config1,
-	     (vmeRead16(&FAV3p[id]->adc.config1) & (FAV3_ADC_CONFIG1_TNSAT_MASK | FAV3_ADC_CONFIG1_TNSAT_MASK)) |
-	     (mode_bit << 8) | ((NP-1) << 4) );
+  uint16_t temp = vmeRead16(&FAV3p[id]->adc.config1) & (FAV3_ADC_CONFIG1_NSAT_MASK | FAV3_ADC_CONFIG1_TNSAT_MASK);
+  vmeWrite16(&FAV3p[id]->adc.config1, (mode_bits << 8) | ((NP-1) << 4) | temp);
+
   /* Disable user-requested channels */
   vmeWrite16(&FAV3p[id]->adc.config2, faV3ChanDisableMask[id]);
 
@@ -1935,14 +1950,14 @@ faV3GetProcMode(int id, int *pmode, uint32_t * PL, uint32_t * PTW,
   CHECKID;
 
   FAV3LOCK;
-  *PTW = (vmeRead16(&(FAV3p[id]->adc.ptw)) & 0xFFFF);
-  *PL = (vmeRead16(&(FAV3p[id]->adc.pl)) & 0xFFFF);
-  *NSB = (vmeRead16(&(FAV3p[id]->adc.nsb)) & 0xFFFF);
-  *NSA = (vmeRead16(&(FAV3p[id]->adc.nsa)) & 0xFFFF);
+  *PTW = (vmeRead16(&(FAV3p[id]->adc.ptw) + 1) & FAV3_ADC_PTW_MASK);
+  *PL = (vmeRead16(&(FAV3p[id]->adc.pl)) & FAV3_ADC_PL_MASK);
+  *NSB = (vmeRead16(&(FAV3p[id]->adc.nsb)) & FAV3_ADC_NSB_MASK);
+  *NSA = (vmeRead16(&(FAV3p[id]->adc.nsa)) & FAV3_ADC_NSA_MASK);
 
   config1 = (vmeRead16(&(FAV3p[id]->adc.config1)) & 0xFFFF);
 
-  mode_bits = (config1 & FAV3_ADC_PROC_MASK);
+  mode_bits = (config1 & 0x300) >> 8;
   if(mode_bits == 0)
     *pmode = FAV3_PROC_MODE_PULSE_PARAM;
   else if(mode_bits == 1)
@@ -1977,7 +1992,7 @@ faV3SetPulseParameterConfig(int32_t id, uint32_t NPED, uint32_t MAXPED, uint32_t
   FAV3LOCK;
 
   vmeWrite16(&FAV3p[id]->adc.config1,
-	     (vmeRead16(&FAV3p[id]->adc.config1) & FAV3_ADC_CONFIG1_NSAT_MASK) |
+	     (vmeRead16(&FAV3p[id]->adc.config1) & ~FAV3_ADC_CONFIG1_NSAT_MASK) |
 	     ((NSAT-1) << 10) );
 
   vmeWrite16(&FAV3p[id]->adc.config7, (NPED-1)<<10 | (MAXPED));
@@ -2000,7 +2015,7 @@ faV3GetPulseParameterConfig(int32_t id, uint32_t *NPED, uint32_t *MAXPED, uint32
   *NSAT = ((config1 & FAV3_ADC_CONFIG1_NSAT_MASK) >> 10) + 1;
 
   config7 = vmeRead16(&FAV3p[id]->adc.config7);
-  *NPED = (config7 & FAV3_ADC_CONFIG7_NPED_MASK) >> 10;
+  *NPED = ((config7 & FAV3_ADC_CONFIG7_NPED_MASK) >> 10) + 1;
   *MAXPED = (config7 & FAV3_ADC_CONFIG7_MAXPED_MASK);
 
   FAV3UNLOCK;
@@ -2187,7 +2202,7 @@ faV3GetTriggerPathSamples(int id, uint32_t *TNSA, uint32_t *TNSAT)
   FAV3LOCK;
 
   *TNSA = (vmeRead16(&FAV3p[id]->adc.nsa) & FAV3_ADC_TNSA_MASK) >> 9;
-  *TNSAT = (vmeRead16(&FAV3p[id]->adc.config1) & FAV3_ADC_CONFIG1_TNSAT_MASK) >> 12;
+  *TNSAT = ((vmeRead16(&FAV3p[id]->adc.config1) & FAV3_ADC_CONFIG1_TNSAT_MASK) >> 12) + 1;
 
   FAV3UNLOCK;
 

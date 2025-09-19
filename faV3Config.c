@@ -116,7 +116,15 @@ faV3ReadConfigFile(char *filename_in)
   int do_parsing;
   SCAN_VARS;
 
-  gethostname(host,ROCLEN);  /* obtain our hostname */
+  gethostname(host, ROCLEN);	/* obtain our hostname - and drop any domain extension */
+  for(int jj = 0; jj < strlen(host); jj++)
+    {
+      if(host[jj] == '.')
+	{
+	  host[jj] = '\0';
+	  break;
+	}
+    }
 
   strcpy(filename,filename_in); /* copy filename from parameter list to local string */
   do_parsing = 1;
@@ -329,7 +337,7 @@ faV3DownloadAll()
 	      faV3SetTriggerProcessingMode(slot, ichan,
 					   (faV3[slot].trigModeMask & (1 << ichan)) ? 1 : 0);
 	      faV3SetChannelGain(slot, ichan, faV3[slot].gain[ichan]);
-	      faV3SetChannelDelay(slot, ichan, faV3[slot].delay[ichan]  / FAV3_ADC_NS_PER_CLK);
+	      faV3SetChannelDelay(slot, ichan, faV3[slot].delay[ichan] / FAV3_ADC_NS_PER_CLK);
 	    }
 
 	  float ped = faV3[slot].pedestal[ichan] * (float) (faV3[slot].nsa + faV3[slot].nsb) / FAV3_ADC_NS_PER_CLK;
@@ -439,7 +447,7 @@ faV3GetModulesConfig()
 	    {
 	      faV3[slot].trigModeMask |= (faV3GetTriggerProcessingMode(slot, ichan) << ichan);
 	      faV3[slot].gain[ichan] = faV3GetChannelGain(slot, ichan);
-	      faV3[slot].delay[ichan] = faV3GetChannelDelay(slot, ichan);
+	      faV3[slot].delay[ichan] = faV3GetChannelDelay(slot, ichan) * FAV3_ADC_NS_PER_CLK;
 	    }
 
 	  faV3[slot].pedestal[ichan] =  (float) faV3GetPedestal(slot, ichan) *
@@ -460,12 +468,27 @@ faV3ConfigToString(char *string, int32_t length)
 {
   int slot, ichan, ifa, nfadc;
   uint32_t adcChanEnabled = 0;
+  char   host[ROCLEN];
+
   CONFIG_STRING_VARS;
+
+  gethostname(host, ROCLEN);	/* obtain our hostname - and drop any domain extension */
+  for(int jj = 0; jj < strlen(host); jj++)
+    {
+      if(host[jj] == '.')
+	{
+	  host[jj] = '\0';
+	  break;
+	}
+    }
 
   nfadc = faV3GetN();
 
   str = string;
   str[0] = '\0';
+
+  sprintf(sss,"FAV3_CRATE %s\n", host);
+  ADD_TO_STRING;
 
   for(ifa=0; ifa<nfadc; ifa++)
     {
@@ -670,6 +693,9 @@ faV3ConfigToString(char *string, int32_t length)
 
 
     }
+
+  sprintf(sss,"FAV3_CRATE end\n");
+  ADD_TO_STRING;
 
   CLOSE_STRING;
 
