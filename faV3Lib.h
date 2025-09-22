@@ -219,14 +219,23 @@ typedef struct faV3_data_struct
   uint32_t type;
   uint32_t slot_id_hd;
   uint32_t slot_id_tr;
+  uint32_t slot_id_evh;
   uint32_t n_evts;
   uint32_t blk_num;
+  uint32_t modID;
+  uint32_t PL;
+  uint32_t NSB;
+  uint32_t NSA;
   uint32_t n_words;
   uint32_t evt_num_1;
-  uint32_t trig_time;
+  uint32_t evt_num_2;
+  uint32_t evt_of_blk;
   uint32_t time_now;
+  uint32_t time_low_10;
   uint32_t time_1;
   uint32_t time_2;
+  uint32_t time_3;
+  uint32_t time_4;
   uint32_t chan;
   uint32_t width;
   uint32_t valid_1;
@@ -234,18 +243,17 @@ typedef struct faV3_data_struct
   uint32_t valid_2;
   uint32_t adc_2;
   uint32_t over;
+  uint32_t under;
+  uint32_t nsa_ext;
+  uint32_t samp_ov_thres;
   uint32_t adc_sum;
+  uint32_t ped_sum;
   uint32_t pulse_num;
   uint32_t thres_bin;
   uint32_t quality;
-  uint32_t evt_in_blk;
-  uint32_t ped_q;
-  uint32_t ped_sum;
+  uint32_t quality2;
   uint32_t integral;
-  uint32_t integral_q;
-  uint32_t above_thres;
   uint32_t time;
-  uint32_t time_q;
   uint32_t chan_a;
   uint32_t source_a;
   uint32_t chan_b;
@@ -255,10 +263,11 @@ typedef struct faV3_data_struct
   uint32_t time_fine;
   uint32_t vmin;
   uint32_t vpeak;
-  uint32_t adc_latency;
-  uint32_t adc_nsb;
-  uint32_t adc_nsa;
-  uint32_t scaler[18];
+  uint32_t trig_type_int;	/* next 4 for internal trigger data */
+  uint32_t trig_state_int;	/* e.g. helicity */
+  uint32_t evt_num_int;
+  uint32_t err_status_int;
+  uint32_t scaler_data_words;
 } faV3data_t;
 
 

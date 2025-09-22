@@ -5606,13 +5606,14 @@ faV3Live(int id, int sflag)
  */
 
 void
-faV3DataDecode(uint32_t data)
+faV3DataDecode(unsigned int data)
 {
   int i_print = 1;
-  static uint32_t type_last = 15;	/* initialize to type FILLER WORD */
-  static uint32_t time_last = 0;
+  static unsigned int type_last = 15;	/* initialize to type FILLER WORD */
+  static unsigned int time_last = 0;
+  int idata=0;
 
-  if(data & 0x80000000)		/* data type defining word */
+  if( data & 0x80000000 )		/* data type defining word */
     {
       faV3_data.new_type = 1;
       faV3_data.type = (data & 0x78000000) >> 27;
@@ -5623,88 +5624,96 @@ faV3DataDecode(uint32_t data)
       faV3_data.type = type_last;
     }
 
-  switch (faV3_data.type)
+  switch( faV3_data.type )
     {
-    case 0:			/* BLOCK HEADER */
-      faV3_data.slot_id_hd = (data & 0x7C00000) >> 22;
-      faV3_data.n_evts = (data & 0x3FF800) >> 11;
-      faV3_data.blk_num = (data & 0x7FF);
-      if(i_print)
-	printf("%8X - BLOCK HEADER - slot = %d   n_evts = %d   n_blk = %d\n",
-	       data, faV3_data.slot_id_hd, faV3_data.n_evts,
-	       faV3_data.blk_num);
+    case 0:		/* BLOCK HEADER */
+      if( faV3_data.new_type )
+	{
+	  faV3_data.slot_id_hd = ((data) & 0x7C00000) >> 22;
+	  faV3_data.modID      = (data & 0x3C0000)>>18;
+	  faV3_data.blk_num    = (data & 0x3FF00) >> 8;
+	  faV3_data.n_evts     = (data & 0xFF);
+	  if( i_print )
+	    printf("%8X - BLOCK HEADER - slot = %d  modID = %d   n_evts = %d   n_blk = %d\n",
+		   data, faV3_data.slot_id_hd,
+		   faV3_data.modID, faV3_data.n_evts, faV3_data.blk_num);
+	}
+      else
+	{
+	  faV3_data.PL  = (data & 0x1FFC0000) >> 18;
+	  faV3_data.NSB = (data & 0x0003FE00) >> 9;
+	  faV3_data.NSA = (data & 0x000001FF) >> 0;
+
+	  printf("%8X - BLOCK HEADER 2 - PL = %d  NSB = %d  NSA = %d\n",
+		 data,
+		 faV3_data.PL,
+		 faV3_data.NSB,
+		 faV3_data.NSA);
+	}
       break;
-    case 1:			/* BLOCK TRAILER */
+
+    case 1:		/* BLOCK TRAILER */
       faV3_data.slot_id_tr = (data & 0x7C00000) >> 22;
-      faV3_data.n_words = (data & 0x3FFFFF);
-      if(i_print)
+      faV3_data.n_words = (data & 0xFFF);
+      if( i_print )
 	printf("%8X - BLOCK TRAILER - slot = %d   n_words = %d\n",
 	       data, faV3_data.slot_id_tr, faV3_data.n_words);
       break;
-    case 2:			/* EVENT HEADER */
-      if(faV3_data.new_type)
-	{
-	  faV3_data.evt_num_1 = (data & 0x7FFFFFF);
-	  if(i_print)
-	    printf("%8X - EVENT HEADER 1 - evt_num = %d\n", data,
-		   faV3_data.evt_num_1);
-	}
-      /* else */
-      /* 	{ */
-      /* 	  faV3_data.evt_num_2 = (data & 0x7FFFFFF); */
-      /* 	  if(i_print) */
-      /* 	    printf("%8X - EVENT HEADER 2 - evt_num = %d\n", data, */
-      /* 		   faV3_data.evt_num_2); */
-      /* 	} */
+
+    case 2:		/* EVENT HEADER */
+      faV3_data.time_low_10 = (data & 0x003FF000) >> 12;
+      faV3_data.evt_num_1 = (data & 0x3FFFFF);
+      if( i_print )
+	printf("%8X - EVENT HEADER 1 - trig time = %d   trig num = %d\n", data,
+	       faV3_data.time_low_10, faV3_data.evt_num_1);
       break;
-    case 3:			/* TRIGGER TIME */
-      if(faV3_data.new_type)
+
+    case 3:		/* TRIGGER TIME */
+      if( faV3_data.new_type )
 	{
-	  faV3_data.time_1 = (data & 0xFFFFFF);
-	  if(i_print)
-	    printf("%8X - TRIGGER TIME 1 - time = %08x\n", data,
-		   faV3_data.time_1);
+	  faV3_data.time_1 = (data & 0x07FFFFFF);
+	  if( i_print )
+	    printf("%8X - TRIGGER TIME 1 - time = %08x\n", data, faV3_data.time_1);
 	  faV3_data.time_now = 1;
 	  time_last = 1;
 	}
       else
 	{
-	  if(time_last == 1)
+	  if( time_last == 1 )
 	    {
 	      faV3_data.time_2 = (data & 0xFFFFFF);
-	      if(i_print)
-		printf("%8X - TRIGGER TIME 2 - time = %08x\n", data,
-		       faV3_data.time_2);
+	      if( i_print )
+		printf("%8X - TRIGGER TIME 2 - time = %08x\n", data, faV3_data.time_2);
 	      faV3_data.time_now = 2;
 	    }
-	  /* else if(time_last == 2) */
-	  /*   { */
-	  /*     faV3_data.time_3 = (data & 0xFFFFFF); */
-	  /*     if(i_print) */
-	  /* 	printf("%8X - TRIGGER TIME 3 - time = %08x\n", data, */
-	  /* 	       faV3_data.time_3); */
-	  /*     faV3_data.time_now = 3; */
-	  /*   } */
-	  /* else if(time_last == 3) */
-	  /*   { */
-	  /*     faV3_data.time_4 = (data & 0xFFFFFF); */
-	  /*     if(i_print) */
-	  /* 	printf("%8X - TRIGGER TIME 4 - time = %08x\n", data, */
-	  /* 	       faV3_data.time_4); */
-	  /*     faV3_data.time_now = 4; */
-	  /*   } */
-	  else if(i_print)
-	    printf("%8X - TRIGGER TIME - (ERROR)\n", data);
+	  else if( time_last == 2 )
+	    {
+	      faV3_data.time_3 = (data & 0xFFFFFF);
+	      if( i_print )
+		printf("%8X - TRIGGER TIME 3 - time = %08x\n", data, faV3_data.time_3);
+	      faV3_data.time_now = 3;
+	    }
+	  else if( time_last == 3 )
+	    {
+	      faV3_data.time_4 = (data & 0xFFFFFF);
+	      if( i_print )
+		printf("%8X - TRIGGER TIME 4 - time = %08x\n", data, faV3_data.time_4);
+	      faV3_data.time_now = 4;
+	    }
+	  else
+	    if( i_print )
+	      printf("%8X - TRIGGER TIME - (ERROR)\n", data);
 
 	  time_last = faV3_data.time_now;
 	}
       break;
-    case 4:			/* WINDOW RAW DATA */
-      if(faV3_data.new_type)
+
+    case 4:		/* WINDOW RAW DATA */
+      if( faV3_data.new_type )
 	{
 	  faV3_data.chan = (data & 0x7800000) >> 23;
 	  faV3_data.width = (data & 0xFFF);
-	  if(i_print)
+	  if( i_print )
 	    printf("%8X - WINDOW RAW DATA - chan = %d   nsamples = %d\n",
 		   data, faV3_data.chan, faV3_data.width);
 	}
@@ -5713,145 +5722,168 @@ faV3DataDecode(uint32_t data)
 	  faV3_data.valid_1 = 1;
 	  faV3_data.valid_2 = 1;
 	  faV3_data.adc_1 = (data & 0x1FFF0000) >> 16;
-	  if(data & 0x20000000)
+	  if( data & 0x20000000 )
 	    faV3_data.valid_1 = 0;
 	  faV3_data.adc_2 = (data & 0x1FFF);
-	  if(data & 0x2000)
+	  if( data & 0x2000 )
 	    faV3_data.valid_2 = 0;
-	  if(i_print)
-	    printf
-	      ("%8X - RAW SAMPLES - valid = %d  adc = %4d   valid = %d  adc = %4d\n",
-	       data, faV3_data.valid_1, faV3_data.adc_1, faV3_data.valid_2,
-	       faV3_data.adc_2);
+	  if( i_print )
+	    printf("%8X - RAW SAMPLES - valid = %d  adc = %4d   valid = %d  adc = %4d\n",
+		   data, faV3_data.valid_1, faV3_data.adc_1,
+		   faV3_data.valid_2, faV3_data.adc_2);
 	}
       break;
-    case 5:			/* WINDOW SUM */
-      faV3_data.over = 0;
-      faV3_data.chan = (data & 0x7800000) >> 23;
-      faV3_data.adc_sum = (data & 0x3FFFFF);
-      if(data & 0x400000)
-	faV3_data.over = 1;
-      if(i_print)
-	printf("%8X - WINDOW SUM - chan = %d   over = %d   adc_sum = %08x\n",
-	       data, faV3_data.chan, faV3_data.over, faV3_data.adc_sum);
+
+    case 5:		/* UNDEFINED TYPE */
+      if( i_print )
+	printf("%8X - UNDEFINED TYPE = %d\n", data, faV3_data.type);
       break;
-    case 6:			/* PULSE RAW DATA */
-      if(faV3_data.new_type)
+
+    case 6:		/* PULSE RAW DATA */
+      if( faV3_data.new_type )
 	{
 	  faV3_data.chan = (data & 0x7800000) >> 23;
 	  faV3_data.pulse_num = (data & 0x600000) >> 21;
 	  faV3_data.thres_bin = (data & 0x3FF);
-	  if(i_print)
+	  if( i_print )
 	    printf("%8X - PULSE RAW DATA - chan = %d   pulse # = %d   threshold bin = %d\n",
-		   data, faV3_data.chan, faV3_data.pulse_num,
-		   faV3_data.thres_bin);
+		   data, faV3_data.chan, faV3_data.pulse_num, faV3_data.thres_bin);
 	}
       else
 	{
 	  faV3_data.valid_1 = 1;
 	  faV3_data.valid_2 = 1;
 	  faV3_data.adc_1 = (data & 0x1FFF0000) >> 16;
-	  if(data & 0x20000000)
+	  if( data & 0x20000000 )
 	    faV3_data.valid_1 = 0;
 	  faV3_data.adc_2 = (data & 0x1FFF);
-	  if(data & 0x2000)
+	  if( data & 0x2000 )
 	    faV3_data.valid_2 = 0;
-	  if(i_print)
+	  if( i_print )
 	    printf("%8X - PULSE RAW SAMPLES - valid = %d  adc = %d   valid = %d  adc = %d\n",
-		   data, faV3_data.valid_1, faV3_data.adc_1, faV3_data.valid_2,
-		   faV3_data.adc_2);
+		   data, faV3_data.valid_1, faV3_data.adc_1,
+		   faV3_data.valid_2, faV3_data.adc_2);
 	}
       break;
-    case 7:			/* PULSE INTEGRAL */
+
+    case 7:		/* PULSE INTEGRAL */
       faV3_data.chan = (data & 0x7800000) >> 23;
       faV3_data.pulse_num = (data & 0x600000) >> 21;
       faV3_data.quality = (data & 0x180000) >> 19;
       faV3_data.integral = (data & 0x7FFFF);
-      if(i_print)
+      if( i_print )
 	printf("%8X - PULSE INTEGRAL - chan = %d   pulse # = %d   quality = %d   integral = %d\n",
-	       data, faV3_data.chan, faV3_data.pulse_num, faV3_data.quality,
-	       faV3_data.integral);
+	       data, faV3_data.chan, faV3_data.pulse_num,
+	       faV3_data.quality, faV3_data.integral);
       break;
-    case 8:			/* PULSE TIME */
+
+    case 8:		/* PULSE TIME */
       faV3_data.chan = (data & 0x7800000) >> 23;
       faV3_data.pulse_num = (data & 0x600000) >> 21;
       faV3_data.quality = (data & 0x180000) >> 19;
       faV3_data.time = (data & 0xFFFF);
-      if(i_print)
+      if( i_print )
 	printf("%8X - PULSE TIME - chan = %d   pulse # = %d   quality = %d   time = %d\n",
-	       data, faV3_data.chan, faV3_data.pulse_num, faV3_data.quality,
-	       faV3_data.time);
+	       data, faV3_data.chan, faV3_data.pulse_num,
+	       faV3_data.quality, faV3_data.time);
       break;
-    case 9:			/* STREAMING RAW DATA */
-      if(faV3_data.new_type)
-	{
-	  faV3_data.chan_a = (data & 0x3C00000) >> 22;
-	  faV3_data.source_a = (data & 0x4000000) >> 26;
-	  faV3_data.chan_b = (data & 0x1E0000) >> 17;
-	  faV3_data.source_b = (data & 0x200000) >> 21;
-	  if(i_print)
-	    printf("%8X - STREAMING RAW DATA - ena A = %d  chan A = %d   ena B = %d  chan B = %d\n",
-		   data, faV3_data.source_a, faV3_data.chan_a, faV3_data.source_b,
-		   faV3_data.chan_b);
+
+    case 9:		/* PULSE PARAMETERS */
+      if( faV3_data.new_type )
+	{ /* Channel ID and Pedestal Info */
+	  faV3_data.pulse_num  = 0; /* Initialize */
+	  faV3_data.evt_of_blk = (data & 0x07f80000)>>19;
+	  faV3_data.chan       = (data & 0x00078000)>>15;
+	  faV3_data.quality    = (data & (1<<14))>>14;
+	  faV3_data.ped_sum    = (data & 0x00003fff);
+
+	      printf("%8X - PULSEPARAM 1 - evt = %d   chan = %d   quality = %d   pedsum = %d\n",
+		 data,
+		 faV3_data.evt_of_blk,
+		 faV3_data.chan,
+		 faV3_data.quality,
+		 faV3_data.ped_sum);
 	}
       else
 	{
-	  faV3_data.valid_1 = 1;
-	  faV3_data.valid_2 = 1;
-	  faV3_data.adc_1 = (data & 0x1FFF0000) >> 16;
-	  if(data & 0x20000000)
-	    faV3_data.valid_1 = 0;
-	  faV3_data.adc_2 = (data & 0x1FFF);
-	  if(data & 0x2000)
-	    faV3_data.valid_2 = 0;
-	  faV3_data.group = (data & 0x40000000) >> 30;
-	  if(faV3_data.group)
-	    {
-	      if(i_print)
-		printf("%8X - RAW SAMPLES B - valid = %d  adc = %d   valid = %d  adc = %d\n",
-		       data, faV3_data.valid_1, faV3_data.adc_1,
-		       faV3_data.valid_2, faV3_data.adc_2);
+	  if(data & (1<<30))
+	    { /* Word 1: Integral of n-th pulse in window */
+	      faV3_data.pulse_num++;
+	      faV3_data.adc_sum = (data & 0x3ffff000)>>12;
+	      faV3_data.nsa_ext = (data & (1<<11))>>11;
+	      faV3_data.over    = (data & (1<<10))>>10;
+	      faV3_data.under   = (data & (1<<9))>>9;
+	      faV3_data.samp_ov_thres = (data & 0x000001ff);
+
+	      printf("%8X - PULSEPARAM 2 - P# = %d  Sum = %d  NSA+ = %d  Ov/Un = %d/%d  #OT = %d\n",
+		     data,
+		     faV3_data.pulse_num,
+		     faV3_data.adc_sum,
+		     faV3_data.nsa_ext,
+		     faV3_data.over,
+		     faV3_data.under,
+		     faV3_data.samp_ov_thres);
 	    }
-	  else if(i_print)
-	    printf("%8X - RAW SAMPLES A - valid = %d  adc = %d   valid = %d  adc = %d\n",
-		   data, faV3_data.valid_1, faV3_data.adc_1, faV3_data.valid_2,
-		   faV3_data.adc_2);
+	  else
+	    { /* Word 2: Time of n-th pulse in window */
+	      faV3_data.time_coarse = (data & 0x3fe00000)>>21;
+	      faV3_data.time_fine   = (data & 0x001f8000)>>15;
+	      faV3_data.vpeak       = (data & 0x00007ff8)>>3;
+	      faV3_data.quality     = (data & 0x2)>>1;
+	      faV3_data.quality2    = (data & 0x1);
+
+	      printf("%8X - PULSEPARAM 3 - CTime = %d  FTime = %d  Peak = %d  NoVp = %d  Q = %d\n",
+		     data,
+		     faV3_data.time_coarse,
+		     faV3_data.time_fine,
+		     faV3_data.vpeak,
+		     faV3_data.quality,
+		     faV3_data.quality2);
+	    }
 	}
-      break;
-    case 10:			/* PULSE AMPLITUDE DATA */
-      faV3_data.chan = (data & 0x7800000) >> 23;
-      faV3_data.pulse_num = (data & 0x600000) >> 21;
-      faV3_data.vmin = (data & 0x1FF000) >> 12;
-      faV3_data.vpeak = (data & 0xFFF);
-      if(i_print)
-	printf("%8X - PULSE V - chan = %d   pulse # = %d   vmin = %d   vpeak = %d\n",
-	       data, faV3_data.chan, faV3_data.pulse_num, faV3_data.vmin,
-	       faV3_data.vpeak);
+
       break;
 
-    case 11:			/* INTERNAL TRIGGER WORD */
-      /* faV3_data.trig_type_int = data & 0x7; */
-      /* faV3_data.trig_state_int = (data & 0x8) >> 3; */
-      /* faV3_data.evt_num_int = (data & 0xFFF0) >> 4; */
-      /* faV3_data.err_status_int = (data & 0x10000) >> 16; */
-      /* if(i_print) */
-      /* 	printf("%8X - INTERNAL TRIGGER - type = %d   state = %d   num = %d   error = %d\n", */
-      /* 	       data, faV3_data.trig_type_int, faV3_data.trig_state_int, */
-      /* 	       faV3_data.evt_num_int, faV3_data.err_status_int); */
-    case 12:			/* UNDEFINED TYPE */
-      if(i_print)
+    case 10:		/* UNDEFINED TYPE */
+      if( i_print )
 	printf("%8X - UNDEFINED TYPE = %d\n", data, faV3_data.type);
       break;
-    case 13:			/* END OF EVENT */
-      if(i_print)
+
+    case 11:		/* UNDEFINED TYPE */
+      if( i_print )
+	printf("%8X - UNDEFINED TYPE = %d\n", data, faV3_data.type);
+      break;
+
+    case 12:		/* SCALER HEADER */
+      if( faV3_data.new_type )
+	{
+	  faV3_data.scaler_data_words = (data & 0x3F);
+	  if( i_print )
+	    printf("%8X - SCALER HEADER - data words = %d\n", data, faV3_data.scaler_data_words);
+	}
+      else
+	{
+	  for(idata=0; idata<faV3_data.scaler_data_words; idata++)
+	    {
+	      if( i_print )
+		printf("%8X - SCALER DATA - word = %2d  counter = %d\n",
+		       data, idata, data);
+	    }
+	}
+      break;
+
+    case 13:		/* END OF EVENT */
+      if( i_print )
 	printf("%8X - END OF EVENT = %d\n", data, faV3_data.type);
       break;
-    case 14:			/* DATA NOT VALID (no data available) */
-      if(i_print)
+
+    case 14:		/* DATA NOT VALID (no data available) */
+      if( i_print )
 	printf("%8X - DATA NOT VALID = %d\n", data, faV3_data.type);
       break;
-    case 15:			/* FILLER WORD */
-      if(i_print)
+
+    case 15:		/* FILLER WORD */
+      if( i_print )
 	printf("%8X - FILLER WORD = %d\n", data, faV3_data.type);
       break;
     }
