@@ -22,6 +22,7 @@ main(int argc, char *argv[])
 
     int status;
 
+    vmeSetQuietFlag(1);
     status = vmeOpenDefaultWindows();
     if(status != OK)
       goto CLOSE;

@@ -23,100 +23,84 @@
 /* Event Buffer definitions */
 #define MAX_EVENT_POOL     100
 #define MAX_EVENT_LENGTH   1024*2000      /* Size in Bytes */
-
 DMA_MEM_ID vmeIN,vmeOUT;
-extern DMANODE *the_event;
-extern unsigned int *dma_dabufp;
-
-#define BLOCKLEVEL 1
+int nfaV3 = 0;
+int MAXFADCWORDS = 0;
+int blockLevel = 1;
 
 /* Interrupt Service routine */
 void
 mytiISR(int arg)
 {
-  volatile unsigned short reg;
-  int dCnt, len=0,idata;
-  DMANODE *outEvent;
-  int tibready=0, timeout=0;
-  int printout = 1/BLOCKLEVEL;
-
-  unsigned int tiIntCount = tiGetIntCount();
+  int printout = 1;
+  int ifa = 0, stat, nwords, dCnt;
+  unsigned int datascan, scanmask;
+  int roType = 2, roCount = 0, blockError = 0;
+  uint32_t tiIntCount = tiGetIntCount();
+  extern DMANODE *the_event;
+  extern unsigned int *dma_dabufp;
 
   GETEVENT(vmeIN,tiIntCount);
 
-  dCnt = tiReadBlock(dma_dabufp,3*BLOCKLEVEL+10,1);
+  dCnt = tiReadTriggerBlock(dma_dabufp);
   if(dCnt<=0)
     {
       printf("No data or error.  dCnt = %d\n",dCnt);
     }
-
-    /* Readout FADC */
-  if(NFADC!=0)
+  else
     {
-      FA_SLOT = fadcID[0];
-      int itime=0, stat=0, roflag=1, islot=0;
-      unsigned int gbready=0;
-      for(itime=0;itime<10000;itime++)
+      dma_dabufp += dCnt;
+    }
+
+  /* Readout FADC */
+  /* Mask of initialized modules */
+  scanmask = faV3ScanMask();
+  /* Check scanmask for block ready up to 100 times */
+  datascan = faV3GBlockReady(scanmask, 100);
+  stat = (datascan == scanmask);
+
+  if(stat)
+    {
+      if(nfaV3 == 1)
+	roType = 1;   /* otherwise roType = 2   multiboard reaodut with token passing */
+      nwords = faV3ReadBlock(0, dma_dabufp, MAXFADCWORDS, roType);
+
+      /* Check for ERROR in block read */
+      blockError = faV3GetBlockError(1);
+
+      if(blockError)
 	{
-	  gbready = faGBready();
-	  stat = (gbready == fadcSlotMask);
-	  if (stat>0)
-	    {
-	      break;
-	    }
-	}
-      if(stat>0)
-	{
-	  if(NFADC>1) roflag=2; /* Use token passing scheme to readout all modules */
-	  dCnt = faReadBlock(FA_SLOT,dma_dabufp,MAXFADCWORDS,roflag);
-	  if(dCnt<=0)
-	    {
-	      printf("FADC%d: No data or error.  dCnt = %d\n",FA_SLOT,dCnt);
-	    }
-	  else
-	    {
-	      if(dCnt>MAXFADCWORDS)
-		{
-		  printf("%s: WARNING.. faReadBlock returned dCnt >= MAXFADCWORDS (%d >= %d)\n",
-			 __FUNCTION__,dCnt, MAXFADCWORDS);
-		}
-	      else
-		dma_dabufp += dCnt;
-	    }
+	  printf("ERROR: Slot %d: in transfer (event = %d), nwords = 0x%x\n",
+		 faV3Slot(ifa), roCount, nwords);
+
+	  for(ifa = 0; ifa < nfaV3; ifa++)
+	    faV3ResetToken(faV3Slot(ifa));
+
+	  if(nwords > 0)
+	    dma_dabufp += nwords;
 	}
       else
 	{
-	  printf ("FADC%d: no events   stat=%d  intcount = %d   gbready = 0x%08x  fadcSlotMask = 0x%08x\n",
-		  FA_SLOT,stat,tiGetIntCount(),gbready,fadcSlotMask);
-	}
-
-      /* Reset the Token */
-      if(roflag==2)
-	{
-	  for(islot=0; islot<NFADC; islot++)
-	    {
-	      FA_SLOT = fadcID[islot];
-	      faResetToken(FA_SLOT);
-	    }
+	  dma_dabufp += nwords;
+	  faV3ResetToken(faV3Slot(0));
 	}
     }
-
-
-
-
+  else
+    {
+      printf("ERROR: Event %d: Datascan != Scanmask  (0x%08x != 0x%08x)\n",
+	     roCount, datascan, scanmask);
+    }
   PUTEVENT(vmeOUT);
 
-  outEvent = dmaPGetItem(vmeOUT);
+  DMANODE *outEvent = dmaPGetItem(vmeOUT);
   if(tiIntCount%printout==0)
     {
       printf("Received %d triggers...\n",
 	     tiIntCount);
-
-      len = outEvent->length;
-
-      for(idata=0;idata<len;idata++)
+      int idata;
+      for(idata=0; idata < outEvent->length; idata++)
 	{
-	  faDataDecode(LSWAP(outEvent->data[idata]));
+	  faV3DataDecode(bswap_32(outEvent->data[idata]));
 	}
       printf("\n\n");
     }
@@ -129,10 +113,13 @@ int
 main(int argc, char *argv[]) {
 
   int stat;
+  char ti_configfile[1024] = "ti-master.ini",
+    fav3_configfile[1024] = "faV3.cfg";
 
   printf("\n fadc250 v3 readout test\n");
   printf("----------------------------\n");
 
+  vmeSetQuietFlag(1);
   vmeOpen();
 
   /* Setup Address and data modes for DMA transfers
@@ -157,7 +144,6 @@ main(int argc, char *argv[]) {
 
   tiConfigInitGlobals();
 
-  tiA32Base=0x09000000;
   tiSetFiberLatencyOffset_preInit(0x20);
   tiInit(0,TI_READOUT_EXT_POLL,TI_INIT_SKIP_FIRMWARE_CHECK);
   tiCheckAddresses();
@@ -181,37 +167,50 @@ main(int argc, char *argv[]) {
   int NFAV3 = 16+2;   /* 16 slots + 2 (for the switch slots) */
 
   /* Setup the iFlag.. flags for FADC initialization */
-  int iFlag=0;
+  int iflag=0;
   iflag |= FAV3_INIT_EXT_SYNCRESET;  /* vxs sync-reset */
   iflag |= FAV3_INIT_VXS_TRIG;       /* VXS trigger source */
   iflag |= FAV3_INIT_INT_CLKSRC;     /* Internal 250MHz Clock source, switch to VXS in prestart */
 
-  vmeSetQuietFlag(1);
   faV3Init( 3 << 19 , 1 << 19, NFAV3, iflag);
   vmeSetQuietFlag(0);
+  nfaV3 = faV3GetN();
 
   /* Just one FADC250 */
-  if(nfaV3 == 1)
-    faV3DisableMultiBlock();
-  else
+  if(nfaV3 > 1)
     faV3EnableMultiBlock(1);
 
   /* configure all modules based on config file */
   faV3Config(fav3_configfile);
 
+  int ifa;
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
       /* Bus errors to terminate block transfers (preferred) */
       faV3EnableBusError(faV3Slot(ifa));
     }
-  faV3GStatus(0);
+
+  /* Get the FADC mode and window size to determine max data size */
+  int fadc_mode = 0;
+  uint32_t pl=0, ptw=0, nsb=0, nsa=0, np=0, nped=0, maxped=0, nsat=0;
+
+  faV3GetProcMode(0, &fadc_mode, &pl, &ptw,
+		  &nsb, &nsa, &np);
+
+  /* Set Max words from fadc (proc mode == 1 produces the most)
+     nfaV3 * ( Block Header + Trailer + 2  # 2 possible filler words
+               blockLevel * ( Event Header + Header2 + Timestamp1 + Timestamp2 +
+	                      nchan * (Channel Header + (WindowSize / 2) )
+             ) +
+     scaler readout # 16 channels + header/trailer
+   */
+  MAXFADCWORDS = nfaV3 * (4 + blockLevel * (4 + 16 * (1 + (ptw / 2))) + 18);
 
   /***************************************
    *   SD SETUP
    ***************************************/
   sdInit(0);   /* Initialize the SD library */
   sdSetActiveVmeSlots(faV3ScanMask()); /* Tell the sd where to find the fadcs */
-  sdStatus(0);
 
   tiClockReset();
   taskDelay(1);
@@ -238,7 +237,8 @@ main(int argc, char *argv[]) {
 
   /* TI Status */
   tiStatus(0);
-  faGStatus(0);
+  sdStatus(0);
+  faV3GStatus(0);
 
   printf("Hit enter to start triggers\n");
   getchar();
@@ -248,7 +248,6 @@ main(int argc, char *argv[]) {
   faV3GEnable(0);
 
   tiIntEnable(0);
-  tiStatus(0);
 #define SOFTTRIG
 #ifdef SOFTTRIG
   tiSetRandomTrigger(1,0xf);
@@ -266,10 +265,7 @@ main(int argc, char *argv[]) {
   tiDisableRandomTrigger();
 #endif
 
-
-
   tiIntDisable();
-
   tiIntDisconnect();
 
   /* FADC Disable */
@@ -282,6 +278,7 @@ main(int argc, char *argv[]) {
 
  CLOSE:
 
+  faV3GReset(1);
   dmaPFreeAll();
   vmeCloseDefaultWindows();
 
