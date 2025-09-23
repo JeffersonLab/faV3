@@ -5662,7 +5662,7 @@ faV3DataDecode(unsigned int data)
 
     case 2:		/* EVENT HEADER */
       faV3_data.time_low_10 = (data & 0x003FF000) >> 12;
-      faV3_data.evt_num_1 = (data & 0x3FFFFF);
+      faV3_data.evt_num_1 = (data & 0xFFF);
       if( i_print )
 	printf("%8X - EVENT HEADER 1 - trig time = %d   trig num = %d\n", data,
 	       faV3_data.time_low_10, faV3_data.evt_num_1);
