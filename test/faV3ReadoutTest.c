@@ -41,7 +41,7 @@ mytiISR(int arg)
   extern unsigned int *dma_dabufp;
 
   GETEVENT(vmeIN,tiIntCount);
-
+  //  faV3Trig(0);
   dCnt = tiReadTriggerBlock(dma_dabufp);
   if(dCnt<=0)
     {
@@ -49,7 +49,7 @@ mytiISR(int arg)
     }
   else
     {
-      dma_dabufp += dCnt;
+      //      dma_dabufp += dCnt;
     }
 
   /* Readout FADC */
@@ -63,7 +63,7 @@ mytiISR(int arg)
     {
       if(nfaV3 == 1)
 	roType = 1;   /* otherwise roType = 2   multiboard reaodut with token passing */
-      nwords = faV3ReadBlock(0, dma_dabufp, MAXFADCWORDS, roType);
+      nwords = faV3ReadBlock(0, dma_dabufp, 4*MAXFADCWORDS, roType);
 
       /* Check for ERROR in block read */
       blockError = faV3GetBlockError(1);
@@ -116,7 +116,13 @@ main(int argc, char *argv[]) {
   char ti_configfile[1024] = "ti-master.ini",
     fav3_configfile[1024] = "faV3.cfg";
 
+  if(argc == 2) {
+    strncpy(fav3_configfile, argv[1], 1024);
+  }
+
+
   printf("\n fadc250 v3 readout test\n");
+
   printf("----------------------------\n");
 
   vmeSetQuietFlag(1);
@@ -148,10 +154,8 @@ main(int argc, char *argv[]) {
   tiInit(0,TI_READOUT_EXT_POLL,TI_INIT_SKIP_FIRMWARE_CHECK);
   tiCheckAddresses();
 
-  if(argc == 2)
-    tiConfig(argv[1]);
+  tiConfig(ti_configfile);
   tiConfigFree();
-
 
   stat = tiIntConnect(TI_INT_VEC, mytiISR, 0);
   if (stat != OK)
@@ -171,6 +175,8 @@ main(int argc, char *argv[]) {
   iflag |= FAV3_INIT_EXT_SYNCRESET;  /* vxs sync-reset */
   iflag |= FAV3_INIT_VXS_TRIG;       /* VXS trigger source */
   iflag |= FAV3_INIT_INT_CLKSRC;     /* Internal 250MHz Clock source, switch to VXS in prestart */
+
+  iflag |= FAV3_INIT_A32_SLOTNUMBER;
 
   faV3Init( 3 << 19 , 1 << 19, NFAV3, iflag);
   vmeSetQuietFlag(0);
@@ -255,7 +261,7 @@ main(int argc, char *argv[]) {
 /*   tiSoftTrig(1,0x1,0x700,0); */
 #endif
 
-  printf("Hit any key to Disable TID and exit.\n");
+  printf("Hit any key to Disable triggers and exit.\n");
   getchar();
 
 #ifdef SOFTTRIG
@@ -271,14 +277,13 @@ main(int argc, char *argv[]) {
   /* FADC Disable */
   faV3GDisable(0);
 
-  /* FADC Event status - Is all data read out */
   tiStatus(0);
   faV3GStatus(0);
 
 
  CLOSE:
 
-  faV3GReset(1);
+  /* faV3GReset(1); */
   dmaPFreeAll();
   vmeCloseDefaultWindows();
 
