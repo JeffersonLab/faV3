@@ -6412,7 +6412,7 @@ faV3GetSerialNumber(int id, char **rval)
   uint32_t byte;
   uint32_t shift = 0, mask = 0;
   uint32_t boardID;
-  char boardID_c[4];
+  char boardID_c[12];
   char byte_c[2];
   char sn_str[12];
   char ret[12];
@@ -8306,8 +8306,8 @@ faV3MeasureChannelPedestal(int id, unsigned int chan, faV3Ped *ped)
       FAV3LOCK;
       for(i = 0; i < 512; i++)
 	{
-	  unsigned int idx   = (chan*13)/16;
-	  unsigned int shift = (chan*13)%16;
+	  unsigned int idx   = (chan*16)/16;
+	  unsigned int shift = (chan*16)%16;
 	  sample0 = (unsigned int)vmeRead16(&FAV3p[id]->adc.la_dat[idx]);
 	  if(idx<12) sample1 = (unsigned int)vmeRead16(&FAV3p[id]->adc.la_dat[idx+1]);
 

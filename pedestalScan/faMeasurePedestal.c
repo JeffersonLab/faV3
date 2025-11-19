@@ -93,7 +93,7 @@ main(int argc, char *argv[])
       fprintf(f, "FAV3_CRATE %s\n", myhostname);
       for(ifa = 0; ifa < nfaV3; ifa++)
 	{
-	  fprintf(f, "FAV3_SLOT %d\nfaV3250_ALLCH_PED", faV3Slot(ifa));
+	  fprintf(f, "FAV3_SLOT %d\nFAV3_ALLCH_PED", faV3Slot(ifa));
 
 	  for(ch = 0; ch < 16; ch++)
 	    {
