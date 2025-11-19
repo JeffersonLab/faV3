@@ -636,9 +636,9 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 		      FAV3_RESET_DAC | FAV3_RESET_EXT_RAM_PT));
 
 	  /* Release reset on MGTs */
-	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl_mgt, FAV3_MGT_RESET);
 	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl_mgt, FAV3_RELEASE_MGT_RESET);
 	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl_mgt, FAV3_MGT_RESET);
+	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl_mgt, FAV3_RELEASE_MGT_RESET);
 
 	}
       taskDelay(5);
@@ -8293,7 +8293,7 @@ faV3MeasureChannelPedestal(int id, unsigned int chan, faV3Ped *ped)
       taskDelay(1);
 
       FAV3LOCK;
-      status = vmeRead16(&FAV3p[id]->adc.la_rden);
+      status = vmeRead16(&FAV3p[id]->adc.la_rdyStatus);
       vmeWrite16(&FAV3p[id]->adc.la_ctrl_reg, 0);       /* disable logic analyzer */
       FAV3UNLOCK;
 

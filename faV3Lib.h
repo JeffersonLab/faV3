@@ -97,6 +97,9 @@ typedef struct
   /* 0x0230 */ volatile uint16_t acc0[FAV3_MAX_ADC_CHANNELS];
   /* 0x0250 */ volatile uint16_t acc1[FAV3_MAX_ADC_CHANNELS];
   /* 0x0270 */ volatile uint16_t acc2[FAV3_MAX_ADC_CHANNELS];
+  /* 0x0290 */ volatile uint16_t la_rdyStatus;
+  /* 0x0294 */ BLANK[(0x2A0 - 0x294) >> 2];
+
 } faV3_adc_t;
 
 typedef struct
@@ -202,7 +205,7 @@ typedef struct
   /* 0x00FC */ volatile uint32_t sys_mon;
 
   /* 0x0100 */ volatile faV3_adc_t adc;
-  /* 0x01A0 */ BLANK[(0x300 - 0x290) >> 2];
+  /* 0x02A0 */ BLANK[(0x300 - 0x2A0) >> 2];
 
   /* 0x0300 */ volatile faV3_scalers_t scalers;
   /* 0x0344 */ BLANK[(0x400 - 0x344) >> 2];
