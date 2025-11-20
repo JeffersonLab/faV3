@@ -22,15 +22,16 @@ main(int argc, char *argv[])
 
     int status;
 
+    vmeSetQuietFlag(1);
     status = vmeOpenDefaultWindows();
     if(status != OK)
       goto CLOSE;
 
     vmeBusLock();
     /* Set the FADC structure pointer */
-    faV3HallDInit( 3 << 19 , 1 << 19, 18, FAV3_INIT_SKIP | FAV3_INIT_SKIP_FIRMWARE_CHECK);
+    faV3Init( 3 << 19 , 1 << 19, 18, FAV3_INIT_SKIP | FAV3_INIT_SKIP_FIRMWARE_CHECK);
 
-    faV3HallDGStatus(0);
+    faV3GStatus(0);
     vmeBusUnlock();
 
 

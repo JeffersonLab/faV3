@@ -36,7 +36,7 @@ ifeq ($(DEBUG),1)
 	CFLAGS		+= -Wall -Wno-unused -g
 endif
 
-SRC			= faCheckConfigfile.c
+SRC			= faCheckConfigfile.c faWriteConfigFile.c
 DEPS			= $(SRC:.c=.d)
 PROGS			= $(SRC:.c=)
 

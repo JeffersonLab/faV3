@@ -63,7 +63,7 @@ CC			+= -m32
 endif
 AR                      = ar
 RANLIB                  = ranlib
-CFLAGS			= -L. -L${LINUXVME_LIB} ${LIB_CODA}
+CFLAGS			= -std=gnu99 -L. -L${LINUXVME_LIB} ${LIB_CODA}
 INCS			= -I. -I${LINUXVME_INC} ${INC_CODA}
 
 LIBS			= lib${BASENAME}.a lib${BASENAME}.so
@@ -75,7 +75,7 @@ else
 CFLAGS			+= -O2
 endif
 
-SRC			= ${BASENAME}Lib.c faV3Config.c faV3FirmwareTools.c faV3Itrig.c faV3-HallD.c
+SRC			= ${BASENAME}Lib.c faV3Config.c faV3FirmwareTools.c faV3-HallD.c
 OBJ			= $(SRC:%.c=%.o)
 HDRS			= $(SRC:%.c=%.h)
 

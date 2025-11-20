@@ -3,7 +3,8 @@ This README describes the use of the faV3Config library of routines to configure
 * Example faV3Config file
 - contains all definitions recognized by faV3Config:
 #+begin_example
-config/example.cnf
+config/faV3.cfg
+#+end_config/faV3-HallD.cfg
 #+end_example
 
 * Default Usage:
@@ -27,7 +28,7 @@ int faV3Config(char *fname);
 **** Filename with relative path
 
 #+begin_src C
-faV3Config("example.cnf");
+faV3Config("faV3.cfg");
 #+end_src
 
 - PATHS checked:
@@ -38,12 +39,12 @@ faV3Config("example.cnf");
 **** Filename with full path
 
 #+begin_src C
-faV3Config("/full/path/example.cnf");
+faV3Config("/full/path/faV3.cfg");
 #+end_src
 
 - PATHS checked:
 #+begin_example
-/full/path/example.cnf
+/full/path/faV3.cfg
 #+end_example
      
 
