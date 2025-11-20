@@ -110,15 +110,24 @@ main(int argc, char *argv[])
   printf("----------------------------------\n");
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
-      int skip = 0;
+      int ictrl, iproc, skip = 0;
       uint32_t ctrl = 0, proc = 0;
+      uint32_t supported_ctrl[FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER] = {FAV3_SUPPORTED_CTRL_FIRMWARE};
+      uint32_t supported_proc[FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER] = {FAV3_SUPPORTED_PROC_FIRMWARE};
 
       cfw = faV3GetFirmwareVersions(faV3Slot(ifa), 0);
       ctrl = cfw & 0xFFFF;
       proc = (cfw >> 16) & 0xFFFF;
 
-      if(ctrl == (FAV3_SUPPORTED_CTRL_FIRMWARE) && (proc == FAV3_SUPPORTED_PROC_FIRMWARE))
-	skip = 1;
+      for(ictrl = 0; ictrl < FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER; ictrl++) {
+	if(ctrl == supported_ctrl[ictrl]) {
+	  for(iproc = 0; iproc < FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER; iproc++) {
+	    if(proc == supported_proc[iproc]) {
+	      skip = 1;
+	    }
+	  }
+	}
+      }
 
       if((skip == 0) || (force == 1))
 	update_count++;
@@ -133,10 +142,22 @@ main(int argc, char *argv[])
 
   if(update_count == 0)
     {
+      int ictrl, iproc;
+      uint32_t supported_ctrl[FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER] = {FAV3_SUPPORTED_CTRL_FIRMWARE};
+      uint32_t supported_proc[FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER] = {FAV3_SUPPORTED_PROC_FIRMWARE};
+
       printf("\n");
-      printf(" All FADC firmware is already up to date with\n");
-      printf("   Ctrl: 0x%04x\n", FAV3_SUPPORTED_CTRL_FIRMWARE);
-      printf("   Proc: 0x%04x\n", FAV3_SUPPORTED_PROC_FIRMWARE);
+      printf(" All FAV3 firmware is already up to date with supported versions\n");
+      printf("   Ctrl: ");
+      for(ictrl = 0; ictrl < FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER; ictrl++) {
+	printf("0x%04x ", supported_ctrl[ictrl]);
+      }
+      printf("\n");
+      printf("   Proc: ");
+      for(iproc = 0; iproc < FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER; iproc++) {
+	printf("0x%04x ", supported_proc[iproc]);
+      }
+      printf("\n");
       printf("\n");
       goto CLOSE;
     }
