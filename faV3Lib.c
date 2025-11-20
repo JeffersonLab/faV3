@@ -1424,6 +1424,11 @@ faV3GStatus(int sflag)
       st[id].adc.nsb = vmeRead16(&FAV3p[id]->adc.nsb);
       st[id].adc.nsa = vmeRead16(&FAV3p[id]->adc.nsa);
 
+      st[id].adc.live_trig_mask = vmeRead16(&FAV3p[id]->adc.live_trig_mask);
+      st[id].adc.live_trig_width = vmeRead16(&FAV3p[id]->adc.live_trig_width);
+      st[id].adc.hitbit_config = vmeRead16(&FAV3p[id]->adc.hitbit_config);
+      st[id].adc.live_trig_width = vmeRead16(&FAV3p[id]->adc.live_trig_width);
+
       st[id].blk_count = vmeRead32(&FAV3p[id]->blk_count);
       st[id].blocklevel = vmeRead32(&FAV3p[id]->blocklevel);
       st[id].ram_word_count =
@@ -1439,11 +1444,9 @@ faV3GStatus(int sflag)
       for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
 	{
 	  st[id].adc.pedestal[ii] = vmeRead16(&FAV3p[id]->adc.pedestal[ii]);
-	}
-
-      for(ii = 0; ii < FAV3_MAX_ADC_CHANNELS; ii++)
-	{
 	  st[id].adc.thres[ii] = vmeRead16(&FAV3p[id]->adc.thres[ii]);
+	  st[id].adc.trig_gain[ii] = vmeRead16(&FAV3p[id]->adc.trig_gain[ii]);
+	  st[id].adc.trig_delay[ii] = vmeRead16(&FAV3p[id]->adc.trig_delay[ii]);
 	}
 
     }
@@ -1451,7 +1454,7 @@ faV3GStatus(int sflag)
 
   printf("\n");
 
-  printf("                      fADC250 Module Configuration Summary\n\n");
+  printf("                      faV3 Module Configuration Summary\n\n");
   printf("     Firmware Rev   .................Addresses................\n");
   printf("Slot  Ctrl   Proc      A24        A32     A32 Multiblock Range   VXS Readout\n");
   printf("--------------------------------------------------------------------------------\n");
@@ -1549,7 +1552,7 @@ faV3GStatus(int sflag)
   printf("--------------------------------------------------------------------------------\n");
 
   printf("\n");
-  printf("                         fADC250 Processing Mode Config\n\n");
+  printf("                         faV3 Processing Mode Config\n\n");
   printf("      Block          ...[nanoseconds]...       [ns]\n");
   printf("Slot  Level  Mode    PL   PTW   NSB  NSA  NP   NPED  MAXPED  NSAT   Playback   \n");
   printf("--------------------------------------------------------------------------------\n");
@@ -1593,7 +1596,7 @@ faV3GStatus(int sflag)
   printf("--------------------------------------------------------------------------------\n");
 
   printf("\n");
-  printf("           .........fADC250 Signal Scalers..........     ..System Monitor..\n");
+  printf("           ............faV3 Signal Scalers..........     ..System Monitor..\n");
   printf("Slot       Trig1       Trig2   SyncReset        BERR     TempC   1.0V   2.5V\n");
   printf("--------------------------------------------------------------------------------\n");
   for(ifa = 0; ifa < nfaV3; ifa++)
@@ -1631,7 +1634,7 @@ faV3GStatus(int sflag)
   printf("--------------------------------------------------------------------------------\n");
 
   printf("\n");
-  printf("                              fADC250 Data Status\n\n");
+  printf("                              faV3 Data Status\n\n");
   printf("      Trigger   Block                              Error Status\n");
   printf("Slot  Source    Ready  Blocks In Fifo  RAM Level   CSR     MGT\n");
   printf("--------------------------------------------------------------------------------\n");
@@ -1661,14 +1664,88 @@ faV3GStatus(int sflag)
   printf("--------------------------------------------------------------------------------\n");
 
   printf("\n");
-  printf("       ----- Trigger Path -----     ------------- Data Format ------------- \n\n");
-  printf("       Chan   Trig    Min   Min     Compression   TrigTime  ADC\n");
-  printf("Slot   Mask   Width   TOT   Mult    HallB  HallD  Suppress  Params  Sparse\n");
+  printf("       --------- Trigger Path -------  ------------- Data Format ------------- \n\n");
+  printf("       Chan    Trig    Min     Min     Compression  TrigTime  ADC\n");
+  printf("Slot   Mask    Width   TOT     Mult    HallB  HallD Suppress  Params    Sparse\n");
   printf("--------------------------------------------------------------------------------\n");
-
+  //       13    0xFFFF  0xFFFF  0xFF    0xFF    None   None  Disabled  Disabled  Disabled
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
       id = faV3Slot(ifa);
+      printf(" %2d    ", id);
+
+      printf("0x%04x  ", st[id].adc.live_trig_mask);
+      printf("0x%04x  ", st[id].adc.live_trig_width);
+      printf("0x%02x    ", st[id].adc.hitbit_config & 0xff);
+      printf("0x%02x    ", (st[id].adc.hitbit_config >> 8) & 0x1F);
+
+      printf("%s",
+	     (st[id].ctrl2 & FAV3_CTRL_COMPRESS_MASK) == FAV3_CTRL_COMPRESS_DISABLE ? "None   " :
+	     (st[id].ctrl2 & FAV3_CONTROL2_MASK) == FAV3_CTRL_COMPRESS_ENABLE  ? "Enable " :
+	     (st[id].ctrl2 & FAV3_CONTROL2_MASK) == FAV3_CTRL_COMPRESS_VERIFY  ? "Verify " : "?????? ");
+      printf("%s",
+	     ((st[id].ctrl1 & FAV3_CTRL1_DATAFORMAT_MASK) >> 26) == 0 ? "None  " :
+	     ((st[id].ctrl1 & FAV3_CTRL1_DATAFORMAT_MASK) >> 26) == 1 ? "Inter " :
+	     ((st[id].ctrl1 & FAV3_CTRL1_DATAFORMAT_MASK) >> 26) == 2 ? "Full  " : "????  ");
+      printf("%s", "Disabled  ");
+      printf("%s", "Disabled  ");
+      printf("%s", "Disabled  ");
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("                      fAV3 Trigger Path Processing\n\n");
+  for(ifa=0; ifa<nfaV3; ifa++)
+    {
+      printf("           .......TET.......                                           \n");
+      printf("Slot  Ch   Readout   Trigger      Gain      Ped   Delay  TrigMode  Invert  Accum\n");
+      printf("--------------------------------------------------------------------------------\n");
+
+      id = faV3Slot(ifa);
+
+      int ichan;
+      for(ichan = 0; ichan < FAV3_MAX_ADC_CHANNELS; ichan++)
+	{
+	  if(ichan == 0)
+	    printf(" %2d",id);
+	  else
+	    printf("   ");
+
+	  printf("   ");
+	  printf("%2d      ",ichan);
+
+	  int NSB = (st[id].adc.nsb & FAV3_ADC_NSB_MASK) * FAV3_ADC_NS_PER_CLK;
+	  int NSA = (st[id].adc.nsa & FAV3_ADC_NSA_MASK) * FAV3_ADC_NS_PER_CLK;
+	  float gain_trg = (st[id].adc.trig_gain[ichan] & 0x4000) ?
+                           ((st[id].adc.trig_gain[ichan] & 0x3FFF) / 16384.0f) : ((st[id].adc.trig_gain[ichan] & 0x3FFF) / 256.0f);
+	  float ped_trg = 4.0 * ((float)(st[id].adc.pedestal[ichan] & FAV3_ADC_PEDESTAL_MASK)) /
+	    ((float)(NSA+NSB));
+
+	  int tet_trg = (st[id].adc.thres[ichan] & FAV3_THR_VALUE_MASK) - (int)ped_trg;
+
+	  int tet_readout = (st[id].adc.thres[ichan] & FAV3_THR_IGNORE_MASK) ? 0
+	    : ((st[id].adc.thres[ichan] & FAV3_THR_VALUE_MASK) - (int)ped_trg);
+
+	  printf("%4d      ", tet_readout);
+
+	  printf("%4d   ", tet_trg);
+
+	  printf("%7.3f ", gain_trg*1.);
+
+	  printf("%8.3f     ", ped_trg);
+
+	  printf("%3d     ", st[id].adc.trig_delay[ichan]);
+
+	  printf("%s       ", (st[id].adc.trig_gain[ichan] & 0x8000) ? " DISC" : "PULSE");
+
+	  printf("%d      ", (st[id].adc.thres[ichan] & FAV3_THR_INVERT_MASK) ? 1 : 0);
+
+	  printf("%d", (st[id].adc.thres[ichan] & FAV3_THR_ACCUMULATOR_SCALER_MODE_MASK) ? 1 : 0);
+
+	  printf("\n");
+	}
 
       printf("\n");
     }
@@ -8069,7 +8146,7 @@ faV3GetHitbitMinMultiplicity(int id)
   val = vmeRead16(&FAV3p[id]->adc.hitbit_config);
   FAV3UNLOCK;
 
-  return(val>>8)&0x1F;
+  return((val >> 8) & 0x1F);
 }
 
 int
