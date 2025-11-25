@@ -24,6 +24,7 @@ char *progName;
 char serial_number[16];
 int32_t FAV3_SLOT = 0;
 int32_t prog_nsamples = 0;
+char config_filename[256] = "./debug.cfg";
 
 
 void
@@ -75,17 +76,20 @@ init(char *choice)
 
   extern int32_t nfaV3;
   int32_t iflag = 0;
-  iflag |= FAV3_INIT_SKIP_IDELAY_CONFIG;
+  //  iflag |= FAV3_INIT_SKIP_IDELAY_CONFIG;
   faV3HallDInit(vme_addr, 1<<19, ninit, iflag);
   if(nfaV3 <= 0)
     {
       printf("%s: ERROR: Initialization returned %d\n", progName, nfaV3);
       return -1;
     }
-  faV3HallDGStatus(0);
   FAV3_SLOT = faV3Slot(0);
   faV3GetSerialNumber(FAV3_SLOT, (char **)&serial_number);
 
+  /* download to all boards */
+  faV3Config(config_filename);
+
+  faV3HallDGStatus(0);
 
   return 0;
 }
@@ -300,6 +304,45 @@ setclock(char *choice)
   return 0;
 }
 
+int32_t
+hard_reset(char *choice)
+{
+  if(faV3Reset(FAV3_SLOT, 1) != OK)
+    {
+      printf("%s: ERROR from faV3Reset\n",
+            __func__);
+      return -1;
+    }
+
+  return 0;
+}
+
+int32_t
+soft_reset(char *choice)
+{
+  if(faV3SoftReset(FAV3_SLOT, 0) != OK)
+    {
+      printf("%s: ERROR from faV3SoftReset - soft reset\n",
+            __func__);
+      return -1;
+    }
+
+  return 0;
+}
+
+int32_t
+soft_clear(char *choice)
+{
+  if(faV3SoftReset(FAV3_SLOT, 1) != OK)
+    {
+      printf("%s: ERROR from faV3SoftReset - soft clear\n",
+            __func__);
+      return -1;
+    }
+
+  return 0;
+}
+
 #include <readline/readline.h>
 int com_quit(char *arg);
 int com_help(char *arg);
@@ -323,6 +366,9 @@ COMMAND commands[] = {
   {"setped", setped, "Set Pedestal Monitor parameters: setped <nsamples> <maxped>"},
   {"getped", getped, "Print out Pedestal Monitor"},
   {"setclock", setclock, "Set clock source: setclock <source #>"},
+  {"hard_reset", hard_reset, "Hard Reset"},
+  {"soft_reset", soft_reset, "Soft Reset"},
+  {"soft_clear", soft_clear, "Soft Clear"},
   {"quit", com_quit, "Quit"},
   {(char *) NULL, (rl_icpfunc_t *) NULL, (char *) NULL}
 };
@@ -332,7 +378,6 @@ COMMAND commands[] = {
 int
 main(int argc, char *argv[])
 {
-  char config_filename[256] = "./dacScan.cfg";
   int32_t user_slotnumber = -1;
 
   progName = argv[0];
