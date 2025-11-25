@@ -272,6 +272,39 @@ getped(char *choice)
 }
 
 int32_t
+measure_ped(char *choice)
+{
+  int32_t ch = 0;
+  double channel_data[16];
+
+  for(ch = 0; ch < 16; ch++)
+    {
+      faV3Ped ped;
+      if(faV3MeasureChannelPedestal(FAV3_SLOT, ch, &ped) != OK)
+	{
+	  printf(" Unable to measure pedestal on slot %d, ch %d...\n",
+		 FAV3_SLOT, ch);
+	  return -1;
+	}
+
+      channel_data[ch] = ped.avg;
+    }
+
+  printf("# Slot %2d: %s \n", FAV3_SLOT, serial_number);
+  for(ch = 0; ch < 16; ch ++)
+    {
+      printf("  %2d: %8.3f\n",
+	     ch+1,
+	     channel_data[ch]);
+    }
+
+  printf("\n");
+
+
+  return 0;
+}
+
+int32_t
 setclock(char *choice)
 {
   int clock_choice = 0;
@@ -364,6 +397,7 @@ COMMAND commands[] = {
   {"getdac", getdac, "Print DAC values for all channels"},
   {"setped", setped, "Set Pedestal Monitor parameters: setped <nsamples> <maxped>"},
   {"getped", getped, "Print out Pedestal Monitor"},
+  {"measure_ped", measure_ped, "Pedestals analyzed from la channels"},
   {"setclock", setclock, "Set clock source: setclock <source #>"},
   {"hard_reset", hard_reset, "Hard Reset"},
   {"soft_reset", soft_reset, "Soft Reset"},
