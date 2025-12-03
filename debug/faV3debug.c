@@ -83,13 +83,20 @@ init(char *choice)
       return -1;
     }
 
-  faV3Config(config_filename);
-
   faV3GStatus(0);
   FAV3_SLOT = faV3Slot(0);
   faV3GetSerialNumber(FAV3_SLOT, (char **)&serial_number);
 
 
+  return 0;
+}
+
+int32_t
+config(char *choice)
+{
+  faV3Config(config_filename);
+
+  faV3GStatus(0);
   return 0;
 }
 
@@ -390,6 +397,7 @@ COMMAND commands[] = {
   {"help", com_help, "Display this text"},
   {"?", com_help, "Synonym for `help'"},
   {"init", init, "Initialize module: init <slotnumber>"},
+  {"config", config, "Configure module with debug.cfg"},
   {"status", status, "Print status of initialized modules"},
   {"idelay", idelay, "Configure IDelay"},
   {"istatus", istatus, "Current IDelay settings"},
