@@ -2414,6 +2414,7 @@ faV3ADCWriteAll(int id, uint32_t value)
  *
  *  @param id Slot number
  *  @param mode Reserved for future use
+ *         0 : do nothing and return OK
  *
  */
 
@@ -2424,14 +2425,16 @@ faV3SetupADC(int id, int32_t mode)
 
   CHECKID;
 
-  if((mode < 0) || (mode > 2))
+  if((mode < FAV3_SETUPADC_MODE_NORMAL) || (mode >= FAV3_SETUPADC_MODE_MAX))
     {
       printf("%s: ERROR: Invalid mode (%d)\n",
 	     __func__, mode);
       return ERROR;
     }
 
-  mode = 0;
+  if(mode == FAV3_SETUPADC_MODE_NORMAL)
+    return OK;
+
   taskDelay(1);
 
   if(debug)

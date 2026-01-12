@@ -788,6 +788,11 @@ enum faV3_proc_firmware_types
     FAV3_FW_PROC_MAX
   };
 
+enum faV3_setupadc_modes
+  {
+    FAV3_SETUPADC_MODE_NORMAL = 0,
+    FAV3_SETUPADC_MODE_MAX
+  };
 
 /* Function Prototypes */
 int faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag);
