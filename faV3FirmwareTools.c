@@ -913,21 +913,28 @@ faV3FirmwareGLoad(int32_t pFlag, int32_t force)
       int32_t print_once = 1;
       for(ifadc = 0; ifadc < nfaV3; ifadc++)
 	{
-	  uint32_t fw_vers = 0;
-	  uint32_t fw_supported = ((FAV3_SUPPORTED_PROC_FIRMWARE << 16) | (FAV3_SUPPORTED_CTRL_FIRMWARE) );
+	  int ictrl, iproc, skip = 0;
+	  uint32_t cfw = 0, ctrl = 0, proc = 0;
+	  uint32_t supported_ctrl[FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER] = {FAV3_SUPPORTED_CTRL_FIRMWARE};
+	  uint32_t supported_proc[FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER] = {FAV3_SUPPORTED_PROC_FIRMWARE};
 
-	  id = faV3Slot(ifadc);
-	  fw_vers = faV3GetFirmwareVersions(id, 0);
+	  cfw = faV3GetFirmwareVersions(faV3Slot(ifadc), 0);
+	  ctrl = cfw & 0xFFFF;
+	  proc = (cfw >> 16) & 0xFFFF;
 
-	  if(fw_vers == fw_supported)
-	    {
-	      if(print_once)
-		printf("Skip slot ");
+	  for(ictrl = 0; ictrl < FAV3_SUPPORTED_CTRL_FIRMWARE_NUMBER; ictrl++) {
+	    if(ctrl == supported_ctrl[ictrl]) {
+	      for(iproc = 0; iproc < FAV3_SUPPORTED_PROC_FIRMWARE_NUMBER; iproc++) {
+		if(proc == supported_proc[iproc]) {
+		  if(print_once)
+		    printf("Skip slot ");
 
-	      printf(" %d", id);
-	      print_once = 0;
-	      fwStatus[id].skip = 1;
+		  print_once = 0;
+		  fwStatus[id].skip = 1;
+		}
+	      }
 	    }
+	  }
 	}
       if(!print_once)
 	printf("\n");
