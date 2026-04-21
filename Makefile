@@ -75,7 +75,7 @@ else
 CFLAGS			+= -O2
 endif
 
-SRC			= ${BASENAME}Lib.c faV3Config.c faV3FirmwareTools.c faV3-HallD.c
+SRC			= ${BASENAME}Lib.c faV3Config.c faV3FirmwareTools.c faV3-HallD.c faV3-Compton.c
 OBJ			= $(SRC:%.c=%.o)
 HDRS			= $(SRC:%.c=%.h)
 

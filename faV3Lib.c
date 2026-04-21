@@ -1408,9 +1408,9 @@ faV3GStatus(int sflag)
       st[id].adc.status0 =
 	vmeRead16(&FAV3p[id]->adc.status0) & 0xFFFF;
       st[id].adc.status1 =
-	vmeRead16(&FAV3p[id]->adc.status0) & 0xFFFF;
+	vmeRead16(&FAV3p[id]->adc.status1) & 0xFFFF;
       st[id].adc.status2 =
-	vmeRead16(&FAV3p[id]->adc.status0) & 0xFFFF;
+	vmeRead16(&FAV3p[id]->adc.status2) & 0xFFFF;
 
       st[id].adc.config1 =
 	vmeRead16(&FAV3p[id]->adc.config1) & 0xFFFF;
