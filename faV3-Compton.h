@@ -81,7 +81,7 @@ extern const char *faV3_compton_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_NSB1_LO_THRESHOLD_MASK 0x3FF
 
 /* config12 */
-#define FAV3_NSB2_LO_THRESHOLD_MASK 0x3FF
+#define FAV3_NSA2_LO_THRESHOLD_MASK 0x3FF
 
 /* config13 */
 #define FAV3_SELF_TRIGGER_THRESHOLD_MASK 0xFFF
@@ -106,13 +106,23 @@ extern const char *faV3_compton_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_HYSTERSIS_MASK  0x3F
 
 /* config19 */
-#define FAV3_STOP_SET_MSB_MASK  0xFFF
+#define FAV3_STOP_SET_MSB_MASK  0xFFFF
 
 /* config20 */
-#define FAV3_STOP_SET_LSB_MASK 0x3F
+#define FAV3_STOP_SET_LSB_MASK 0x7F
 
 /* config3 */
 #define FAV3_SYNC_DISABLE (1 << 15)
 
 int faV3ComptonInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag);
 void faV3ComptonGStatus(int sflag);
+int32_t faV3ComptonSetMPSStartStop(int32_t id, uint16_t start, uint32_t stop);
+int32_t faV3ComptonGetMPSStartStop(int32_t id, uint16_t *start, uint32_t *stop);
+int32_t faV3ComptonSetProc(int32_t id, uint16_t lo_threshold, uint16_t hi_threshold,
+			   uint16_t pulse_threshold, uint16_t pulse_nsb, uint16_t pulse_nsa);
+int32_t faV3ComptonGetProc(int32_t id, uint16_t *lo_threshold, uint16_t *hi_threshold,
+			   uint16_t *pulse_threshold, uint16_t *pulse_nsb, uint16_t *pulse_nsa);
+int32_t faV3ComptonSetPulsePrescale(int32_t id, uint16_t prescale);
+int32_t faV3ComptonGetPulsePrescale(int32_t id, uint16_t *prescale);
+int32_t faV3ComptonSetHysteresis(int32_t id, uint16_t hysteresis);
+int32_t faV3ComptonGetHysteresis(int32_t id, uint16_t *hysteresis);
