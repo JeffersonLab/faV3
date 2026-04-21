@@ -15,6 +15,7 @@
 #include "jvme.h"
 #include "faV3Lib.h"
 #include "faV3-HallD.h"
+#include "faV3-Compton.h"
 
 #include "config_defs.h"
 
@@ -101,6 +102,16 @@ faV3InitGlobals()
 	  faV3[slot].gain[chan] = 0.5;
 	  faV3[slot].delay[chan] = 0;
 	}
+
+      faV3[slot].compton.mps_start = FAV3_START_SET_DEFAULT;
+      faV3[slot].compton.mps_stop = FAV3_STOP_SET_DEFAULT;
+      faV3[slot].compton.lo_threshold = FAV3_LO_THRESHOLD_DEFAULT;
+      faV3[slot].compton.hi_threshold = FAV3_HI_THRESHOLD_DEFAULT;
+      faV3[slot].compton.pulse_threshold = FAV3_SELF_TRIGGER_THRESHOLD_DEFAULT;
+      faV3[slot].compton.pulse_nsb = FAV3_NSB1_LO_THRESHOLD_DEFAULT;
+      faV3[slot].compton.pulse_nsa = FAV3_NSA2_LO_THRESHOLD_DEFAULT;
+      faV3[slot].compton.prescale = FAV3_SELF_TRIGGER_PRESCALE_DEFAULT ;
+      faV3[slot].compton.hysteresis = FAV3_HYSTERSIS_DEFAULT;
     }
 }
 
@@ -238,6 +249,19 @@ faV3ReadConfigFile(char *filename_in)
       SCAN_INT("FAV3_COMPRESSION", faV3[slot].compression, slot_min, slot_max);
       SCAN_INT("FAV3_VXSREADOUT", faV3[slot].vxsReadout, slot_min, slot_max);
 
+      SCAN_INT("FAV3_COMPTON_MPS_START", faV3[slot].compton.mps_start, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_MPS_STOP", faV3[slot].compton.mps_stop, slot_min, slot_max);
+
+      SCAN_INT("FAV3_COMPTON_LO_THRESHOLD", faV3[slot].compton.lo_threshold, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_HI_THRESHOLD", faV3[slot].compton.hi_threshold, slot_min, slot_max);
+
+      SCAN_INT("FAV3_COMPTON_PULSE_THRESHOLD", faV3[slot].compton.pulse_threshold, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_PULSE_NSB", faV3[slot].compton.pulse_nsb, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_PULSE_NSA", faV3[slot].compton.pulse_nsa, slot_min, slot_max);
+
+      SCAN_INT("FAV3_COMPTON_PRESCALE", faV3[slot].compton.prescale, slot_min, slot_max);
+
+      SCAN_INT("FAV3_COMPTON_HYSTERESIS", faV3[slot].compton.hysteresis, slot_min, slot_max);
 
       if(active)
 	{

@@ -67,6 +67,7 @@ extern const char *faV3_compton_mode_names[FAV3_MAX_PROC_MODE + 1];
 /* config6 */
 #define FAV3_START_SET_MASK 0xFFF
 #define FAV3_START_SET_MIN 5
+#define FAV3_START_SET_DEFAULT 5
 
 /* config8 */
 #define FAV3_SELF_TRIGGER_NSB_MASK 0xF
@@ -76,21 +77,27 @@ extern const char *faV3_compton_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 /* config10 */
 #define FAV3_HI_THRESHOLD_MASK 0xFFF
+#define FAV3_HI_THRESHOLD_DEFAULT 4000
 
 /* config11 */
 #define FAV3_NSB1_LO_THRESHOLD_MASK 0x3FF
+#define FAV3_NSB1_LO_THRESHOLD_DEFAULT 10
 
 /* config12 */
 #define FAV3_NSA2_LO_THRESHOLD_MASK 0x3FF
+#define FAV3_NSA2_LO_THRESHOLD_DEFAULT 10
 
 /* config13 */
 #define FAV3_SELF_TRIGGER_THRESHOLD_MASK 0xFFF
+#define FAV3_SELF_TRIGGER_THRESHOLD_DEFAULT 20
 
 /* config15 */
 #define FAV3_LO_THRESHOLD_MASK 0xFFF
+#define FAV3_LO_THRESHOLD_DEFAULT 10
 
 /* config16 */
 #define FAV3_SELF_TRIGGER_PRESCALE_MASK 0x3FF
+#define FAV3_SELF_TRIGGER_PRESCALE_DEFAULT 0
 
 /* config17 */
 #define FAV3_REPORT_SELF_TRIGGER_SAMPLES (1 << 0)
@@ -104,12 +111,14 @@ extern const char *faV3_compton_mode_names[FAV3_MAX_PROC_MODE + 1];
 
 /* config18 */
 #define FAV3_HYSTERSIS_MASK  0x3F
+#define FAV3_HYSTERSIS_DEFAULT 0
 
 /* config19 */
 #define FAV3_STOP_SET_MSB_MASK  0xFFFF
 
 /* config20 */
 #define FAV3_STOP_SET_LSB_MASK 0x7F
+#define FAV3_STOP_SET_DEFAULT 500
 
 /* config3 */
 #define FAV3_SYNC_DISABLE (1 << 15)

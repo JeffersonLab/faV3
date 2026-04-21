@@ -1,3 +1,4 @@
+
 #pragma once
 /****************************************************************************
  *
@@ -9,6 +10,18 @@
 #include <stdint.h>
 
 #define MAX_FAV3_CH 16
+
+typedef struct  {
+  uint16_t mps_start;
+  uint32_t mps_stop;
+  uint16_t lo_threshold;
+  uint16_t hi_threshold;
+  uint16_t pulse_threshold;
+  uint16_t pulse_nsb;
+  uint16_t pulse_nsa;
+  uint16_t prescale;
+  uint16_t hysteresis;
+} FAV3_COMPTON_CONF;
 
 /** FADC250 configuration parameters **/
 typedef struct {
@@ -57,6 +70,8 @@ typedef struct {
   int32_t insert_adc_params;
   int32_t compression;
   int32_t vxsReadout;
+
+  FAV3_COMPTON_CONF compton;
 
 } FAV3_CONF;
 
