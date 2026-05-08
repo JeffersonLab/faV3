@@ -157,8 +157,6 @@ faV3ComptonGStatus(int sflag)
 	vmeRead16(&COMPTONp[id]->status0) & 0xFFFF;
       compton_st[id].status1 =
 	vmeRead16(&COMPTONp[id]->status1) & 0xFFFF;
-      compton_st[id].status3 =
-	vmeRead16(&COMPTONp[id]->status3) & 0xFFFF;
       compton_st[id].status4 =
 	vmeRead16(&COMPTONp[id]->status4) & 0xFFFF;
 
@@ -168,10 +166,6 @@ faV3ComptonGStatus(int sflag)
 	vmeRead16(&COMPTONp[id]->config2) & 0xFFFF;
       compton_st[id].config3 =
 	vmeRead16(&COMPTONp[id]->config3) & 0xFFFF;
-      compton_st[id].config4 =
-	vmeRead16(&COMPTONp[id]->config4) & 0xFFFF;
-      compton_st[id].config5 =
-	vmeRead16(&COMPTONp[id]->config5) & 0xFFFF;
       compton_st[id].config6 =
 	vmeRead16(&COMPTONp[id]->config6) & 0xFFFF;
       compton_st[id].config8 =
@@ -186,8 +180,6 @@ faV3ComptonGStatus(int sflag)
 	vmeRead16(&COMPTONp[id]->config12) & 0xFFFF;
       compton_st[id].config13 =
 	vmeRead16(&COMPTONp[id]->config13) & 0xFFFF;
-      compton_st[id].config14 =
-	vmeRead16(&COMPTONp[id]->config14) & 0xFFFF;
       compton_st[id].config15 =
 	vmeRead16(&COMPTONp[id]->config15) & 0xFFFF;
       compton_st[id].config16 =
@@ -216,6 +208,206 @@ faV3ComptonGStatus(int sflag)
 
     }
   FAV3UNLOCK;
+
+  printf("\n");
+
+  printf("                      faV3 Module Configuration Summary\n\n");
+  printf("     Firmware Rev   .................Addresses................\n");
+  printf("Slot  Ctrl   Proc      A24        A32     A32 Multiblock Range   VXS Readout\n");
+  printf("--------------------------------------------------------------------------------\n");
+
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d  ", id);
+
+      printf("0x%04x 0x%04x  ", st[id].version & 0xFFFF,
+	     compton_st[id].adc.status0 & FAV3_ADC_VERSION_MASK);
+
+      printf("0x%06x  ", a24addr[id]);
+
+      if(st[id].adr32 & FAV3_A32_ENABLE)
+	{
+	  printf("0x%08x  ", (st[id].adr32 & FAV3_A32_ADDR_MASK) << 16);
+	}
+      else
+	{
+	  printf("  Disabled  ");
+	}
+
+      if(st[id].adr_mb & FAV3_AMB_ENABLE)
+	{
+	  printf("0x%08x-0x%08x  ",
+		 (st[id].adr_mb & FAV3_AMB_MIN_MASK) << 16,
+		 (st[id].adr_mb & FAV3_AMB_MAX_MASK));
+	}
+      else
+	{
+	  printf("Disabled               ");
+	}
+
+      printf("%s",
+	     (st[id].ctrl2 & FAV3_CTRL_VXS_RO_ENABLE) ? " Enabled" : "Disabled");
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+
+  printf("\n");
+  printf("      .Signal Sources..                        ..Channel... \n");
+  printf("Slot  Clk   Trig   Sync     MBlk  Token  BERR  Enabled Mask \n");
+  printf("--------------------------------------------------------------------------------\n");
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d  ", id);
+
+      printf("%s  ",
+	     (st[id].ctrl1 & FAV3_REF_CLK_MASK) ==
+	     FAV3_REF_CLK_INTERNAL ? " INT " : (st[id].ctrl1 & FAV3_REF_CLK_MASK) ==
+	     FAV3_REF_CLK_P0 ? " VXS " : (st[id].ctrl1 & FAV3_REF_CLK_MASK) ==
+	     FAV3_REF_CLK_FP ? "  FP " : " ??? ");
+
+      printf("%s  ",
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_INTERNAL ? " INT " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_VME ? " VME " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_P0_ISYNC ? " VXS " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_FP_ISYNC ? "  FP " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_P0 ? " VXS " :
+	     (st[id].ctrl1 & FAV3_TRIG_MASK) == FAV3_TRIG_FP ? "  FP " : " ??? ");
+
+      printf("%s    ",
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_VME ? " VME " :
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_P0_ISYNC ? " VXS " :
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_FP_ISYNC ? "  FP " :
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_P0 ? " VXS " :
+	     (st[id].ctrl1 & FAV3_SRESET_MASK) == FAV3_SRESET_FP ? "  FP " :
+	     " ??? ");
+
+      printf("%s   ", (st[id].ctrl1 & FAV3_ENABLE_MULTIBLOCK) ? "YES" : " NO");
+
+      printf("%s",
+	     st[id].ctrl1 & (FAV3_MB_TOKEN_VIA_P0) ? " P0" :
+	     st[id].ctrl1 & (FAV3_MB_TOKEN_VIA_P2) ? " P0" : " NO");
+      printf("%s  ",
+	     st[id].ctrl1 & (FAV3_FIRST_BOARD) ? "-F" :
+	     st[id].ctrl1 & (FAV3_LAST_BOARD) ? "-L" : "  ");
+
+      printf("%s     ", st[id].ctrl1 & FAV3_ENABLE_BERR ? "YES" : " NO");
+
+      printf("0x%04X        ",
+	     ~(compton_st[id].config2 & FAV3_ADC_CHAN_MASK) & 0xFFFF);
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("           ............faV3 Signal Scalers..........     ..System Monitor..\n");
+  printf("Slot       Trig1       Trig2   SyncReset        BERR     TempC   1.0V   2.5V\n");
+  printf("--------------------------------------------------------------------------------\n");
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d   ", id);
+
+      printf("%10d  ", st[id].trig_scal);
+
+      printf("%10d  ", st[id].trig2_scal);
+
+      printf("%10d  ", st[id].syncreset_scal);
+
+      printf("%10d     ", st[id].aux.berr_driven_count);
+
+      double fpga_temperature =
+	(((double) (st[id].sys_mon & FAV3_SYSMON_CTRL_TEMP_MASK)) *
+	 (503.975 / 1024.0)) - 273.15;
+      printf("%3.1f    ", fpga_temperature);
+
+      double fpga_1V =
+	(((double)
+	  ((st[id].sys_mon & FAV3_SYSMON_FPGA_CORE_V_MASK) >> 11)) *
+	 (3.0 / 1024.0));
+      printf("%3.1f    ", fpga_1V);
+
+      double fpga_25V =
+	(((double)
+	  ((st[id].sys_mon & FAV3_SYSMON_FPGA_AUX_V_MASK) >> 22)) *
+	 (3.0 / 1024.0));
+      printf("%3.1f    ", fpga_25V);
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("                              faV3 Data Status\n\n");
+  printf("      Trigger   Block                              Error Status\n");
+  printf("Slot  Source    Ready  Blocks In Fifo  RAM Level   CSR     MGT\n");
+  printf("--------------------------------------------------------------------------------\n");
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d  ", id);
+
+      printf("%s    ",
+	     st[id].ctrl2 & FAV3_CTRL_ENABLE_MASK ? " Enabled" : "Disabled");
+
+      printf("%s       ", st[id].csr & FAV3_CSR_BLOCK_READY ? "YES" : " NO");
+
+      printf("%10d ", st[id].blk_count & FAV3_BLOCK_COUNT_MASK);
+
+      printf("%10d  ", (st[id].ram_word_count & FAV3_RAM_DATA_MASK) * 8);
+
+      printf("%s     ", st[id].csr & FAV3_CSR_ERROR_MASK ? "ERROR" : "  OK ");
+
+      printf("%s  ",
+	     st[id].status_mgt &
+	     (FAV3_MGT_GTX1_HARD_ERROR | FAV3_MGT_GTX1_SOFT_ERROR |
+	      FAV3_MGT_GTX2_HARD_ERROR | FAV3_MGT_GTX2_SOFT_ERROR) ? "ERROR" : "  OK " );
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("                       faV3 Compton Configuration\n\n");
+  printf("      Start   Self-Trigger  1stLoX  2ndLoX    ---------- Thresholds ------\n");
+  printf("Slot  Set     NSB   NSA     NSB     NSA       Hi      Lo      Self-Trigger\n");
+  printf("--------------------------------------------------------------------------------\n");
+  //       23   4095    16    4095    1023    1023      4095    4095    4095
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d  ", id);
+
+
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+  printf("\n");
+  printf("                       faV3 Compton Configuration\n\n");
+  printf("                            Stop      Report Results\n");
+  printf("Slot  Prescale  Hysteresis  Set       SP 0123 45\n");
+  printf("--------------------------------------------------------------------------------\n");
+  //       23   1023      63          8388607   11 1111 11
+  for(ifa = 0; ifa < nfaV3; ifa++)
+    {
+      id = faV3Slot(ifa);
+      printf(" %2d  ", id);
+
+
+
+      printf("\n");
+    }
+  printf("--------------------------------------------------------------------------------\n");
+
+
+  printf("\n");
+  printf("\n");
 }
 
 int32_t
@@ -396,7 +588,7 @@ faV3ComptonDataDecode(unsigned int data)
   static unsigned int type_last = 15;	/* initialize to type FILLER WORD */
   static unsigned int time_last = 0;
   int idata=0;
-  static faV3ComptonData_t faV3_data;;
+  static faV3ComptonData_t faV3_data = {0};
 
   if( data & 0x80000000 )		/* data type defining word */
     {
