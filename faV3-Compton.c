@@ -382,24 +382,24 @@ faV3ComptonGStatus(int sflag)
       id = faV3Slot(ifa);
       printf(" %2d   ", id);
 
-      printf("%4d    ",
+      printf("%-4d    ",
 	     compton_st[id].config6 & FAV3_START_SET_MASK);
 
-      printf("%2d    ",
+      printf("%-2d    ",
 	     compton_st[id].config8 & FAV3_SELF_TRIGGER_NSB_MASK);
-      printf("%4d    ",
+      printf("%-4d    ",
 	     compton_st[id].config9 & FAV3_SELF_TRIGGER_NSA_MASK);
 
-      printf("%4d    ",
+      printf("%-4d    ",
 	     compton_st[id].config11 & FAV3_NSB1_LO_THRESHOLD_MASK);
-      printf("%4d      ",
+      printf("%-4d      ",
 	     compton_st[id].config12 & FAV3_NSA2_LO_THRESHOLD_MASK);
 
-      printf("%4d    ",
+      printf("%-4d    ",
 	     compton_st[id].config10 & FAV3_HI_THRESHOLD_MASK);
-      printf("%4d    ",
+      printf("%-4d    ",
 	     compton_st[id].config13 & FAV3_LO_THRESHOLD_MASK);
-      printf("%4d",
+      printf("%-4d",
 	     compton_st[id].config15 & FAV3_SELF_TRIGGER_THRESHOLD_MASK);
 
 
@@ -416,18 +416,18 @@ faV3ComptonGStatus(int sflag)
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
       id = faV3Slot(ifa);
-      printf(" %2d  ", id);
+      printf(" %2d   ", id);
 
-      printf("%4d      ",
+      printf("%-4d      ",
 	     compton_st[id].config16 & FAV3_SELF_TRIGGER_PRESCALE_MASK);
 
-      printf("%2d          ",
+      printf("%-2d          ",
 	     compton_st[id].config18 & FAV3_HYSTERSIS_MASK);
 
       uint32_t stop_set = compton_st[id].config19 & FAV3_STOP_SET_LSB_MASK;
       stop_set |= (compton_st[id].config20 & FAV3_STOP_SET_MSB_MASK) << 16;
 
-      printf("%7d   ",
+      printf("%-7d   ",
 	     stop_set);
 
       printf("%d%d ",
