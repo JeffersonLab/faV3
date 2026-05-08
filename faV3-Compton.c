@@ -222,7 +222,7 @@ faV3ComptonGStatus(int sflag)
       printf(" %2d  ", id);
 
       printf("0x%04x 0x%04x  ", st[id].version & 0xFFFF,
-	     compton_st[id].adc.status0 & FAV3_ADC_VERSION_MASK);
+	     compton_st[id].status0 & FAV3_ADC_VERSION_MASK);
 
       printf("0x%06x  ", a24addr[id]);
 
@@ -380,8 +380,27 @@ faV3ComptonGStatus(int sflag)
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
       id = faV3Slot(ifa);
-      printf(" %2d  ", id);
+      printf(" %2d   ", id);
 
+      printf("%4d    ",
+	     compton_st[id].config6 & FAV3_START_SET_MASK);
+
+      printf("%2d    ",
+	     compton_st[id].config8 & FAV3_SELF_TRIGGER_NSB_MASK);
+      printf("%4d    ",
+	     compton_st[id].config9 & FAV3_SELF_TRIGGER_NSA_MASK);
+
+      printf("%4d    ",
+	     compton_st[id].config11 & FAV3_NSB1_LO_THRESHOLD_MASK);
+      printf("%4d      ",
+	     compton_st[id].config12 & FAV3_NSA2_LO_THRESHOLD_MASK);
+
+      printf("%4d    ",
+	     compton_st[id].config10 & FAV3_HI_THRESHOLD_MASK);
+      printf("%4d    ",
+	     compton_st[id].config13 & FAV3_LO_THRESHOLD_MASK);
+      printf("%4d",
+	     compton_st[id].config15 & FAV3_SELF_TRIGGER_THRESHOLD_MASK);
 
 
       printf("\n");
@@ -399,7 +418,31 @@ faV3ComptonGStatus(int sflag)
       id = faV3Slot(ifa);
       printf(" %2d  ", id);
 
+      printf("%4d      ",
+	     compton_st[id].config16 & FAV3_SELF_TRIGGER_PRESCALE_MASK);
 
+      printf("%2d          ",
+	     compton_st[id].config18 & FAV3_HYSTERSIS_MASK);
+
+      uint32_t stop_set = compton_st[id].config19 & FAV3_STOP_SET_LSB_MASK;
+      stop_set |= (compton_st[id].config20 & FAV3_STOP_SET_MSB_MASK) << 16;
+
+      printf("%7d   ",
+	     stop_set);
+
+      printf("%d%d ",
+	     (compton_st[id].config17 & (1 << 0)) ? 1 : 0,
+	     (compton_st[id].config17 & (1 << 1)) ? 1 : 0);
+
+      printf("%d%d%d%d ",
+	     (compton_st[id].config17 & (1 << 2)) ? 1 : 0,
+	     (compton_st[id].config17 & (1 << 3)) ? 1 : 0,
+	     (compton_st[id].config17 & (1 << 4)) ? 1 : 0,
+	     (compton_st[id].config17 & (1 << 5)) ? 1 : 0);
+
+      printf("%d%d",
+	     (compton_st[id].config17 & (1 << 6)) ? 1 : 0,
+	     (compton_st[id].config17 & (1 << 7)) ? 1 : 0);
 
       printf("\n");
     }
