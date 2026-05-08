@@ -461,17 +461,37 @@ show16(char *choice)
 int32_t
 readout(char *choice)
 {
+  FILE *outFile;
+  if(strlen(choice) > 0)
+    {
+      outFile = fopen(choice, "w");
+    }
+  else
+    {
+      printf(" Usage: %s <data filename>\n", __func__);
+      return -1;
+    }
+
+  if(!outFile) {
+    perror("fopen");
+    return -1;
+  }
+
   uint32_t data[1024];
   uint32_t nwords;
-  int32_t blockError = 0;
 
-  nwords = faV3ReadBlock(faV3Slot(0), data, 1024, 1);
-
-  /* Check for ERROR in block read */
-  blockError = faV3GetBlockError(1);
-
+  nwords = faV3ReadBlock(faV3Slot(0), data, 1024, 0);
   faV3ResetToken(faV3Slot(0));
 
+  fprintf(outFile, "%s\n", filecheck);
+
+  int32_t idata;
+  for(idata = 0; idata < nwords; idata++) {
+    fprintf(outFile, "0x%08x\n", bswap_32(data[idata]));
+  }
+
+  printf(" Wrote %d bytes to %s\n", nwords*4, choice);
+  fclose(outFile);
 
   return 0;
 }
@@ -533,38 +553,6 @@ showbin(char *choice)
   return 0;
 }
 
-int32_t
-test(char *choice)
-{
-  FILE *outFile;
-  if(strlen(choice) > 0)
-    {
-      outFile = fopen(choice, "w");
-    }
-  else
-    {
-      printf(" Usage: %s <data filename>\n", __func__);
-      return -1;
-    }
-
-  if(!outFile) {
-    perror("fopen");
-    return -1;
-  }
-
-  uint32_t data[32] = {13};
-  int32_t idata;
-
-  fprintf(outFile, "%s\n", filecheck);
-  for(idata = 0; idata < 32; idata++) {
-    fprintf(outFile, "0x%08x\n", data[idata]);
-  }
-  printf(" Wrote %d bytes to %s\n", 32*4, choice);
-
-  fclose(outFile);
-  return 0;
-}
-
 #include <readline/readline.h>
 int com_quit(char *arg);
 int com_help(char *arg);
@@ -579,7 +567,6 @@ typedef struct
 COMMAND commands[] = {
   {"help", com_help, "Display Commands:\t help <command>"},
   {"?", com_help, "Synonym for `help'\n"},
-  {"test", test, "test"},
   {"init", init, "Initialize module:\t init <slotnumber>"},
   {"config", config, "Configure module with debug.cfg"},
   {"status", status, "Print status of initialized modules\n"},
@@ -633,6 +620,8 @@ main(int argc, char *argv[])
 
  CLOSE:
   vmeCloseDefaultWindows();
+
+  printf("quit\n");
 
   exit(0);
 }
