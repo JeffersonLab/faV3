@@ -240,8 +240,8 @@ faV3ComptonSetMPSStartStop(int32_t id, uint16_t start, uint32_t stop) {
 
   FAV3LOCK;
   vmeWrite16(&COMPTONp[id]->config6, start);
-  vmeWrite16(&COMPTONp[id]->config19, stop_set_msb); // FIXME: Verify with hai
-  vmeWrite16(&COMPTONp[id]->config20, stop_set_lsb);
+  vmeWrite16(&COMPTONp[id]->config19, stop_set_lsb);
+  vmeWrite16(&COMPTONp[id]->config20, stop_set_msb);
   FAV3UNLOCK;
 
   return rval;
@@ -256,8 +256,8 @@ faV3ComptonGetMPSStartStop(int32_t id, uint16_t *start, uint32_t *stop) {
 
   FAV3LOCK;
   *start = vmeRead16(&COMPTONp[id]->config6) & FAV3_START_SET_MASK;
-  stop_set_msb = vmeRead16(&COMPTONp[id]->config19) & FAV3_STOP_SET_MSB_MASK; // FIXME: Verify with hai
-  stop_set_lsb = vmeRead16(&COMPTONp[id]->config20) & FAV3_STOP_SET_LSB_MASK;
+  stop_set_lsb = vmeRead16(&COMPTONp[id]->config19) & FAV3_STOP_SET_LSB_MASK;
+  stop_set_msb = vmeRead16(&COMPTONp[id]->config20) & FAV3_STOP_SET_MSB_MASK;
 
   *stop = (stop_set_msb << 16) | stop_set_lsb;
 

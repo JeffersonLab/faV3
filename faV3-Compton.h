@@ -114,11 +114,11 @@ extern const char *faV3_compton_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_HYSTERSIS_DEFAULT 0
 
 /* config19 */
-#define FAV3_STOP_SET_MSB_MASK  0xFFFF
-
-/* config20 */
 #define FAV3_STOP_SET_LSB_MASK 0x7F
 #define FAV3_STOP_SET_DEFAULT 500
+
+/* config20 */
+#define FAV3_STOP_SET_MSB_MASK  0xFFFF
 
 /* config3 */
 #define FAV3_SYNC_DISABLE (1 << 15)
