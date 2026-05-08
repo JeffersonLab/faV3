@@ -135,3 +135,55 @@ int32_t faV3ComptonSetPulsePrescale(int32_t id, uint16_t prescale);
 int32_t faV3ComptonGetPulsePrescale(int32_t id, uint16_t *prescale);
 int32_t faV3ComptonSetHysteresis(int32_t id, uint16_t hysteresis);
 int32_t faV3ComptonGetHysteresis(int32_t id, uint16_t *hysteresis);
+
+typedef struct faV3_compton_data_struct
+{
+  uint32_t new_type;
+  uint32_t type;
+  uint32_t slot_id_hd;
+  uint32_t slot_id_tr;
+  uint32_t slot_id_evh;
+  uint32_t n_evts;
+  uint32_t blk_num;
+  uint32_t modID;
+  uint32_t PL;
+  uint32_t NSB;
+  uint32_t NSA;
+  uint32_t n_words;
+  uint32_t evt_num_1;
+  uint32_t evt_num_2;
+  uint32_t evt_of_blk;
+  uint32_t time_now;
+  uint32_t time_low_10;
+  uint32_t time_1;    // Type 3: MPS Rising Time
+  uint32_t time_2;
+  uint32_t chan;
+  uint32_t nsamples;  // Type 4: Self Trigger Raw Data
+  uint32_t hel;
+  uint32_t pulse_start;
+  uint32_t delta_hel;
+  uint32_t valid_1;
+  uint32_t adc_1;
+  uint32_t valid_2;
+  uint32_t adc_2;
+  uint32_t tstop;     // Type 5: Helicity seed
+  uint32_t seed;
+  uint32_t prescale;    // Type 9: Pulse Parameters
+  uint32_t pulse_num;
+  uint32_t over;
+  uint32_t under;
+  uint32_t vpeak;
+  uint32_t missed;
+  uint32_t nsb_nsa_overlap;
+  uint32_t adc_sum;
+  uint32_t scaler_data_words;
+  uint32_t scaler_data_iword;
+  uint32_t scaler_data;
+  uint32_t acc_param_word_number;
+  uint32_t acc_type;
+  uint32_t acc_chan;
+  uint32_t nsb_low_x_overlap;
+  uint32_t no_nsa_low_x;
+} faV3ComptonData_t;
+
+void faV3ComptonDataDecode(unsigned int data);
