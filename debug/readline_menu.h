@@ -205,7 +205,7 @@ com_help(char *arg)
     {
       if(!*arg || (strcmp(arg, commands[i].name) == 0))
 	{
-	  printf("%15s   %s.\n", commands[i].name, commands[i].doc);
+	  printf("%15s   %s\n", commands[i].name, commands[i].doc);
 	  printed++;
 	}
     }

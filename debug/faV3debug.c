@@ -21,12 +21,12 @@
 
 #define NDAC 40
 
-char *progName;
+char progName[256];
 char serial_number[16];
 int32_t FAV3_SLOT = 0;
 int32_t prog_nsamples = 0;
 char config_filename[256] = "./debug.cfg";
-
+const char *filecheck = "%faV3debug";
 
 void
 Usage()
@@ -86,9 +86,12 @@ init(char *choice)
       return -1;
     }
 
-  faV3ComptonGStatus(0);
   FAV3_SLOT = faV3Slot(0);
   faV3GetSerialNumber(FAV3_SLOT, (char **)&serial_number);
+
+  faV3EnableSoftSync(FAV3_SLOT);
+  faV3EnableSoftTrig(FAV3_SLOT);
+  faV3ComptonGStatus(0);
 
 
   return 0;
@@ -196,6 +199,7 @@ hard_reset(char *choice)
 	     __func__);
       return -1;
     }
+  printf("%s: done\n\n", __func__);
 
   return 0;
 }
@@ -205,10 +209,11 @@ soft_reset(char *choice)
 {
   if(faV3SoftReset(FAV3_SLOT, 0) != OK)
     {
-      printf("%s: ERROR from faV3SoftReset - soft reset\n",
+      printf("%s: ERROR from faV3SoftReset(0) - soft reset\n",
 	     __func__);
       return -1;
     }
+  printf("%s: done\n\n", __func__);
 
   return 0;
 }
@@ -218,11 +223,67 @@ soft_clear(char *choice)
 {
   if(faV3SoftReset(FAV3_SLOT, 1) != OK)
     {
-      printf("%s: ERROR from faV3SoftReset - soft clear\n",
+      printf("%s: ERROR from faV3SoftReset(1) - soft clear\n",
+	     __func__);
+      return -1;
+    }
+  printf("%s: done\n\n", __func__);
+
+  return 0;
+}
+
+int32_t
+syncreset(char *choice)
+{
+  if(faV3Sync(FAV3_SLOT) != OK)
+    {
+      printf("%s: ERROR from faV3Sync\n",
 	     __func__);
       return -1;
     }
 
+  printf("%s: done\n\n", __func__);
+
+  return 0;
+}
+
+int32_t
+enable(char *choice)
+{
+  if(faV3Enable(FAV3_SLOT, 0) != OK)
+    {
+      printf("%s: ERROR from faV3Enable\n",
+	     __func__);
+      return -1;
+    }
+
+  printf("%s: done\n\n", __func__);
+  return 0;
+}
+
+int32_t
+disable(char *choice)
+{
+  if(faV3Disable(FAV3_SLOT, 0) != OK)
+    {
+      printf("%s: ERROR from faV3Disable\n",
+	     __func__);
+      return -1;
+    }
+  printf("%s: done\n\n", __func__);
+  return 0;
+}
+
+int32_t
+trigger(char *choice)
+{
+  if(faV3Trig(FAV3_SLOT) != OK)
+    {
+      printf("%s: ERROR from faV3Trig\n",
+	     __func__);
+      return -1;
+    }
+  printf("%s: done\n\n", __func__);
   return 0;
 }
 
@@ -435,8 +496,16 @@ decode(char *choice)
   }
 
   uint32_t data = 0, i = 0;
+  char testname[256];
+  fscanf(outFile, "%s\n", testname);
+  if(strcmp(testname, filecheck) != 0) {
+    printf("%s: ERROR: Invalid file header >%s<\n",
+	   __func__, testname);
+    return -1;
+  }
+
   while(fscanf(outFile, "0x%08x\n", &data) > 0) {
-    printf("%3d: 0x%08x\n", i++, data);
+    faV3ComptonDataDecode(data);
   }
 
   fclose(outFile);
@@ -486,6 +555,7 @@ test(char *choice)
   uint32_t data[32] = {13};
   int32_t idata;
 
+  fprintf(outFile, "%s\n", filecheck);
   for(idata = 0; idata < 32; idata++) {
     fprintf(outFile, "0x%08x\n", data[idata]);
   }
@@ -507,38 +577,41 @@ typedef struct
 } COMMAND;
 
 COMMAND commands[] = {
-  {"help", com_help, "Display this text"},
-  {"?", com_help, "Synonym for `help'"},
+  {"help", com_help, "Display Commands:\t help <command>"},
+  {"?", com_help, "Synonym for `help'\n"},
   {"test", test, "test"},
-  {"init", init, "Initialize module: init <slotnumber>"},
+  {"init", init, "Initialize module:\t init <slotnumber>"},
   {"config", config, "Configure module with debug.cfg"},
-  {"status", status, "Print status of initialized modules"},
-  {"setdac", setdac, "Set DAC for Channel: setdac <channel> <dac value>"},
+  {"status", status, "Print status of initialized modules\n"},
+  {"setdac", setdac, "Set DAC for Channel:\t setdac <channel> <dac value>"},
   {"getdac", getdac, "Print DAC values for all channels"},
   {"hard_reset", hard_reset, "Hard Reset"},
   {"soft_reset", soft_reset, "Soft Reset"},
   {"soft_clear", soft_clear, "Soft Clear"},
-  {"read16", read16, "16bit Read: read16 <reg offset>"},
-  {"write16", write16, "16bit Write: write16 <reg offset> <value>"},
-  {"read32", read32, "32bit Read: read32 <reg offset>"},
-  {"write32", write32, "32bit Write: write32 <reg offset> <value>"},
+  {"syncreset", syncreset, "Generate Soft SyncReset"},
+  {"enable", enable, "Enable Trigger Source"},
+  {"disable", disable, "Disable Trigger Source"},
+  {"trigger", trigger, "Generate Soft Trigger"},
+  {"readout", readout, "Readout Event:\t readout <filename>"},
+  {"decode", decode, "Decode Event:\t\t decode <filename>\n"},
+  {"read16", read16, "16bit Read:\t\t read16 <reg offset>"},
+  {"write16", write16, "16bit Write:\t\t write16 <reg offset> <value>"},
+  {"read32", read32, "32bit Read:\t\t read32 <reg offset>"},
+  {"write32", write32, "32bit Write:\t\t write32 <reg offset> <value>\n"},
   {"show16", show16, "Show values of 16bit registers"},
-  {"show32", show32, "Show values of 32bit registers"},
-  {"readout", readout, "Readout Event"},
-  {"decode", decode, "Decode Event"},
-  {"showbin", showbin, "Show the bits. e.g. showbin 0x1324"},
+  {"show32", show32, "Show values of 32bit registers\n"},
+  {"showbin", showbin, "Show the bits:\t showbin <hex>"},
   {"quit", com_quit, "Quit"},
   {(char *) NULL, (rl_icpfunc_t *) NULL, (char *) NULL}
 };
 #include "readline_menu.h"
-
 
 int
 main(int argc, char *argv[])
 {
   int32_t user_slotnumber = -1;
 
-  progName = argv[0];
+  strncpy(progName, argv[0], 256);
 
   faV3InitGlobals();
   faV3ReadConfigFile(config_filename);
