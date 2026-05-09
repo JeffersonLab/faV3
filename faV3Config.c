@@ -108,8 +108,8 @@ faV3InitGlobals()
       faV3[slot].compton.lo_threshold = FAV3_LO_THRESHOLD_DEFAULT;
       faV3[slot].compton.hi_threshold = FAV3_HI_THRESHOLD_DEFAULT;
       faV3[slot].compton.pulse_threshold = FAV3_SELF_TRIGGER_THRESHOLD_DEFAULT;
-      faV3[slot].compton.pulse_nsb = FAV3_NSB1_LO_THRESHOLD_DEFAULT;
-      faV3[slot].compton.pulse_nsa = FAV3_NSA2_LO_THRESHOLD_DEFAULT;
+      faV3[slot].compton.pulse_nsb = FAV3_NSB1_LO_DEFAULT;
+      faV3[slot].compton.pulse_nsa = FAV3_NSA2_LO_DEFAULT;
       faV3[slot].compton.prescale = FAV3_SELF_TRIGGER_PRESCALE_DEFAULT ;
       faV3[slot].compton.hysteresis = FAV3_HYSTERSIS_DEFAULT;
     }
@@ -333,7 +333,7 @@ faV3DownloadAll()
 				faV3[slot].trig_nsat / FAV3_ADC_NS_PER_CLK);
       faV3SetTriggerPathThreshold(slot, faV3[slot].trig_thr);
 
-      if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_SUPPORTED_PROC_FIRMWARE)
+      if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_PROC_PRAD_FIRMWARE)
 	{
 	  faV3SetHitbitTrigMask(slot, faV3[slot].trigMask);
 	  faV3SetHitbitTrigWidth(slot, faV3[slot].trigWidth / FAV3_ADC_NS_PER_CLK);
@@ -356,7 +356,7 @@ faV3DownloadAll()
 
       for(ichan=0; ichan<NCHAN; ichan++)
 	{
-	  if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_SUPPORTED_PROC_FIRMWARE)
+	  if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_PROC_PRAD_FIRMWARE)
 	    {
 	      faV3SetTriggerProcessingMode(slot, ichan,
 					   (faV3[slot].trigModeMask & (1 << ichan)) ? 1 : 0);

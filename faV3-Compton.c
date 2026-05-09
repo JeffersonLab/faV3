@@ -391,9 +391,9 @@ faV3ComptonGStatus(int sflag)
 	     compton_st[id].config9 & FAV3_SELF_TRIGGER_NSA_MASK);
 
       printf("%-4d    ",
-	     compton_st[id].config11 & FAV3_NSB1_LO_THRESHOLD_MASK);
+	     compton_st[id].config11 & FAV3_NSB1_LO_MASK);
       printf("%-4d      ",
-	     compton_st[id].config12 & FAV3_NSA2_LO_THRESHOLD_MASK);
+	     compton_st[id].config12 & FAV3_NSA2_LO_MASK);
 
       printf("%-4d    ",
 	     compton_st[id].config10 & FAV3_HI_THRESHOLD_MASK);

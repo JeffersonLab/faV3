@@ -47,13 +47,8 @@ typedef struct
   /* 0x0160 */ volatile uint16_t status4;
 } faV3_compton_adc_t;
 
-#define FAV3_COMPTON_SUPPORTED_CTRL_FIRMWARE 0x20E
-#define FAV3_COMPTON_SUPPORTED_PROC_FIRMWARE 0xE06
-
-#define FAV3_COMPTON_SUPPORTED_MODES                 1,9,10
-#define FAV3_COMPTON_SUPPORTED_NMODES                     3
-
-extern const char *faV3_compton_mode_names[FAV3_MAX_PROC_MODE + 1];
+#define FAV3_COMPTON_SUPPORTED_CTRL_FIRMWARE 0x20F
+#define FAV3_COMPTON_SUPPORTED_PROC_FIRMWARE 0xF05
 
 /* status0 */
 #define FAV3_CODE_VERSION_MASK 0x7FFF
@@ -80,12 +75,12 @@ extern const char *faV3_compton_mode_names[FAV3_MAX_PROC_MODE + 1];
 #define FAV3_HI_THRESHOLD_DEFAULT 4000
 
 /* config11 */
-#define FAV3_NSB1_LO_THRESHOLD_MASK 0x3FF
-#define FAV3_NSB1_LO_THRESHOLD_DEFAULT 10
+#define FAV3_NSB1_LO_MASK 0x3FF
+#define FAV3_NSB1_LO_DEFAULT 10
 
 /* config12 */
-#define FAV3_NSA2_LO_THRESHOLD_MASK 0x3FF
-#define FAV3_NSA2_LO_THRESHOLD_DEFAULT 10
+#define FAV3_NSA2_LO_MASK 0x3FF
+#define FAV3_NSA2_LO_DEFAULT 10
 
 /* config13 */
 #define FAV3_SELF_TRIGGER_THRESHOLD_MASK 0xFFF

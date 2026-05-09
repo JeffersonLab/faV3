@@ -52,7 +52,7 @@ init(char *choice)
 
   if(strlen(choice) > 0)
     {
-      sscanf(choice, "%d", &user_slotnumber);
+      user_slotnumber = strtoll(choice, NULL, 16);
     }
   else
     {
@@ -65,6 +65,11 @@ init(char *choice)
     {
       vme_addr = 3 << 19;
       ninit = 18;
+    }
+  else if((user_slotnumber > 0x100000) && (user_slotnumber < 0x1000000))
+    {
+      vme_addr = user_slotnumber;
+      ninit = 1;
     }
   else if((user_slotnumber < 3) || (user_slotnumber > 21))
     {
@@ -100,9 +105,16 @@ init(char *choice)
 int32_t
 config(char *choice)
 {
-  faV3Config(config_filename);
+  if(strlen(choice) > 0)
+    {
+      sscanf(choice, "%s", config_filename);
+    }
 
-  faV3ComptonGStatus(0);
+  int32_t rval = faV3Config(config_filename);
+
+  if(rval != -1)
+    faV3ComptonGStatus(0);
+
   return 0;
 }
 
@@ -610,7 +622,8 @@ main(int argc, char *argv[])
 
   vmeCheckMutexHealth(1);
 
-  init("0");
+  int32_t rval = init("0xed0000");
+  if(rval < 0) init("0");
 
   initialize_readline(progName);	/* Bind our completer. */
   com_help("");
