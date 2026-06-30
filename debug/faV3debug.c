@@ -25,7 +25,7 @@ char progName[256];
 char serial_number[16];
 int32_t FAV3_SLOT = 0;
 int32_t prog_nsamples = 0;
-char config_filename[256] = "./debug.cfg";
+char config_filename[256] = "./faV3-Compton.cfg";
 const char *filecheck = "%faV3debug";
 
 void
@@ -490,19 +490,24 @@ readout(char *choice)
   }
 
   uint32_t data[1024];
-  uint32_t nwords;
+  int32_t nwords = 0;
 
   nwords = faV3ReadBlock(faV3Slot(0), data, 1024, 0);
   faV3ResetToken(faV3Slot(0));
 
-  fprintf(outFile, "%s\n", filecheck);
+  if(nwords >= 0) {
+    fprintf(outFile, "%s\n", filecheck);
 
-  int32_t idata;
-  for(idata = 0; idata < nwords; idata++) {
-    fprintf(outFile, "0x%08x\n", bswap_32(data[idata]));
+    int32_t idata;
+    for(idata = 0; idata < nwords; idata++) {
+      fprintf(outFile, "0x%08x\n", bswap_32(data[idata]));
+    }
+
+    printf(" Wrote %d bytes to %s\n", nwords*4, choice);
+  } else {
+    printf("%s: ERROR: faV3ReadBlock returned ERROR (%d)\n",
+	   __func__, nwords);
   }
-
-  printf(" Wrote %d bytes to %s\n", nwords*4, choice);
   fclose(outFile);
 
   return 0;
