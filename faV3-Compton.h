@@ -161,8 +161,9 @@ typedef struct faV3_compton_data_struct
   uint32_t adc_1;
   uint32_t valid_2;
   uint32_t adc_2;
-  uint32_t tstop;     // Type 5: Helicity seed
-  uint32_t seed;
+  uint32_t tstop;     // Type 8: Helicity seed
+  uint32_t hel_number_lsb;
+  uint32_t hel_number_msb;
   uint32_t prescale;    // Type 9: Pulse Parameters
   uint32_t pulse_num;
   uint32_t over;

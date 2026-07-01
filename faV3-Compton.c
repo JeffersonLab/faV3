@@ -755,19 +755,19 @@ faV3ComptonDataDecode(unsigned int data)
 	{
 	  faV3_data.hel = (data & (1 << 26)) ? 1 : 0;
 	  faV3_data.tstop = (data & (1 << 25)) ? 1 : 0;
-	  faV3_data.seed = (data & 0x01FFFFFF);
+	  faV3_data.hel_number_lsb = (data & 0x01FFFFFF);
 
 	  if( i_print )
-	    printf("%8X - HEL SEED LSB - hel: %d  tstop: %d  seed = 0x%x\n",
-		   data, faV3_data.hel, faV3_data.tstop, faV3_data.seed);
+	    printf("%8X - HEL# LSB - hel: %d  tstop: %d  n = 0x%x\n",
+		   data, faV3_data.hel, faV3_data.tstop, faV3_data.hel_number_lsb);
 	}
       else
 	{
-	  faV3_data.seed = (data & 0x0000001F);
+	  faV3_data.hel_number_msb = (data & 0x0000001F);
 
 	  if( i_print )
-	    printf("%8X - HEL SEED MSB - seed = 0x%x\n",
-		   data, faV3_data.seed);
+	    printf("%8X - HEL# MSB - n = 0x%x\n",
+		   data, faV3_data.hel_number_msb);
 	}
 
       break;
