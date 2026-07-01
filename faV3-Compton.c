@@ -703,7 +703,7 @@ faV3ComptonDataDecode(unsigned int data)
 	    {
 	      faV3_data.time_2 = (data & 0xFFFFFF);
 	      if( i_print )
-		printf("%8X - TRIGGER TIME 2 - time = %08x\n", data, faV3_data.time_2);
+		printf("%8X - MPS RISING TIME 2 - time = %08x\n", data, faV3_data.time_2);
 	      faV3_data.time_now = 2;
 	    }
 	  else
@@ -743,7 +743,14 @@ faV3ComptonDataDecode(unsigned int data)
 	}
       break;
 
-    case 5:		/* Helcity Number at Tstart */
+    case 5:		/* UNDEFINED TYPE */
+    case 6:		/* UNDEFINED TYPE */
+    case 7:		/* UNDEFINED TYPE */
+      if( i_print )
+	printf("%8X - UNDEFINED TYPE = %d\n", data, faV3_data.type);
+      break;
+
+    case 8:		/* Helcity Number at Tstart */
       if( faV3_data.new_type )
 	{
 	  faV3_data.hel = (data & (1 << 26)) ? 1 : 0;
@@ -765,12 +772,6 @@ faV3ComptonDataDecode(unsigned int data)
 
       break;
 
-    case 6:		/* UNDEFINED TYPE */
-    case 7:		/* UNDEFINED TYPE */
-    case 8:		/* UNDEFINED TYPE */
-      if( i_print )
-	printf("%8X - UNDEFINED TYPE = %d\n", data, faV3_data.type);
-      break;
 
 
     case 9:		/* SELF-TRIGGER PULSE PARAMETERS */
