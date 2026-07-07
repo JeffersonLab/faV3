@@ -920,6 +920,7 @@ faV3ComptonDataDecode(unsigned int data)
 		     data,
 		     faV3_data.acc_param_word_number,
 		     faV3_data.missed);
+	    faV3_data.acc_param_word_number = 1;
 	    break;
 
 	  }
