@@ -624,6 +624,11 @@ faV3ComptonGetHysteresis(int32_t id, uint16_t *hysteresis) {
   return rval;
 }
 
+FILE *fdecode_output = NULL;
+
+void
+faV3SetDecodeOutput(FILE *output_file) {fdecode_output = output_file;}
+
 void
 faV3ComptonDataDecode(unsigned int data)
 {
@@ -632,6 +637,10 @@ faV3ComptonDataDecode(unsigned int data)
   static unsigned int time_last = 0;
   int idata=0;
   static faV3ComptonData_t faV3_data = {0};
+
+  if(fdecode_output == NULL)
+    fdecode_output = stdout;
+
 
   if( data & 0x80000000 )		/* data type defining word */
     {
@@ -644,6 +653,7 @@ faV3ComptonDataDecode(unsigned int data)
       faV3_data.type = type_last;
     }
 
+  fprintf(fdecode_output, "%8X - ", data);
   switch( faV3_data.type )
     {
     case 0:		/* BLOCK HEADER */
@@ -654,8 +664,8 @@ faV3ComptonDataDecode(unsigned int data)
 	  faV3_data.blk_num    = (data & 0x3FF00) >> 8;
 	  faV3_data.n_evts     = (data & 0xFF);
 	  if( i_print )
-	    printf("%8X - BLOCK HEADER - slot = %d  modID = %d   n_evts = %d   n_blk = %d\n",
-		   data, faV3_data.slot_id_hd,
+	    fprintf(fdecode_output, "BLOCK HEADER - slot = %d  modID = %d   n_evts = %d   n_blk = %d\n",
+		   faV3_data.slot_id_hd,
 		   faV3_data.modID, faV3_data.n_evts, faV3_data.blk_num);
 	}
       else
@@ -664,8 +674,7 @@ faV3ComptonDataDecode(unsigned int data)
 	  faV3_data.NSB = (data & 0x0003FE00) >> 9;
 	  faV3_data.NSA = (data & 0x000001FF) >> 0;
 
-	  printf("%8X - BLOCK HEADER 2 - PL = %d  NSB = %d  NSA = %d\n",
-		 data,
+	  fprintf(fdecode_output, "BLOCK HEADER 2 - PL = %d  NSB = %d  NSA = %d\n",
 		 faV3_data.PL,
 		 faV3_data.NSB,
 		 faV3_data.NSA);
@@ -676,15 +685,15 @@ faV3ComptonDataDecode(unsigned int data)
       faV3_data.slot_id_tr = (data & 0x7C00000) >> 22;
       faV3_data.n_words = (data & 0xFFF);
       if( i_print )
-	printf("%8X - BLOCK TRAILER - slot = %d   n_words = %d\n",
-	       data, faV3_data.slot_id_tr, faV3_data.n_words);
+	fprintf(fdecode_output, "BLOCK TRAILER - slot = %d   n_words = %d\n",
+	       faV3_data.slot_id_tr, faV3_data.n_words);
       break;
 
     case 2:		/* EVENT HEADER */
       faV3_data.time_low_10 = (data & 0x003FF000) >> 12;
       faV3_data.evt_num_1 = (data & 0xFFF);
       if( i_print )
-	printf("%8X - EVENT HEADER 1 - trig time = %d   trig num = %d\n", data,
+	fprintf(fdecode_output, "EVENT HEADER 1 - trig time = %d   trig num = %d\n",
 	       faV3_data.time_low_10, faV3_data.evt_num_1);
       break;
 
@@ -693,7 +702,7 @@ faV3ComptonDataDecode(unsigned int data)
 	{
 	  faV3_data.time_1 = (data & 0x07FFFFFF);
 	  if( i_print )
-	    printf("%8X - MPS RISING TIME 1 - time = %08x\n", data, faV3_data.time_1);
+	    fprintf(fdecode_output, "MPS RISING TIME 1 - time = %08x\n", faV3_data.time_1);
 	  faV3_data.time_now = 1;
 	  time_last = 1;
 	}
@@ -703,12 +712,12 @@ faV3ComptonDataDecode(unsigned int data)
 	    {
 	      faV3_data.time_2 = (data & 0xFFFFFF);
 	      if( i_print )
-		printf("%8X - MPS RISING TIME 2 - time = %08x\n", data, faV3_data.time_2);
+		fprintf(fdecode_output, "MPS RISING TIME 2 - time = %08x\n", faV3_data.time_2);
 	      faV3_data.time_now = 2;
 	    }
 	  else
 	    if( i_print )
-	      printf("%8X - TRIGGER TIME - (ERROR)\n", data);
+	      fprintf(fdecode_output, "TRIGGER TIME - (ERROR)\n");
 
 	  time_last = faV3_data.time_now;
 	}
@@ -721,8 +730,8 @@ faV3ComptonDataDecode(unsigned int data)
 	  faV3_data.nsamples = (data & 0x3FF);
 	  faV3_data.hel = (data & (1 << 10)) ? 1 : 0;
 	  if( i_print )
-	    printf("%8X - SELF TRIGGER RAW DATA - chan = %d  hel = %d  nsamples = %d\n",
-		   data, faV3_data.chan, faV3_data.hel, faV3_data.nsamples);
+	    fprintf(fdecode_output, "SELF TRIGGER RAW DATA - chan = %d  hel = %d  nsamples = %d\n",
+		   faV3_data.chan, faV3_data.hel, faV3_data.nsamples);
 	}
       else
 	{
@@ -736,8 +745,8 @@ faV3ComptonDataDecode(unsigned int data)
 	  faV3_data.valid_2 = ( data & (1 << 13) ) ? 0 : 1;
 
 	  if( i_print )
-	    printf("%8X - RAW SAMPLES - s: %d  h: %d  valid = %d  adc = %4d   valid = %d  adc = %4d\n",
-		   data,faV3_data.pulse_start, faV3_data.delta_hel,
+	    fprintf(fdecode_output, "RAW SAMPLES - s: %d  h: %d  valid = %d  adc = %4d   valid = %d  adc = %4d\n",
+		   faV3_data.pulse_start, faV3_data.delta_hel,
 		   faV3_data.valid_1, faV3_data.adc_1,
 		   faV3_data.valid_2, faV3_data.adc_2);
 	}
@@ -747,7 +756,7 @@ faV3ComptonDataDecode(unsigned int data)
     case 6:		/* UNDEFINED TYPE */
     case 7:		/* UNDEFINED TYPE */
       if( i_print )
-	printf("%8X - UNDEFINED TYPE = %d\n", data, faV3_data.type);
+	fprintf(fdecode_output, "UNDEFINED TYPE = %d\n", faV3_data.type);
       break;
 
     case 8:		/* Helcity Number at Tstart */
@@ -758,16 +767,16 @@ faV3ComptonDataDecode(unsigned int data)
 	  faV3_data.hel_number_lsb = (data & 0x01FFFFFF);
 
 	  if( i_print )
-	    printf("%8X - HEL# LSB - hel: %d  tstop: %d  n = 0x%x\n",
-		   data, faV3_data.hel, faV3_data.tstop, faV3_data.hel_number_lsb);
+	    fprintf(fdecode_output, "HEL# LSB - hel: %d  tstop: %d  n = 0x%x\n",
+		   faV3_data.hel, faV3_data.tstop, faV3_data.hel_number_lsb);
 	}
       else
 	{
 	  faV3_data.hel_number_msb = (data & 0x0000001F);
 
 	  if( i_print )
-	    printf("%8X - HEL# MSB - n = 0x%x\n",
-		   data, faV3_data.hel_number_msb);
+	    fprintf(fdecode_output, "HEL# MSB - n = 0x%x\n",
+		   faV3_data.hel_number_msb);
 	}
 
       break;
@@ -783,8 +792,7 @@ faV3ComptonDataDecode(unsigned int data)
 	  faV3_data.prescale   = (data & 0x000007FF);
 
 	  if( i_print )
-	    printf("%8X - PULSEPARAM 1 - evt = %d   chan = %d   prescale = %d\n",
-		   data,
+	    fprintf(fdecode_output, "PULSEPARAM 1 - evt = %d   chan = %d   prescale = %d\n",
 		   faV3_data.evt_of_blk,
 		   faV3_data.chan,
 		   faV3_data.prescale);
@@ -800,8 +808,7 @@ faV3ComptonDataDecode(unsigned int data)
 	      faV3_data.vpeak = (data & 0x000001ff);
 
 	      if( i_print )
-		printf("%8X - PULSEPARAM 2 - P: %d  nsamples = %d  Ov/Un = %d/%d  vpeak = %d\n",
-		       data,
+		fprintf(fdecode_output, "PULSEPARAM 2 - P: %d  nsamples = %d  Ov/Un = %d/%d  vpeak = %d\n",
 		       faV3_data.pulse_num,
 		       faV3_data.nsamples,
 		       faV3_data.over,
@@ -815,8 +822,7 @@ faV3ComptonDataDecode(unsigned int data)
 	      faV3_data.adc_sum = (data & 0x01FFFFFF);
 
 	      if( i_print )
-		printf("%8X - PULSEPARAM 3 - P: %d  missed = %d  overlap = %d  adc_sum = %d\n",
-		       data,
+		fprintf(fdecode_output, "PULSEPARAM 3 - P: %d  missed = %d  overlap = %d  adc_sum = %d\n",
 		       faV3_data.pulse_num,
 		       faV3_data.missed,
 		       faV3_data.nsb_nsa_overlap,
@@ -832,8 +838,8 @@ faV3ComptonDataDecode(unsigned int data)
 	  faV3_data.acc_param_word_number = 1;
 
 	  if( i_print )
-	    printf("%8X - ACCPARAM %2d\n",
-		   data, faV3_data.acc_param_word_number);
+	    fprintf(fdecode_output, "ACCPARAM %2d\n",
+		   faV3_data.acc_param_word_number);
 	}
       else
 	{
@@ -846,8 +852,7 @@ faV3ComptonDataDecode(unsigned int data)
 	    faV3_data.acc_chan = (data & 0xF);
 
 	    if( i_print )
-	      printf("%8X - ACCPARAM %2d - Ov/Un: %d/%d  type: %d  chan: %d\n",
-		     data,
+	      fprintf(fdecode_output, "ACCPARAM %2d - Ov/Un: %d/%d  type: %d  chan: %d\n",
 		     faV3_data.acc_param_word_number,
 		     faV3_data.over, faV3_data.under,
 		     faV3_data.acc_type, faV3_data.acc_chan);
@@ -860,8 +865,7 @@ faV3ComptonDataDecode(unsigned int data)
 	    faV3_data.time_1 = (data & 0x07000000);
 	    faV3_data.time_now = (data & 0x00FFFFFF);
 	    if( i_print )
-	      printf("%8X - ACCPARAM %2d - t_c: %d  time: %d\n",
-		     data,
+	      fprintf(fdecode_output, "ACCPARAM %2d - t_c: %d  time: %d\n",
 		     faV3_data.acc_param_word_number,
 		     faV3_data.time_1, faV3_data.time_now);
 	    break;
@@ -869,8 +873,7 @@ faV3ComptonDataDecode(unsigned int data)
 	  case 7:
 	    faV3_data.nsamples = (data & 0x03FFFFFF);
 	    if( i_print )
-	      printf("%8X - ACCPARAM %2d - LSB nsamples: %d\n",
-		     data,
+	      fprintf(fdecode_output, "ACCPARAM %2d - LSB nsamples: %d\n",
 		     faV3_data.acc_param_word_number,
 		     faV3_data.nsamples);
 	    break;
@@ -878,8 +881,7 @@ faV3ComptonDataDecode(unsigned int data)
 	  case 8:
 	    faV3_data.nsamples = (data & 0x7F);
 	    if( i_print )
-	      printf("%8X - ACCPARAM %2d - MSB nsamples: %d\n",
-		     data,
+	      fprintf(fdecode_output, "ACCPARAM %2d - MSB nsamples: %d\n",
 		     faV3_data.acc_param_word_number,
 		     faV3_data.nsamples);
 	    break;
@@ -887,8 +889,7 @@ faV3ComptonDataDecode(unsigned int data)
 	  case 9:
 	    faV3_data.adc_sum = (data & 0x3FFFFFFF);
 	    if( i_print )
-	      printf("%8X - ACCPARAM %2d - LSB sum: %d\n",
-		     data,
+	      fprintf(fdecode_output, "ACCPARAM %2d - LSB sum: %d\n",
 		     faV3_data.acc_param_word_number,
 		     faV3_data.adc_sum);
 	    break;
@@ -896,8 +897,7 @@ faV3ComptonDataDecode(unsigned int data)
 	  case 10:
 	    faV3_data.adc_sum = (data & 0x0000001F);
 	    if( i_print )
-	      printf("%8X - ACCPARAM %2d - MSB sum: %d\n",
-		     data,
+	      fprintf(fdecode_output, "ACCPARAM %2d - MSB sum: %d\n",
 		     faV3_data.acc_param_word_number,
 		     faV3_data.adc_sum);
 	    break;
@@ -906,8 +906,7 @@ faV3ComptonDataDecode(unsigned int data)
 	    faV3_data.nsb_low_x_overlap = (data & 0x0FFFC000) >> 14;
 	    faV3_data.no_nsa_low_x = (data & 0x00003FFF);
 	    if( i_print )
-	      printf("%8X - ACCPARAM %2d - NSB LowX: %d  No NSA2 LowX: %d\n",
-		     data,
+	      fprintf(fdecode_output, "ACCPARAM %2d - NSB LowX: %d  No NSA2 LowX: %d\n",
 		     faV3_data.acc_param_word_number,
 		     faV3_data.nsb_low_x_overlap,
 		     faV3_data.no_nsa_low_x);
@@ -916,8 +915,7 @@ faV3ComptonDataDecode(unsigned int data)
 	  case 12:
 	    faV3_data.missed = (data & 0x00003FFF);
 	    if( i_print )
-	      printf("%8X - ACCPARAM %2d - missed: %d\n",
-		     data,
+	      fprintf(fdecode_output, "ACCPARAM %2d - missed: %d\n",
 		     faV3_data.acc_param_word_number,
 		     faV3_data.missed);
 	    faV3_data.acc_param_word_number = 1;
@@ -929,7 +927,7 @@ faV3ComptonDataDecode(unsigned int data)
 
     case 11:		/* UNDEFINED TYPE */
       if( i_print )
-	printf("%8X - UNDEFINED TYPE = %d\n", data, faV3_data.type);
+	fprintf(fdecode_output, "UNDEFINED TYPE = %d\n", faV3_data.type);
       break;
 
     case 12:		/* SCALER HEADER */
@@ -938,34 +936,35 @@ faV3ComptonDataDecode(unsigned int data)
 	  faV3_data.scaler_data_words = (data & 0x3F);
 	  faV3_data.scaler_data_iword = 0;
 	  if( i_print )
-	    printf("%8X - SCALER HEADER - data words = %d\n", data, faV3_data.scaler_data_words);
+	    fprintf(fdecode_output, "SCALER HEADER - data words = %d\n", faV3_data.scaler_data_words);
 	}
       else
 	{
 	  faV3_data.scaler_data_iword++;
 	  faV3_data.scaler_data = (data);
 	  if( i_print )
-	    printf("%8X - SCALER DATA - word = %2d  counter = %d\n",
-		   data, faV3_data.scaler_data_iword, faV3_data.scaler_data);
+	    fprintf(fdecode_output, "SCALER DATA - word = %2d  counter = %d\n",
+		   faV3_data.scaler_data_iword, faV3_data.scaler_data);
 	}
       break;
 
     case 13:		/* UNDEFINED TYPE */
       if( i_print )
-	printf("%8X - UNDEFINED TYPE = %d\n", data, faV3_data.type);
+	fprintf(fdecode_output, "UNDEFINED TYPE = %d\n", faV3_data.type);
       break;
 
     case 14:		/* DATA NOT VALID (no data available) */
       if( i_print )
-	printf("%8X - DATA NOT VALID = %d\n", data, faV3_data.type);
+	fprintf(fdecode_output, "DATA NOT VALID = %d\n", faV3_data.type);
       break;
 
     case 15:		/* FILLER WORD */
       if( i_print )
-	printf("%8X - FILLER WORD = %d\n", data, faV3_data.type);
+	fprintf(fdecode_output, "FILLER WORD = %d\n", faV3_data.type);
       break;
     }
 
   type_last = faV3_data.type;	/* save type of current data word */
+  fflush(fdecode_output);
 
 }

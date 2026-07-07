@@ -182,4 +182,5 @@ typedef struct faV3_compton_data_struct
   uint32_t no_nsa_low_x;
 } faV3ComptonData_t;
 
+void faV3SetDecodeOutput(FILE *output_file);
 void faV3ComptonDataDecode(unsigned int data);

@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 #include "toBin.h"
 #include "jvme.h"
 #include "faV3Lib.h"
@@ -513,13 +514,57 @@ readout(char *choice)
   return 0;
 }
 
+int32_t doDec2File = 0;
+
+int32_t
+decode_to_file(char *choice)
+{
+
+  if(strlen(choice) > 0)
+    {
+      doDec2File = strtoll(choice, NULL, 10) ? 1 : 0;
+    }
+  else
+    {
+      doDec2File = (doDec2File) ? 0 : 1;
+    }
+
+  printf("%s: Toggling Decode to File to %s \n", __func__,
+	 doDec2File ? "ON" : "off");
+
+  return 0;
+}
+
+char decode_output_name[NAME_MAX+1] = "";
+
+int32_t
+set_decode_filename(char *filename)
+{
+  if(strlen(filename) > 0)
+    {
+      strncpy(decode_output_name, filename, NAME_MAX);
+    }
+  else
+    {
+      strncpy(decode_output_name, "decode_output.txt", NAME_MAX);
+    }
+
+  return 0;
+}
+
+
 int32_t
 decode(char *choice)
 {
-  FILE *outFile;
+  FILE *inFile = NULL, *decode_output = NULL;
+
   if(strlen(choice) > 0)
     {
-      outFile = fopen(choice, "r");
+      inFile = fopen(choice, "r");
+      if(!inFile) {
+	perror("fopen");
+	return -1;
+      }
     }
   else
     {
@@ -527,25 +572,38 @@ decode(char *choice)
       return -1;
     }
 
-  if(!outFile) {
-    perror("fopen");
-    return -1;
+  if(doDec2File) {
+    if(strlen(decode_output_name) == 0) {
+      sprintf(decode_output_name, "%s_decode", choice);
+    }
+
+    decode_output = fopen(decode_output_name, "w");
+    if(!decode_output) {
+      perror("fopen");
+      return -1;
+    }
+    faV3SetDecodeOutput(decode_output);
   }
 
   uint32_t data = 0, i = 0;
   char testname[256];
-  fscanf(outFile, "%s\n", testname);
+  fscanf(inFile, "%s\n", testname);
   if(strcmp(testname, filecheck) != 0) {
     printf("%s: ERROR: Invalid file header >%s<\n",
 	   __func__, testname);
     return -1;
   }
 
-  while(fscanf(outFile, "0x%08x\n", &data) > 0) {
+  while(fscanf(inFile, "0x%08x\n", &data) > 0) {
     faV3ComptonDataDecode(data);
   }
 
-  fclose(outFile);
+  fclose(inFile);
+  if(decode_output) {
+    fclose(decode_output);
+    printf("%s: output to %s\n",
+	   __func__, decode_output_name);
+  }
 
   return 0;
 }
@@ -598,6 +656,8 @@ COMMAND commands[] = {
   {"trigger", trigger, "Generate Soft Trigger"},
   {"readout", readout, "Readout Event:\t readout <filename>"},
   {"decode", decode, "Decode Event:\t\t decode <filename>\n"},
+  {"set_decode_out", decode_to_file, "Toggle decode output:\t set_decode_out <1=file | 0=stdout>"},
+  {"decode_filename", set_decode_filename, "Set Decode filename: \t decode_filename <filename>\n"},
   {"read16", read16, "16bit Read:\t\t read16 <reg offset>"},
   {"write16", write16, "16bit Write:\t\t write16 <reg offset> <value>"},
   {"read32", read32, "32bit Read:\t\t read32 <reg offset>"},
