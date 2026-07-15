@@ -36,8 +36,9 @@ ifeq ($(DEBUG),1)
 	CFLAGS		+= -Wall -Wno-unused -g
 endif
 
-SRC			= $(wildcard *.c)
-PROGS			= $(SRC:.c=)
+SRC			= faV3debug.c dma_control.c
+OBJ			= $(SRC:%.c=%.o)
+PROGS			= faV3debug
 
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
@@ -48,10 +49,16 @@ all: $(PROGS)
 clean:
 	@rm -vf $(PROGS) *~ $(DEPFILES)
 
-%: %.c
-%: %.c  $(DEPDIR)/%.d | $(DEPDIR)
+
+%.o: %.c
+%.o: %.c $(DEPDIR)/%.d | $(DEPDIR)
 	@echo " CC     $@"
-	${Q}$(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) -o $@ $<
+	${Q}$(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) -fPIC -c -o $@ $<
+
+
+$(PROGS): $(OBJ)
+	@echo " CC     $@"
+	${Q}$(CC) $(DEPFLAGS) $(CFLAGS) $(INCS) -o $@ ${OBJ}
 
 $(DEPDIR): ; @mkdir -p $@
 

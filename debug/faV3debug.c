@@ -16,19 +16,25 @@
 #include <limits.h>
 #include "toBin.h"
 #include "jvme.h"
-#include "dmaPList.h"
+
 #include "faV3Lib.h"
 #include "faV3-Compton.h"
 #include "faV3Config.h"
+#include "dma_control.h"
 
-#define NDAC 40
 
 char progName[256];
+
+// fav3 library
 char serial_number[16];
 int32_t FAV3_SLOT = 0;
 int32_t prog_nsamples = 0;
 char config_filename[256] = "./faV3-Compton.cfg";
 const char *filecheck = "%faV3debug";
+
+// dma control
+dma_control_t dma_ctrl;
+pthread_t dma_thread_id;
 
 void
 Usage()
@@ -609,40 +615,44 @@ decode(char *choice)
   return 0;
 }
 
-int32_t MAXFADCWORDS = 10*1024;
 
-void
-readout_loop(void)
+void *
+readout_loop(void *arg)
 {
-  extern DMANODE *the_event;
-  extern unsigned int *dma_dabufp;
+  dma_control_t *ctrl = (dma_control_t *) arg;
+  int32_t MAXFADCWORDS = 10*1024;
+  int32_t bready = faV3Bready(faV3Slot(0));
 
-  while(1)
+  if(bready)
     {
-      int ready_count = 0;
-      pthread_testcancel();
-      int32_t bready = faV3Bready(faV3Slot(0));
+      int32_t nwords = faV3ReadBlock(faV3Slot(0), ctrl->dma_buffer, MAXFADCWORDS, 1);
 
-      if(bready)
+      /* Check for ERROR in block read */
+      int32_t blockError = faV3GetBlockError(1);
+      faV3ResetToken(faV3Slot(0));
+
+      if(blockError)
 	{
-	  int32_t nwords = faV3ReadBlock(faV3Slot(0), dma_dabufp, MAXFADCWORDS, 1);
-
-	  /* Check for ERROR in block read */
-	  int32_t blockError = faV3GetBlockError(1);
-	  faV3ResetToken(faV3Slot(0));
-
-	  if(blockError)
-	    {
-	      // break?
-	    }
-
-	  // increment counters, data size
-
+	  // break?
 	}
+
     }
 
-  pthread_exit(0);
+  return NULL;
+}
 
+int32_t
+readout_pause(char *choice)
+{
+  dma_control_pause(&dma_ctrl);
+  return 0;
+}
+
+int32_t
+readout_resume(char *choice)
+{
+  dma_control_resume(&dma_ctrl);
+  return 0;
 }
 
 int32_t
@@ -692,6 +702,8 @@ COMMAND commands[] = {
   {"disable", disable, "Disable Trigger Source"},
   {"trigger", trigger, "Generate Soft Trigger"},
   {"readout", readout, "Readout Event:\t readout <filename>"},
+  {"readout.pause", readout_pause, "Pause readout loop"},
+  {"readout.resume", readout_resume, "Resume readout loop"},
   {"decode", decode, "Decode Event:\t\t decode <filename>\n"},
   {"set_decode_out", decode_to_file, "Toggle decode output:\t set_decode_out <1=file | 0=stdout>"},
   {"decode_filename", set_decode_filename, "Set Decode filename: \t decode_filename <filename>\n"},
@@ -727,6 +739,12 @@ main(int argc, char *argv[])
   int32_t rval = init("0xed0000");
   if(rval < 0) init("0");
 
+  // init dma and launch polling thread (immediately put to sleep)
+
+  dma_thread_id = dma_control_init(&dma_ctrl);
+  dma_ctrl.readout_function = (void *)(readout_loop);
+  dma_ctrl.readout_argument = (void *)&dma_ctrl;
+
   initialize_readline(progName);	/* Bind our completer. */
   com_help("");
   strcat(progName, ": ");
@@ -734,6 +752,7 @@ main(int argc, char *argv[])
 
 
  CLOSE:
+  dma_control_shutdown(&dma_ctrl, dma_thread_id);
   vmeCloseDefaultWindows();
 
   printf("quit\n");
