@@ -107,11 +107,15 @@ faV3InitGlobals()
       faV3[slot].compton.mps_stop = FAV3_STOP_SET_DEFAULT;
       faV3[slot].compton.lo_threshold = FAV3_LO_THRESHOLD_DEFAULT;
       faV3[slot].compton.hi_threshold = FAV3_HI_THRESHOLD_DEFAULT;
-      faV3[slot].compton.pulse_threshold = FAV3_SELF_TRIGGER_THRESHOLD_DEFAULT;
-      faV3[slot].compton.pulse_nsb = FAV3_NSB1_LO_DEFAULT;
-      faV3[slot].compton.pulse_nsa = FAV3_NSA2_LO_DEFAULT;
+      faV3[slot].compton.st_threshold = FAV3_SELF_TRIGGER_THRESHOLD_DEFAULT;
+      faV3[slot].compton.st_nsb = FAV3_NSB_DEFAULT;
+      faV3[slot].compton.st_nsa = FAV3_NSA_DEFAULT;
+      faV3[slot].compton.st_nsb_lox = FAV3_NSB1_LO_DEFAULT;
+      faV3[slot].compton.st_nsa_lox = FAV3_NSA2_LO_DEFAULT;
       faV3[slot].compton.prescale = FAV3_SELF_TRIGGER_PRESCALE_DEFAULT ;
       faV3[slot].compton.hysteresis = FAV3_HYSTERSIS_DEFAULT;
+      faV3[slot].compton.report = 0;
+
     }
 }
 
@@ -255,13 +259,17 @@ faV3ReadConfigFile(char *filename_in)
       SCAN_INT("FAV3_COMPTON_LO_THRESHOLD", faV3[slot].compton.lo_threshold, slot_min, slot_max);
       SCAN_INT("FAV3_COMPTON_HI_THRESHOLD", faV3[slot].compton.hi_threshold, slot_min, slot_max);
 
-      SCAN_INT("FAV3_COMPTON_PULSE_THRESHOLD", faV3[slot].compton.pulse_threshold, slot_min, slot_max);
-      SCAN_INT("FAV3_COMPTON_PULSE_NSB", faV3[slot].compton.pulse_nsb, slot_min, slot_max);
-      SCAN_INT("FAV3_COMPTON_PULSE_NSA", faV3[slot].compton.pulse_nsa, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_THRESHOLD", faV3[slot].compton.st_threshold, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_NSB", faV3[slot].compton.st_nsb, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_NSA", faV3[slot].compton.st_nsa, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_NSB_1ST_LO_X", faV3[slot].compton.st_nsb_lox, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_NSA_2ND_LO_X", faV3[slot].compton.st_nsa_lox, slot_min, slot_max);
 
       SCAN_INT("FAV3_COMPTON_PRESCALE", faV3[slot].compton.prescale, slot_min, slot_max);
 
       SCAN_INT("FAV3_COMPTON_HYSTERESIS", faV3[slot].compton.hysteresis, slot_min, slot_max);
+
+      SCAN_INT("FAV3_COMPTON_REPORT", faV3[slot].compton.report, slot_min, slot_max);
 
       if(active)
 	{
@@ -378,11 +386,14 @@ faV3DownloadAll()
       if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_COMPTON_SUPPORTED_PROC_FIRMWARE)
 	{
 	  faV3ComptonSetMPSStartStop(slot, faV3[slot].compton.mps_start,faV3[slot].compton.mps_stop);
-	  faV3ComptonSetProc(slot, faV3[slot].compton.lo_threshold, faV3[slot].compton.hi_threshold,
-			     faV3[slot].compton.pulse_threshold, faV3[slot].compton.pulse_nsb,
-			     faV3[slot].compton.pulse_nsa);
-	  faV3ComptonSetPulsePrescale(slot, faV3[slot].compton.prescale);
+	  faV3ComptonSetProc(slot,
+			     faV3[slot].compton.st_nsb, faV3[slot].compton.st_nsa,
+			     faV3[slot].compton.lo_threshold, faV3[slot].compton.hi_threshold,
+			     faV3[slot].compton.st_threshold,
+			     faV3[slot].compton.st_nsb_lox, faV3[slot].compton.st_nsa_lox);
+	  faV3ComptonSetPrescale(slot, faV3[slot].compton.prescale);
 	  faV3ComptonSetHysteresis(slot, faV3[slot].compton.hysteresis);
+	  faV3ComptonSetReportResults(slot, faV3[slot].compton.report);
 	}
     }
 
@@ -500,11 +511,14 @@ faV3GetModulesConfig()
       if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_COMPTON_SUPPORTED_PROC_FIRMWARE)
 	{
 	  faV3ComptonGetMPSStartStop(slot, &faV3[slot].compton.mps_start, &faV3[slot].compton.mps_stop);
-	  faV3ComptonGetProc(slot, &faV3[slot].compton.lo_threshold, &faV3[slot].compton.hi_threshold,
-			     &faV3[slot].compton.pulse_threshold, &faV3[slot].compton.pulse_nsb,
-			     &faV3[slot].compton.pulse_nsa);
-	  faV3ComptonGetPulsePrescale(slot, &faV3[slot].compton.prescale);
+	  faV3ComptonGetProc(slot,
+			     &faV3[slot].compton.st_nsb, &faV3[slot].compton.st_nsa,
+			     &faV3[slot].compton.lo_threshold, &faV3[slot].compton.hi_threshold,
+			     &faV3[slot].compton.st_threshold,
+			     &faV3[slot].compton.st_nsb_lox, &faV3[slot].compton.st_nsa_lox);
+	  faV3ComptonGetPrescale(slot, &faV3[slot].compton.prescale);
 	  faV3ComptonGetHysteresis(slot, &faV3[slot].compton.hysteresis);
+	  faV3ComptonGetReportResults(slot, &faV3[slot].compton.report);
 	}
 
     }
@@ -752,19 +766,28 @@ faV3ConfigToString(char *string, int32_t length)
       sprintf(sss, "FAV3_COMPTON_HI_THRESHOLD %d\n", faV3[slot].compton.hi_threshold);
       ADD_TO_STRING;
 
-      sprintf(sss, "FAV3_COMPTON_PULSE_THRESHOLD %d\n", faV3[slot].compton.pulse_threshold);
+      sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_NSB %d\n", faV3[slot].compton.st_nsb);
       ADD_TO_STRING;
 
-      sprintf(sss, "FAV3_COMPTON_PULSE_NSB %d\n", faV3[slot].compton.pulse_nsb);
+      sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_NSA %d\n", faV3[slot].compton.st_nsa);
       ADD_TO_STRING;
 
-      sprintf(sss, "FAV3_COMPTON_PULSE_NSA %d\n", faV3[slot].compton.pulse_nsa);
+      sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_THRESHOLD %d\n", faV3[slot].compton.st_threshold);
+      ADD_TO_STRING;
+
+      sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_NSB_1ST_LO_X %d\n", faV3[slot].compton.st_nsb_lox);
+      ADD_TO_STRING;
+
+      sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_NSA_2ND_LO_X %d\n", faV3[slot].compton.st_nsa_lox);
       ADD_TO_STRING;
 
       sprintf(sss, "FAV3_COMPTON_PRESCALE %d\n", faV3[slot].compton.prescale);
       ADD_TO_STRING;
 
       sprintf(sss, "FAV3_COMPTON_HYSTERESIS %d\n", faV3[slot].compton.hysteresis);
+      ADD_TO_STRING;
+
+      sprintf(sss, "FAV3_COMPTON_REPORT %d\n", faV3[slot].compton.report);
       ADD_TO_STRING;
 
     }

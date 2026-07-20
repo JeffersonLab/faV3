@@ -502,11 +502,23 @@ faV3ComptonGetMPSStartStop(int32_t id, uint16_t *start, uint32_t *stop) {
 }
 
 int32_t
-faV3ComptonSetProc(int32_t id, uint16_t lo_threshold, uint16_t hi_threshold,
-		   uint16_t pulse_threshold, uint16_t pulse_nsb, uint16_t pulse_nsa) {
+faV3ComptonSetProc(int32_t id,
+		   uint16_t st_nsb, uint16_t st_nsa,
+		   uint16_t lo_threshold, uint16_t hi_threshold,
+		   uint16_t st_threshold, uint16_t st_nsb_lox, uint16_t st_nsa_lox) {
   int32_t rval = OK;
 
   CHECKID;
+
+  if(st_nsb > FAV3_SELF_TRIGGER_NSB_MASK) {
+    printf("%s: ERROR: Invalid self trigger nsb (%d)\n", __func__, st_nsb);
+    return ERROR;
+  }
+
+  if(st_nsa > FAV3_SELF_TRIGGER_NSA_MASK) {
+    printf("%s: ERROR: Invalid self trigger nsa (%d)\n", __func__, st_nsa);
+    return ERROR;
+  }
 
   if(lo_threshold > FAV3_LO_THRESHOLD_MASK) {
     printf("%s: ERROR: Invalid lo_threshold (%d)\n", __func__, lo_threshold);
@@ -518,52 +530,58 @@ faV3ComptonSetProc(int32_t id, uint16_t lo_threshold, uint16_t hi_threshold,
     return ERROR;
   }
 
-  if(pulse_threshold > FAV3_SELF_TRIGGER_THRESHOLD_MASK) {
-    printf("%s: ERROR: Invalid pulse_threshold (%d)\n", __func__, pulse_threshold);
+  if(st_threshold > FAV3_SELF_TRIGGER_THRESHOLD_MASK) {
+    printf("%s: ERROR: Invalid self trigger threshold (%d)\n", __func__, st_threshold);
     return ERROR;
   }
 
-  if(pulse_nsb > FAV3_SELF_TRIGGER_NSB_MASK) {
-    printf("%s: ERROR: Invalid pulse_nsb (%d)\n", __func__, pulse_nsb);
+  if(st_nsb_lox > FAV3_SELF_TRIGGER_NSB_MASK) {
+    printf("%s: ERROR: Invalid self trigger nsb 1st lo cross (%d)\n", __func__, st_nsb_lox);
     return ERROR;
   }
 
-  if(pulse_nsa > FAV3_SELF_TRIGGER_NSA_MASK) {
-    printf("%s: ERROR: Invalid pulse_nsa (%d)\n", __func__, pulse_nsa);
+  if(st_nsa_lox > FAV3_SELF_TRIGGER_NSA_MASK) {
+    printf("%s: ERROR: Invalid self trigger nsa 2nd lo cross (%d)\n", __func__, st_nsa_lox);
     return ERROR;
   }
 
   FAV3LOCK;
+  vmeWrite16(&COMPTONp[id]->config8, st_nsb & 0xFFFF);
+  vmeWrite16(&COMPTONp[id]->config9, st_nsa & 0xFFFF);
   vmeWrite16(&COMPTONp[id]->config15, lo_threshold & 0xFFFF);
   vmeWrite16(&COMPTONp[id]->config10, hi_threshold & 0xFFFF);
-  vmeWrite16(&COMPTONp[id]->config13, pulse_threshold & 0xFFFF);
-  vmeWrite16(&COMPTONp[id]->config11, pulse_nsb & 0xFFFF);
-  vmeWrite16(&COMPTONp[id]->config12, pulse_nsa & 0xFFFF);
+  vmeWrite16(&COMPTONp[id]->config13, st_threshold & 0xFFFF);
+  vmeWrite16(&COMPTONp[id]->config11, st_nsb_lox & 0xFFFF);
+  vmeWrite16(&COMPTONp[id]->config12, st_nsa_lox & 0xFFFF);
   FAV3UNLOCK;
 
   return rval;
 }
 
 int32_t
-faV3ComptonGetProc(int32_t id, uint16_t *lo_threshold, uint16_t *hi_threshold,
-		   uint16_t *pulse_threshold, uint16_t *pulse_nsb, uint16_t *pulse_nsa) {
+faV3ComptonGetProc(int32_t id,
+		   uint16_t *st_nsb, uint16_t *st_nsa,
+		   uint16_t *lo_threshold, uint16_t *hi_threshold,
+		   uint16_t *st_threshold, uint16_t *st_nsb_lox, uint16_t *st_nsa_lox) {
   int32_t rval = OK;
 
   CHECKID;
 
   FAV3LOCK;
+  *st_nsb = vmeRead16(&COMPTONp[id]->config8) & FAV3_SELF_TRIGGER_NSB_MASK;
+  *st_nsa = vmeRead16(&COMPTONp[id]->config9) & FAV3_SELF_TRIGGER_NSA_MASK;
   *lo_threshold = vmeRead16(&COMPTONp[id]->config15) & FAV3_LO_THRESHOLD_MASK;
   *hi_threshold = vmeRead16(&COMPTONp[id]->config10) & FAV3_HI_THRESHOLD_MASK;
-  *pulse_threshold = vmeRead16(&COMPTONp[id]->config13) & FAV3_SELF_TRIGGER_THRESHOLD_MASK;
-  *pulse_nsb = vmeRead16(&COMPTONp[id]->config11) & FAV3_SELF_TRIGGER_NSB_MASK;
-  *pulse_nsa = vmeRead16(&COMPTONp[id]->config12) & FAV3_SELF_TRIGGER_NSA_MASK;
+  *st_threshold = vmeRead16(&COMPTONp[id]->config13) & FAV3_SELF_TRIGGER_THRESHOLD_MASK;
+  *st_nsb_lox = vmeRead16(&COMPTONp[id]->config11) & FAV3_SELF_TRIGGER_NSB_MASK;
+  *st_nsa_lox = vmeRead16(&COMPTONp[id]->config12) & FAV3_SELF_TRIGGER_NSA_MASK;
   FAV3UNLOCK;
 
   return rval;
 }
 
 int32_t
-faV3ComptonSetPulsePrescale(int32_t id, uint16_t prescale) {
+faV3ComptonSetPrescale(int32_t id, uint16_t prescale) {
   int32_t rval = OK;
 
   CHECKID;
@@ -581,7 +599,7 @@ faV3ComptonSetPulsePrescale(int32_t id, uint16_t prescale) {
 }
 
 int32_t
-faV3ComptonGetPulsePrescale(int32_t id, uint16_t *prescale) {
+faV3ComptonGetPrescale(int32_t id, uint16_t *prescale) {
   int32_t rval = OK;
 
   CHECKID;
@@ -623,6 +641,33 @@ faV3ComptonGetHysteresis(int32_t id, uint16_t *hysteresis) {
 
   return rval;
 }
+
+int32_t
+faV3ComptonSetReportResults(int32_t id, uint16_t report) {
+  int32_t rval = OK;
+
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite16(&COMPTONp[id]->config17, report);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+int32_t
+faV3ComptonGetReportResults(int32_t id, uint16_t *report) {
+  int32_t rval = OK;
+
+  CHECKID;
+
+  FAV3LOCK;
+  *report = vmeRead16(&COMPTONp[id]->config17);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
 
 FILE *fdecode_output = NULL;
 

@@ -16,11 +16,14 @@ typedef struct  {
   uint32_t mps_stop;
   uint16_t lo_threshold;
   uint16_t hi_threshold;
-  uint16_t pulse_threshold;
-  uint16_t pulse_nsb;
-  uint16_t pulse_nsa;
+  uint16_t st_threshold;
+  uint16_t st_nsb;
+  uint16_t st_nsa;
+  uint16_t st_nsb_lox;
+  uint16_t st_nsa_lox;
   uint16_t prescale;
   uint16_t hysteresis;
+  uint16_t report;
 } FAV3_COMPTON_CONF;
 
 /** FADC250 configuration parameters **/

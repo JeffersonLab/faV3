@@ -66,9 +66,11 @@ typedef struct
 
 /* config8 */
 #define FAV3_SELF_TRIGGER_NSB_MASK 0xF
+#define FAV3_NSB_DEFAULT 5
 
 /* config9 */
 #define FAV3_SELF_TRIGGER_NSA_MASK 0xFFF
+#define FAV3_NSA_DEFAULT 7
 
 /* config10 */
 #define FAV3_HI_THRESHOLD_MASK 0xFFF
@@ -122,14 +124,19 @@ int faV3ComptonInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag);
 void faV3ComptonGStatus(int sflag);
 int32_t faV3ComptonSetMPSStartStop(int32_t id, uint16_t start, uint32_t stop);
 int32_t faV3ComptonGetMPSStartStop(int32_t id, uint16_t *start, uint32_t *stop);
-int32_t faV3ComptonSetProc(int32_t id, uint16_t lo_threshold, uint16_t hi_threshold,
+int32_t faV3ComptonSetProc(int32_t id, uint16_t st_nsb, uint16_t st_nsa,
+			   uint16_t lo_threshold, uint16_t hi_threshold,
 			   uint16_t pulse_threshold, uint16_t pulse_nsb, uint16_t pulse_nsa);
-int32_t faV3ComptonGetProc(int32_t id, uint16_t *lo_threshold, uint16_t *hi_threshold,
+int32_t faV3ComptonGetProc(int32_t id, uint16_t *st_nsb, uint16_t *st_nsa,
+			   uint16_t *lo_threshold, uint16_t *hi_threshold,
 			   uint16_t *pulse_threshold, uint16_t *pulse_nsb, uint16_t *pulse_nsa);
-int32_t faV3ComptonSetPulsePrescale(int32_t id, uint16_t prescale);
-int32_t faV3ComptonGetPulsePrescale(int32_t id, uint16_t *prescale);
+int32_t faV3ComptonSetPrescale(int32_t id, uint16_t prescale);
+int32_t faV3ComptonGetPrescale(int32_t id, uint16_t *prescale);
 int32_t faV3ComptonSetHysteresis(int32_t id, uint16_t hysteresis);
 int32_t faV3ComptonGetHysteresis(int32_t id, uint16_t *hysteresis);
+int32_t faV3ComptonSetReportResults(int32_t id, uint16_t report);
+int32_t faV3ComptonGetReportResults(int32_t id, uint16_t *report);
+
 
 typedef struct faV3_compton_data_struct
 {
