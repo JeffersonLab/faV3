@@ -668,6 +668,83 @@ faV3ComptonGetReportResults(int32_t id, uint16_t *report) {
   return rval;
 }
 
+int32_t
+faV3ComptonPauseProcessingTrigger(int32_t id) {
+  int32_t rval = OK;
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite16(&COMPTONp[id]->status2, 1);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+int32_t
+faV3ComptonResumeProcessingTrigger(int32_t id) {
+  int32_t rval = OK;
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite16(&COMPTONp[id]->status2, 0);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+int32_t
+faV3ComptonSelectTrigger(int32_t id, uint16_t trigger) {
+  int32_t rval = OK;
+  CHECKID;
+
+  trigger = trigger ? 1 : 0;
+
+  FAV3LOCK;
+
+  if(trigger == 0) { // self-trigger
+    vmeWrite16(&COMPTONp[id]->config3,
+	       vmeRead16(&COMPTONp[id]->config3) & ~FAV3_TRIGGER_SELECT_MASK);
+  } else {
+    vmeWrite16(&COMPTONp[id]->config3,
+	       vmeRead16(&COMPTONp[id]->config3) | FAV3_TRIGGER_TI);
+  }
+
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+int32_t
+faV3ComptonGetSelectTrigger(int32_t id, uint16_t *trigger) {
+  int32_t rval = OK;
+  CHECKID;
+
+  FAV3LOCK;
+
+  *trigger = (vmeRead16(&COMPTONp[id]->config3) & FAV3_TRIGGER_SELECT_MASK) ? 1 : 0;
+
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+int32_t
+faV3ComptonSetMaxTriggerCount(int32_t id, uint16_t max_count) {
+  int32_t rval = OK;
+  CHECKID;
+
+  if(max_count < 3) {
+    printf("%s: ERROR: Invalid max_count (%d)\n",
+	   __func__, max_count);
+    return ERROR;
+  }
+
+  FAV3LOCK;
+  vmeWrite16(&COMPTONp[id]->config21, max_count);
+  FAV3UNLOCK;
+
+  return rval;
+}
 
 FILE *fdecode_output = NULL;
 

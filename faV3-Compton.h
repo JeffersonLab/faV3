@@ -41,7 +41,8 @@ typedef struct
   /* 0x0126 */ volatile uint16_t config18;
   /* 0x0128 */ volatile uint16_t config19;
   /* 0x012A */ volatile uint16_t config20;
-  /* 0x012C */ volatile uint16_t config_reserve[(0x15C - 0x12C) >> 1];
+  /* 0x012C */ volatile uint16_t config21;
+  /* 0x012E */ volatile uint16_t config_reserve[(0x15C - 0x12E) >> 1];
   /* 0x015C */ volatile uint16_t config3;
   /* 0x015E */ volatile uint16_t status3;
   /* 0x0160 */ volatile uint16_t status4;
@@ -118,7 +119,12 @@ typedef struct
 #define FAV3_STOP_SET_MSB_MASK  0xFFFF
 
 /* config3 */
+#define FAV3_TRIGGER_SELECT_MASK 0x2
+#define FAV3_TRIGGER_SELF 0
+#define FAV3_TRIGGER_TI   (1 << 1)
 #define FAV3_SYNC_DISABLE (1 << 15)
+
+
 
 int faV3ComptonInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag);
 void faV3ComptonGStatus(int sflag);
@@ -137,6 +143,12 @@ int32_t faV3ComptonGetHysteresis(int32_t id, uint16_t *hysteresis);
 int32_t faV3ComptonSetReportResults(int32_t id, uint16_t report);
 int32_t faV3ComptonGetReportResults(int32_t id, uint16_t *report);
 
+int32_t faV3ComptonPauseProcessingTrigger(int32_t id);
+int32_t faV3ComptonResumeProcessingTrigger(int32_t id);
+int32_t faV3ComptonSelectTrigger(int32_t id, uint16_t trigger);
+int32_t faV3ComptonGetSelectTrigger(int32_t id, uint16_t *trigger);
+
+int32_t faV3ComptonSetMaxTriggerCount(int32_t id, uint16_t max_count);
 
 typedef struct faV3_compton_data_struct
 {

@@ -115,6 +115,7 @@ faV3InitGlobals()
       faV3[slot].compton.prescale = FAV3_SELF_TRIGGER_PRESCALE_DEFAULT ;
       faV3[slot].compton.hysteresis = FAV3_HYSTERSIS_DEFAULT;
       faV3[slot].compton.report = 0;
+      faV3[slot].compton.select_trigger = 1;
 
     }
 }
@@ -271,6 +272,8 @@ faV3ReadConfigFile(char *filename_in)
 
       SCAN_INT("FAV3_COMPTON_REPORT", faV3[slot].compton.report, slot_min, slot_max);
 
+      SCAN_INT("FAV3_COMPTON_SELECT_TRIGGER", faV3[slot].compton.select_trigger, slot_min, slot_max);
+
       if(active)
 	{
 	  printf("%s: ERROR: Unknown keyword: %s\n", __func__, keyword);
@@ -394,6 +397,7 @@ faV3DownloadAll()
 	  faV3ComptonSetPrescale(slot, faV3[slot].compton.prescale);
 	  faV3ComptonSetHysteresis(slot, faV3[slot].compton.hysteresis);
 	  faV3ComptonSetReportResults(slot, faV3[slot].compton.report);
+	  faV3ComptonSelectTrigger(slot, faV3[slot].compton.select_trigger);
 	}
     }
 
@@ -519,7 +523,8 @@ faV3GetModulesConfig()
 	  faV3ComptonGetPrescale(slot, &faV3[slot].compton.prescale);
 	  faV3ComptonGetHysteresis(slot, &faV3[slot].compton.hysteresis);
 	  faV3ComptonGetReportResults(slot, &faV3[slot].compton.report);
-	}
+	  faV3ComptonGetSelectTrigger(slot, &faV3[slot].compton.select_trigger);
+}
 
     }
   return 0;
@@ -788,6 +793,9 @@ faV3ConfigToString(char *string, int32_t length)
       ADD_TO_STRING;
 
       sprintf(sss, "FAV3_COMPTON_REPORT %d\n", faV3[slot].compton.report);
+      ADD_TO_STRING;
+
+      sprintf(sss, "FAV3_COMPTON_SELECT_TRIGGER %d\n", faV3[slot].compton.select_trigger);
       ADD_TO_STRING;
 
     }
