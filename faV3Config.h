@@ -24,7 +24,6 @@ typedef struct  {
   uint16_t prescale;
   uint16_t hysteresis;
   uint16_t report;
-  uint16_t select_trigger;
 } FAV3_COMPTON_CONF;
 
 /** FADC250 configuration parameters **/
