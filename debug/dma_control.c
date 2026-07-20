@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "jvme.h"
 #include "dmaPList.h"
 #include "dma_control.h"
 
 #define MAX_EVENT_POOL     1
 #define MAX_EVENT_LENGTH   1024*20	/* Size in Bytes */
+
 
 void *dma_poll_thread(void *arg);
 
@@ -24,15 +26,13 @@ dma_control_init(dma_control_t *ctrl)
 
   dmaPReInitAll();
 
-  ctrl->dma_event = dmaPGetItem(ctrl->vmeIN);
-  if(ctrl->dma_event == (DMANODE *) 0)
-    {
-      printf("%s: ERROR: no pool buffer available for part %s\n", __func__, ctrl->vmeIN->name);
-    }
-  else
-    {
-      ctrl->dma_buffer = (uint32_t *) &(ctrl->dma_event->data[0]);
-    }
+  extern DMANODE *the_event;
+  extern unsigned int *dma_dabufp;
+  GETEVENT(ctrl->vmeIN, 0);
+
+
+  ctrl->dma_event = the_event;
+  ctrl->dma_buffer = (uint32_t *) &(ctrl->dma_event->data[0]);
 
   pthread_t rval_thread_id;
   pthread_create(&rval_thread_id, NULL, dma_poll_thread, ctrl);

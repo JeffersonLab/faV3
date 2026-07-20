@@ -73,7 +73,7 @@ dma_metrics_print_report(dma_metrics_t *m)
   printf("Elapsed Time:         %.3f seconds\n", total_elapsed);
   printf("Total Active Time:    %.6f seconds\n", active_time);
   printf("Total Transfers:      %lu\n", transfers);
-  printf("Total Data Read:      %.3f MB\n", total_mb);
+  printf("Total Data Read:      %lu B\n", bytes);
   printf("---------------------------------------------\n");
   printf("Average DMA Freq:     %.2f Hz\n", avg_hz);
   printf("Average Data Rate:    %.3f MB/s (overall rate)\n", avg_mb_per_sec);

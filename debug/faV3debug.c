@@ -21,6 +21,7 @@
 #include "faV3-Compton.h"
 #include "faV3Config.h"
 #include "dma_control.h"
+#include "dma_metrics.h"
 
 
 char progName[256];
@@ -35,6 +36,9 @@ const char *filecheck = "%faV3debug";
 // dma control
 dma_control_t dma_ctrl;
 pthread_t dma_thread_id;
+
+// dma metrics
+dma_metrics_t dma_meter;
 
 void
 Usage()
@@ -619,13 +623,18 @@ decode(char *choice)
 void *
 readout_loop(void *arg)
 {
+  struct timespec dma_start, dma_end;
   dma_control_t *ctrl = (dma_control_t *) arg;
   int32_t MAXFADCWORDS = 10*1024;
   int32_t bready = faV3Bready(faV3Slot(0));
 
   if(bready)
     {
+      clock_gettime(CLOCK_MONOTONIC, &dma_start);
       int32_t nwords = faV3ReadBlock(faV3Slot(0), ctrl->dma_buffer, MAXFADCWORDS, 1);
+      clock_gettime(CLOCK_MONOTONIC, &dma_end);
+
+      dma_metrics_record(&dma_meter, (nwords > 0) ? (nwords * 4) : 0, dma_start, dma_end);
 
       /* Check for ERROR in block read */
       int32_t blockError = faV3GetBlockError(1);
@@ -652,6 +661,20 @@ int32_t
 readout_resume(char *choice)
 {
   dma_control_resume(&dma_ctrl);
+  return 0;
+}
+
+int32_t
+metrics_reset(char *choice)
+{
+  dma_metrics_reset(&dma_meter);
+  return 0;
+}
+
+int32_t
+metrics_show(char *choice)
+{
+  dma_metrics_print_report(&dma_meter);
   return 0;
 }
 
@@ -702,8 +725,10 @@ COMMAND commands[] = {
   {"disable", disable, "Disable Trigger Source"},
   {"trigger", trigger, "Generate Soft Trigger"},
   {"readout", readout, "Readout Event:\t readout <filename>"},
-  {"readout.pause", readout_pause, "Pause readout loop"},
-  {"readout.resume", readout_resume, "Resume readout loop"},
+  {"readout_pause", readout_pause, "Pause readout loop"},
+  {"readout_resume", readout_resume, "Resume readout loop"},
+  {"metrics_reset", metrics_reset, "Reset DMA Metrics"},
+  {"metrics_show", metrics_show, "Show DMA Metrics"},
   {"decode", decode, "Decode Event:\t\t decode <filename>\n"},
   {"set_decode_out", decode_to_file, "Toggle decode output:\t set_decode_out <1=file | 0=stdout>"},
   {"decode_filename", set_decode_filename, "Set Decode filename: \t decode_filename <filename>\n"},
@@ -741,9 +766,11 @@ main(int argc, char *argv[])
 
   // init dma and launch polling thread (immediately put to sleep)
 
-  dma_thread_id = dma_control_init(&dma_ctrl);
   dma_ctrl.readout_function = (void *)(readout_loop);
   dma_ctrl.readout_argument = (void *)&dma_ctrl;
+  dma_thread_id = dma_control_init(&dma_ctrl);
+
+  dma_metrics_init(&dma_meter);
 
   initialize_readline(progName);	/* Bind our completer. */
   com_help("");

@@ -36,7 +36,7 @@ ifeq ($(DEBUG),1)
 	CFLAGS		+= -Wall -Wno-unused -g
 endif
 
-SRC			= faV3debug.c dma_control.c
+SRC			= faV3debug.c dma_control.c dma_metrics.c
 OBJ			= $(SRC:%.c=%.o)
 PROGS			= faV3debug
 
