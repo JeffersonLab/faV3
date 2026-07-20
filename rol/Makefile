@@ -18,7 +18,7 @@ else
 endif
 
 # Plug in your primary readout lists here..
-VMEROL			= faV3_list.so faV3_vxs_list.so
+VMEROL			= faV3_list.so faV3_vxs_list.so faV3_gen_list.so
 # Add shared library dependencies here.  (jvme, ti, are already included)
 ROLLIBS			= -lfaV3
 
