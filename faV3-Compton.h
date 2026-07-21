@@ -112,11 +112,11 @@ typedef struct
 #define FAV3_HYSTERSIS_DEFAULT 0
 
 /* config19 */
-#define FAV3_STOP_SET_LSB_MASK 0x7F
+#define FAV3_STOP_SET_LSB_MASK 0xFFFF
 #define FAV3_STOP_SET_DEFAULT 500
 
 /* config20 */
-#define FAV3_STOP_SET_MSB_MASK  0xFFFF
+#define FAV3_STOP_SET_MSB_MASK  0x7F
 
 /* config3 */
 #define FAV3_TRIGGER_SELECT_MASK 0x2

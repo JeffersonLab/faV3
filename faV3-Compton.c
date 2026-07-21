@@ -399,10 +399,14 @@ faV3ComptonGStatus(int sflag)
 
       printf("%-4d    ",
 	     compton_st[id].config11 & FAV3_NSB1_LO_MASK);
-      printf("%-4d      ",
+      printf("%-4d    ",
 	     compton_st[id].config12 & FAV3_NSA2_LO_MASK);
 
+      printf("%s      ",
+	     (compton_st[id].config3 & FAV3_TRIGGER_TI) ? " TI " : "self");
 
+      printf("%-4d",
+	     compton_st[id].config21);
 
       printf("\n");
     }
@@ -423,9 +427,9 @@ faV3ComptonGStatus(int sflag)
       printf("%-4d    ",
 	     compton_st[id].config10 & FAV3_HI_THRESHOLD_MASK);
       printf("%-4d    ",
-	     compton_st[id].config13 & FAV3_LO_THRESHOLD_MASK);
-      printf("%-4d",
-	     compton_st[id].config15 & FAV3_SELF_TRIGGER_THRESHOLD_MASK);
+	     compton_st[id].config15 & FAV3_LO_THRESHOLD_MASK);
+      printf("%-4d          ",
+	     compton_st[id].config13 & FAV3_SELF_TRIGGER_THRESHOLD_MASK);
 
       printf("%-4d      ",
 	     compton_st[id].config16 & FAV3_SELF_TRIGGER_PRESCALE_MASK);
@@ -468,7 +472,7 @@ faV3ComptonSetMPSStartStop(int32_t id, uint16_t start, uint32_t stop) {
     return ERROR;
   }
 
-  if(stop > 0x7FFFF) {
+  if(stop > 0x7FFFFF) {
     printf("%s: ERROR: Invalid stop (%d)\n", __func__, stop);
     return ERROR;
   }
