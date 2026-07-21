@@ -373,10 +373,11 @@ faV3ComptonGStatus(int sflag)
 
   printf("\n");
   printf("                       faV3 Compton Configuration\n\n");
-  printf("      Start   Self-Trigger  1stLoX  2ndLoX    ---------- Thresholds ------\n");
-  printf("Slot  Set     NSB   NSA     NSB     NSA       Hi      Lo      Self-Trigger\n");
+
+  printf("      Start   Stop      Self-Trigger  1stLoX  2ndLoX  Selected  Max\n");
+  printf("Slot  Set     Set       NSB   NSA     NSB     NSA     Trigger   Trg Count\n");
   printf("--------------------------------------------------------------------------------\n");
-  //       23   4095    16    4095    1023    1023      4095    4095    4095
+  //       23   4095    8388607   16    4095    1023    1023    self      65535
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
       id = faV3Slot(ifa);
@@ -384,6 +385,12 @@ faV3ComptonGStatus(int sflag)
 
       printf("%-4d    ",
 	     compton_st[id].config6 & FAV3_START_SET_MASK);
+
+      uint32_t stop_set = compton_st[id].config19 & FAV3_STOP_SET_LSB_MASK;
+      stop_set |= (compton_st[id].config20 & FAV3_STOP_SET_MSB_MASK) << 16;
+
+      printf("%-7d   ",
+	     stop_set);
 
       printf("%-2d    ",
 	     compton_st[id].config8 & FAV3_SELF_TRIGGER_NSB_MASK);
@@ -395,12 +402,6 @@ faV3ComptonGStatus(int sflag)
       printf("%-4d      ",
 	     compton_st[id].config12 & FAV3_NSA2_LO_MASK);
 
-      printf("%-4d    ",
-	     compton_st[id].config10 & FAV3_HI_THRESHOLD_MASK);
-      printf("%-4d    ",
-	     compton_st[id].config13 & FAV3_LO_THRESHOLD_MASK);
-      printf("%-4d",
-	     compton_st[id].config15 & FAV3_SELF_TRIGGER_THRESHOLD_MASK);
 
 
       printf("\n");
@@ -409,26 +410,28 @@ faV3ComptonGStatus(int sflag)
 
   printf("\n");
   printf("                       faV3 Compton Configuration\n\n");
-  printf("                            Stop      Report Results\n");
-  printf("Slot  Prescale  Hysteresis  Set       SP 0123 45\n");
+
+  printf("      ---------- Thresholds ------                        Report Results\n");
+  printf("Slot  Hi      Lo      Self-Trigger  Prescale  Hysteresis  SP 0123 45\n");
   printf("--------------------------------------------------------------------------------\n");
-  //       23   1023      63          8388607   11 1111 11
+  //       23   4095    4095    4095          1023      63          11 1111 11
   for(ifa = 0; ifa < nfaV3; ifa++)
     {
       id = faV3Slot(ifa);
       printf(" %2d   ", id);
+
+      printf("%-4d    ",
+	     compton_st[id].config10 & FAV3_HI_THRESHOLD_MASK);
+      printf("%-4d    ",
+	     compton_st[id].config13 & FAV3_LO_THRESHOLD_MASK);
+      printf("%-4d",
+	     compton_st[id].config15 & FAV3_SELF_TRIGGER_THRESHOLD_MASK);
 
       printf("%-4d      ",
 	     compton_st[id].config16 & FAV3_SELF_TRIGGER_PRESCALE_MASK);
 
       printf("%-2d          ",
 	     compton_st[id].config18 & FAV3_HYSTERSIS_MASK);
-
-      uint32_t stop_set = compton_st[id].config19 & FAV3_STOP_SET_LSB_MASK;
-      stop_set |= (compton_st[id].config20 & FAV3_STOP_SET_MSB_MASK) << 16;
-
-      printf("%-7d   ",
-	     stop_set);
 
       printf("%d%d ",
 	     (compton_st[id].config17 & (1 << 0)) ? 1 : 0,
