@@ -104,7 +104,6 @@ init(char *choice)
     }
 
   FAV3_SLOT = faV3Slot(0);
-  faV3GetSerialNumber(FAV3_SLOT, (char **)&serial_number);
 
   faV3EnableSoftSync(FAV3_SLOT);
   faV3EnableSoftTrig(FAV3_SLOT);
@@ -713,7 +712,7 @@ COMMAND commands[] = {
   {"help", com_help, "Display Commands:\t help <command>"},
   {"?", com_help, "Synonym for `help'\n"},
   {"init", init, "Initialize module:\t init <slotnumber>"},
-  {"config", config, "Configure module with debug.cfg"},
+  {"config", config, "Configure module with faV3-Compton.cfg"},
   {"status", status, "Print status of initialized modules\n"},
   {"setdac", setdac, "Set DAC for Channel:\t setdac <channel> <dac value>"},
   {"getdac", getdac, "Print DAC values for all channels"},
@@ -763,6 +762,8 @@ main(int argc, char *argv[])
 
   int32_t rval = init("0xed0000");
   if(rval < 0) init("0");
+
+  config("");
 
   // init dma and launch polling thread (immediately put to sleep)
 
