@@ -310,6 +310,47 @@ trigger(char *choice)
   return 0;
 }
 
+int32_t
+select_trigger(char *choice)
+{
+  int32_t trig = 0;
+  if(strlen(choice) > 0)
+    trig = atoi(choice);
+
+  faV3ComptonSelectTrigger(FAV3_SLOT, trig);
+
+  printf("%s: done\n\n", __func__);
+  return 0;
+}
+
+int32_t
+proc_control(char *choice)
+{
+  int val = 0;
+  if(strlen(choice) > 0)
+    val = atoi(choice);
+
+  if(val == 0)
+    faV3ComptonPauseProcessingTrigger(FAV3_SLOT);
+  else
+    faV3ComptonResumeProcessingTrigger(FAV3_SLOT);
+
+  return 0;
+}
+
+int32_t
+max_trig(char *choice)
+{
+  int val = 0;
+  if(strlen(choice) > 0)
+    val = atoi(choice);
+
+  faV3ComptonSetMaxTriggerCount(FAV3_SLOT, val);
+
+  return 0;
+}
+
+
 extern int nfaV3;
 extern int faV3ID[FAV3_MAX_BOARDS];
 extern volatile faV3_t *FAV3p[(FAV3_MAX_BOARDS + 1)];
@@ -723,6 +764,9 @@ COMMAND commands[] = {
   {"enable", enable, "Enable Trigger Source"},
   {"disable", disable, "Disable Trigger Source"},
   {"trigger", trigger, "Generate Soft Trigger"},
+  {"select_trigger", select_trigger, "Select trigger:\t select_trigger <1=ti | 0=self>"},
+  {"proc_control", proc_control, "Process Trigger control:\t proc_control <1=resume | 0=pause>"},
+  {"max_trig", max_trig, "Set maximum trigger count:\t max_trig <value>"},
   {"readout", readout, "Readout Event:\t readout <filename>"},
   {"readout_pause", readout_pause, "Pause readout loop"},
   {"readout_resume", readout_resume, "Resume readout loop"},
