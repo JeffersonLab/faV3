@@ -1,6 +1,6 @@
 /*************************************************************************
  *
- *  faV3_gen_list.c - Library of routines for readout of
+ *  compton_selftrigger_list.c - Library of routines for readout of
  *                    faV3 in stand-alone readout mode (without TI)
  *
  */
@@ -68,7 +68,7 @@ rocDownload()
    */
   vmeDmaConfig(2,5,1);
 
-  int32_t iflag = FAV3_INIT_SKIP_FIRMWARE_CHECK;
+  int32_t iflag = 0; // default with internal clock
 
   vmeSetQuietFlag(1);
   faV3ComptonInit(FAV3_ADDR, 1<<19, 1, iflag);
@@ -77,6 +77,7 @@ rocDownload()
       daLogMsg("ERROR", "faV3 not initialized");
     }
 
+  faV3ComptonSelectTrigger(faV3Slot(0), 0);  // 0: self trigger
   faV3EnableSoftSync(faV3Slot(0));
   faV3EnableSoftTrig(faV3Slot(0));
   faV3ComptonGStatus(0);
