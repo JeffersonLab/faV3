@@ -112,11 +112,11 @@ typedef struct
 #define FAV3_HYSTERSIS_DEFAULT 0
 
 /* config19 */
-#define FAV3_STOP_SET_LSB_MASK 0xFFFF
+#define FAV3_STOP_SET_MSB_MASK 0xFFFF
 #define FAV3_STOP_SET_DEFAULT 500
 
 /* config20 */
-#define FAV3_STOP_SET_MSB_MASK  0x7F
+#define FAV3_STOP_SET_LSB_MASK  0x7F
 
 /* config3 */
 #define FAV3_TRIGGER_SELECT_MASK 0x2
@@ -149,6 +149,8 @@ int32_t faV3ComptonSelectTrigger(int32_t id, uint16_t trigger);
 int32_t faV3ComptonGetSelectTrigger(int32_t id, uint16_t *trigger);
 
 int32_t faV3ComptonSetMaxTriggerCount(int32_t id, uint16_t max_count);
+int32_t faV3ComptonCollectOn(int32_t id);
+int32_t faV3ComptonCollectOff(int32_t id);
 
 typedef struct faV3_compton_data_struct
 {

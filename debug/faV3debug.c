@@ -52,6 +52,7 @@ Usage()
   printf("\n");
 }
 
+int32_t syncreset(char *choice);
 // initalialize the fav3 library with a provided slot number
 int32_t
 init(char *choice)
@@ -105,8 +106,14 @@ init(char *choice)
 
   FAV3_SLOT = faV3Slot(0);
 
+  faV3SetSyncSource(FAV3_SLOT, 6);
   faV3EnableSoftSync(FAV3_SLOT);
-  faV3EnableSoftTrig(FAV3_SLOT);
+
+  faV3DisableSoftTrig(FAV3_SLOT);
+  faV3SetTrigSource(FAV3_SLOT, 3);
+
+  faV3EnableBusError(FAV3_SLOT);
+  syncreset("");
   faV3ComptonGStatus(0);
 
 
@@ -123,6 +130,8 @@ config(char *choice)
 
   int32_t rval = faV3Config(config_filename);
 
+
+  faV3ComptonCollectOn(0);
   if(rval != -1)
     faV3ComptonGStatus(0);
 

@@ -261,8 +261,8 @@ rocTrigger(int arg)
 
   /* Mask of initialized modules */
   scanmask = faV3ScanMask();
-  /* Check scanmask for block ready up to 100 times */
-  datascan = faV3GBlockReady(scanmask, 100);
+  /* Check scanmask for block ready up to 10000 times (~2 us / read -> 20ms) */
+  datascan = faV3GBlockReady(scanmask, 10000);
   stat = (datascan == scanmask);
 
   if(stat)

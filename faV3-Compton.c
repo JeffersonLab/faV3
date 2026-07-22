@@ -90,6 +90,10 @@ faV3ComptonInit(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	     __func__, faV3Slot(ifa),
 	     faV3FwRev[faV3Slot(ifa)][FAV3_FW_CTRL],
 	     faV3FwRev[faV3Slot(ifa)][FAV3_FW_PROC]);
+
+      /* Disable PROC syncreset */
+      vmeWrite16(&COMPTONp[faV3Slot(ifa)]->config3, vmeRead16(&COMPTONp[faV3Slot(ifa)]->config3) | FAV3_SYNC_DISABLE);
+
     }
 
   return OK;
@@ -478,12 +482,12 @@ faV3ComptonSetMPSStartStop(int32_t id, uint16_t start, uint32_t stop) {
   }
 
   stop_set_lsb = stop & FAV3_STOP_SET_LSB_MASK;
-  stop_set_msb = (stop >> 16) & FAV3_STOP_SET_MSB_MASK;
+  stop_set_msb = (stop >> 7) & FAV3_STOP_SET_MSB_MASK;
 
   FAV3LOCK;
   vmeWrite16(&COMPTONp[id]->config6, start);
-  vmeWrite16(&COMPTONp[id]->config19, stop_set_lsb);
-  vmeWrite16(&COMPTONp[id]->config20, stop_set_msb);
+  vmeWrite16(&COMPTONp[id]->config19, stop_set_msb);
+  vmeWrite16(&COMPTONp[id]->config20, stop_set_lsb);
   FAV3UNLOCK;
 
   return rval;
@@ -498,10 +502,10 @@ faV3ComptonGetMPSStartStop(int32_t id, uint16_t *start, uint32_t *stop) {
 
   FAV3LOCK;
   *start = vmeRead16(&COMPTONp[id]->config6) & FAV3_START_SET_MASK;
-  stop_set_lsb = vmeRead16(&COMPTONp[id]->config19) & FAV3_STOP_SET_LSB_MASK;
-  stop_set_msb = vmeRead16(&COMPTONp[id]->config20) & FAV3_STOP_SET_MSB_MASK;
+  stop_set_msb = vmeRead16(&COMPTONp[id]->config19) & FAV3_STOP_SET_MSB_MASK;
+  stop_set_lsb = vmeRead16(&COMPTONp[id]->config20) & FAV3_STOP_SET_LSB_MASK;
 
-  *stop = (stop_set_msb << 16) | stop_set_lsb;
+  *stop = (stop_set_msb << 7) | stop_set_lsb;
 
   FAV3UNLOCK;
 
@@ -752,6 +756,31 @@ faV3ComptonSetMaxTriggerCount(int32_t id, uint16_t max_count) {
 
   return rval;
 }
+
+int32_t
+faV3ComptonCollectOn(int32_t id) {
+  int32_t rval = OK;
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite16(&COMPTONp[id]->config1, 1);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
+int32_t
+faV3ComptonCollectOff(int32_t id) {
+  int32_t rval = OK;
+  CHECKID;
+
+  FAV3LOCK;
+  vmeWrite16(&COMPTONp[id]->config1, 0);
+  FAV3UNLOCK;
+
+  return rval;
+}
+
 
 FILE *fdecode_output = NULL;
 

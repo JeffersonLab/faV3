@@ -682,9 +682,10 @@ faV3Init(uint32_t addr, uint32_t addr_inc, int nadc, int iFlag)
 	  vmeWrite32(&FAV3p[faV3ID[ii]]->blocklevel, 1);
 
 	  /* Setup Trigger and Sync Reset sources */
+
 	  vmeWrite32(&FAV3p[faV3ID[ii]]->ctrl1,
 		     (vmeRead32(&FAV3p[faV3ID[ii]]->ctrl1) &
-		      ~(FAV3_REF_CLK_MASK | FAV3_TRIG_MASK | FAV3_SRESET_MASK)) |
+		      ~(FAV3_REF_CLK_MASK | FAV3_TRIG_MASK | FAV3_SRESET_MASK | 0x4)) |
 		     (clkSrc | srSrc | trigSrc) );
 
 	  /* Initialize DAC */
@@ -4517,16 +4518,19 @@ int
 faV3SetTrigSource(int id, int source)
 {
   int rval;
+  uint32_t reg = 0;
 
   CHECKID;
 
   FAV3LOCK;
-  vmeWrite32(&(FAV3p[id]->ctrl1),
-	     vmeRead32(&(FAV3p[id]->ctrl1)) & ~FAV3_TRIG_SEL_MASK);
+
+  vmeWrite32(&FAV3p[id]->ctrl1, vmeRead32(&FAV3p[id]->ctrl1) &~ FAV3_TRIG_SEL_MASK);
+
   if((source < 0) || (source > 7))
     source = FAV3_TRIG_FP_ISYNC;
-  vmeWrite32(&(FAV3p[id]->ctrl1), vmeRead32(&(FAV3p[id]->ctrl1)) | source);
-  rval = vmeRead32(&(FAV3p[id]->ctrl1)) & FAV3_TRIG_SEL_MASK;
+
+  vmeWrite32(&FAV3p[id]->ctrl1, vmeRead32(&FAV3p[id]->ctrl1) | (source << 4));
+  rval = (vmeRead32(&FAV3p[id]->ctrl1) & FAV3_TRIG_SEL_MASK) >> 4;
   FAV3UNLOCK;
 
   return (rval);
@@ -4557,12 +4561,14 @@ faV3SetSyncSource(int id, int source)
   CHECKID;
 
   FAV3LOCK;
-  vmeWrite32(&(FAV3p[id]->ctrl1),
-	     vmeRead32(&(FAV3p[id]->ctrl1)) & ~FAV3_SRESET_SEL_MASK);
+  vmeWrite32(&FAV3p[id]->ctrl1,
+	     vmeRead32(&FAV3p[id]->ctrl1) & ~FAV3_SRESET_SEL_MASK);
+
   if((source < 0) || (source > 7))
     source = FAV3_SRESET_FP_ISYNC;
-  vmeWrite32(&(FAV3p[id]->ctrl1), vmeRead32(&(FAV3p[id]->ctrl1)) | source);
-  rval = vmeRead32(&(FAV3p[id]->ctrl1)) & FAV3_SRESET_SEL_MASK;
+
+  vmeWrite32(&FAV3p[id]->ctrl1, vmeRead32(&FAV3p[id]->ctrl1) | (source << 8));
+  rval = (vmeRead32(&FAV3p[id]->ctrl1) & FAV3_SRESET_SEL_MASK) >> 8;
   FAV3UNLOCK;
 
   return (rval);
