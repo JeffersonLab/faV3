@@ -19,8 +19,8 @@ typedef struct  {
   uint16_t st_threshold;
   uint16_t st_nsb;
   uint16_t st_nsa;
-  uint16_t st_nsb_lox;
-  uint16_t st_nsa_lox;
+  uint16_t acc_nsb_lox;
+  uint16_t acc_nsa_lox;
   uint16_t prescale;
   uint16_t hysteresis;
   uint16_t report;

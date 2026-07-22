@@ -110,8 +110,8 @@ faV3InitGlobals()
       faV3[slot].compton.st_threshold = FAV3_SELF_TRIGGER_THRESHOLD_DEFAULT;
       faV3[slot].compton.st_nsb = FAV3_NSB_DEFAULT;
       faV3[slot].compton.st_nsa = FAV3_NSA_DEFAULT;
-      faV3[slot].compton.st_nsb_lox = FAV3_NSB1_LO_DEFAULT;
-      faV3[slot].compton.st_nsa_lox = FAV3_NSA2_LO_DEFAULT;
+      faV3[slot].compton.acc_nsb_lox = FAV3_NSB1_LO_DEFAULT;
+      faV3[slot].compton.acc_nsa_lox = FAV3_NSA2_LO_DEFAULT;
       faV3[slot].compton.prescale = FAV3_SELF_TRIGGER_PRESCALE_DEFAULT ;
       faV3[slot].compton.hysteresis = FAV3_HYSTERSIS_DEFAULT;
       faV3[slot].compton.report = 0;
@@ -256,14 +256,14 @@ faV3ReadConfigFile(char *filename_in)
       SCAN_INT("FAV3_COMPTON_MPS_START", faV3[slot].compton.mps_start, slot_min, slot_max);
       SCAN_INT("FAV3_COMPTON_MPS_STOP", faV3[slot].compton.mps_stop, slot_min, slot_max);
 
-      SCAN_INT("FAV3_COMPTON_LO_THRESHOLD", faV3[slot].compton.lo_threshold, slot_min, slot_max);
-      SCAN_INT("FAV3_COMPTON_HI_THRESHOLD", faV3[slot].compton.hi_threshold, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_ACC_LO_THRESHOLD", faV3[slot].compton.lo_threshold, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_ACC_HI_THRESHOLD", faV3[slot].compton.hi_threshold, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_ACC_NSB_1ST_LO_X", faV3[slot].compton.acc_nsb_lox, slot_min, slot_max);
+      SCAN_INT("FAV3_COMPTON_ACC_NSA_2ND_LO_X", faV3[slot].compton.acc_nsa_lox, slot_min, slot_max);
 
       SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_THRESHOLD", faV3[slot].compton.st_threshold, slot_min, slot_max);
       SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_NSB", faV3[slot].compton.st_nsb, slot_min, slot_max);
       SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_NSA", faV3[slot].compton.st_nsa, slot_min, slot_max);
-      SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_NSB_1ST_LO_X", faV3[slot].compton.st_nsb_lox, slot_min, slot_max);
-      SCAN_INT("FAV3_COMPTON_SELF_TRIGGER_NSA_2ND_LO_X", faV3[slot].compton.st_nsa_lox, slot_min, slot_max);
 
       SCAN_INT("FAV3_COMPTON_PRESCALE", faV3[slot].compton.prescale, slot_min, slot_max);
 
@@ -309,7 +309,7 @@ faV3DownloadAll()
 			     faV3[slot].compton.st_nsb, faV3[slot].compton.st_nsa,
 			     faV3[slot].compton.lo_threshold, faV3[slot].compton.hi_threshold,
 			     faV3[slot].compton.st_threshold,
-			     faV3[slot].compton.st_nsb_lox, faV3[slot].compton.st_nsa_lox);
+			     faV3[slot].compton.acc_nsb_lox, faV3[slot].compton.acc_nsa_lox);
 	  faV3ComptonSetPrescale(slot, faV3[slot].compton.prescale);
 	  faV3ComptonSetHysteresis(slot, faV3[slot].compton.hysteresis);
 	  faV3ComptonSetReportResults(slot, faV3[slot].compton.report);
@@ -445,7 +445,7 @@ faV3GetModulesConfig()
 			     &faV3[slot].compton.st_nsb, &faV3[slot].compton.st_nsa,
 			     &faV3[slot].compton.lo_threshold, &faV3[slot].compton.hi_threshold,
 			     &faV3[slot].compton.st_threshold,
-			     &faV3[slot].compton.st_nsb_lox, &faV3[slot].compton.st_nsa_lox);
+			     &faV3[slot].compton.acc_nsb_lox, &faV3[slot].compton.acc_nsa_lox);
 	  faV3ComptonGetPrescale(slot, &faV3[slot].compton.prescale);
 	  faV3ComptonGetHysteresis(slot, &faV3[slot].compton.hysteresis);
 	  faV3ComptonGetReportResults(slot, &faV3[slot].compton.report);
@@ -617,10 +617,16 @@ faV3ConfigToString(char *string, int32_t length)
 	  sprintf(sss, "FAV3_COMPTON_MPS_STOP %d\n", faV3[slot].compton.mps_stop);
 	  ADD_TO_STRING;
 
-	  sprintf(sss, "FAV3_COMPTON_LO_THRESHOLD %d\n", faV3[slot].compton.lo_threshold);
+	  sprintf(sss, "FAV3_COMPTON_ACC_LO_THRESHOLD %d\n", faV3[slot].compton.lo_threshold);
 	  ADD_TO_STRING;
 
-	  sprintf(sss, "FAV3_COMPTON_HI_THRESHOLD %d\n", faV3[slot].compton.hi_threshold);
+	  sprintf(sss, "FAV3_COMPTON_ACC_HI_THRESHOLD %d\n", faV3[slot].compton.hi_threshold);
+	  ADD_TO_STRING;
+
+	  sprintf(sss, "FAV3_COMPTON_ACC_NSB_1ST_LO_X %d\n", faV3[slot].compton.acc_nsb_lox);
+	  ADD_TO_STRING;
+
+	  sprintf(sss, "FAV3_COMPTON_ACC_NSA_2ND_LO_X %d\n", faV3[slot].compton.acc_nsa_lox);
 	  ADD_TO_STRING;
 
 	  sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_NSB %d\n", faV3[slot].compton.st_nsb);
@@ -630,12 +636,6 @@ faV3ConfigToString(char *string, int32_t length)
 	  ADD_TO_STRING;
 
 	  sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_THRESHOLD %d\n", faV3[slot].compton.st_threshold);
-	  ADD_TO_STRING;
-
-	  sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_NSB_1ST_LO_X %d\n", faV3[slot].compton.st_nsb_lox);
-	  ADD_TO_STRING;
-
-	  sprintf(sss, "FAV3_COMPTON_SELF_TRIGGER_NSA_2ND_LO_X %d\n", faV3[slot].compton.st_nsa_lox);
 	  ADD_TO_STRING;
 
 	  sprintf(sss, "FAV3_COMPTON_PRESCALE %d\n", faV3[slot].compton.prescale);
