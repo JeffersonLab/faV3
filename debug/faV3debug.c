@@ -131,7 +131,6 @@ config(char *choice)
   int32_t rval = faV3Config(config_filename);
 
 
-  faV3ComptonCollectOn(0);
   if(rval != -1)
     faV3ComptonGStatus(0);
 
@@ -282,9 +281,9 @@ syncreset(char *choice)
 int32_t
 enable(char *choice)
 {
-  if(faV3Enable(FAV3_SLOT, 0) != OK)
+  if(faV3ComptonEnable(FAV3_SLOT) != OK)
     {
-      printf("%s: ERROR from faV3Enable\n",
+      printf("%s: ERROR from faV3ComptonEnable\n",
 	     __func__);
       return -1;
     }
@@ -296,9 +295,9 @@ enable(char *choice)
 int32_t
 disable(char *choice)
 {
-  if(faV3Disable(FAV3_SLOT, 0) != OK)
+  if(faV3ComptonDisable(FAV3_SLOT) != OK)
     {
-      printf("%s: ERROR from faV3Disable\n",
+      printf("%s: ERROR from faV3ComptonDisable\n",
 	     __func__);
       return -1;
     }
@@ -674,9 +673,10 @@ readout_loop(void *arg)
 {
   struct timespec dma_start, dma_end;
   dma_control_t *ctrl = (dma_control_t *) arg;
-  int32_t MAXFADCWORDS = 10*1024;
+  int32_t MAXFADCWORDS = (10 * 1024) >> 2;
   int32_t bready = faV3Bready(faV3Slot(0));
 
+  vmeDmaConfig(2,5,1);
   if(bready)
     {
       clock_gettime(CLOCK_MONOTONIC, &dma_start);

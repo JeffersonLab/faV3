@@ -78,8 +78,11 @@ rocDownload()
     }
 
   faV3ComptonSelectTrigger(faV3Slot(0), 0);  // 0: self trigger
-  faV3EnableSoftSync(faV3Slot(0));
-  faV3EnableSoftTrig(faV3Slot(0));
+  faV3SetSyncSource(faV3Slot(0), 6);
+  faV3SetTrigSource(faV3Slot(0), 3);
+
+  faV3EnableBusError(faV3Slot(0));
+
   faV3ComptonGStatus(0);
 
 
@@ -101,7 +104,6 @@ rocPrestart()
     daLogMsg("ERROR", "faV3 configuration failed");
   }
 
-  faV3GEnableSyncSrc();
   int ifa;
   for(ifa=0; ifa < nfaV3; ifa++)
     {
@@ -109,10 +111,13 @@ rocPrestart()
       faV3ResetTriggerCount(faV3Slot(ifa));
     }
 
+  faV3GEnableSyncSrc();
   faV3ComptonGStatus(0);
 
 
-  printf("rocPrestart: User Prestart Executed\n");
+  faV3Sync(faV3Slot(0));
+
+    printf("rocPrestart: User Prestart Executed\n");
 
 }
 
@@ -123,7 +128,7 @@ void
 rocGo()
 {
   /*  Enable FADC */
-  faV3GEnable(0);
+  faV3ComptonEnable(faV3Slot(0));
 
 }
 
@@ -137,7 +142,7 @@ rocEnd()
   dmaPStatsAll();
 
   /* FADC Disable */
-  faV3GDisable(0);
+  faV3ComptonDisable(faV3Slot(0));
 
   /* FADC Event status - Is all data read out */
   faV3ComptonGStatus(0);
@@ -203,7 +208,7 @@ rocTrigger(int evno, int evtype)
   CBCLOSE;
 
   /* Grab a buffer for DMA */
-  unsigned int *dma_dabufp;
+  unsigned int *dma_dabufp = NULL;
 
   DMANODE *the_event = dmaPGetItem(vmeIN);
   if(the_event == (DMANODE *) 0) {

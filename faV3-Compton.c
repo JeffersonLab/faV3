@@ -758,25 +758,31 @@ faV3ComptonSetMaxTriggerCount(int32_t id, uint16_t max_count) {
 }
 
 int32_t
-faV3ComptonCollectOn(int32_t id) {
+faV3ComptonEnable(int32_t id) {
   int32_t rval = OK;
   CHECKID;
 
+  // the start: GO, then COLLECT ON
+  faV3Enable(id, 0);
+
   FAV3LOCK;
-  vmeWrite16(&COMPTONp[id]->config1, 1);
+  vmeWrite16(&COMPTONp[id]->config1, FAV3_COLLECT_ON);
   FAV3UNLOCK;
+
 
   return rval;
 }
 
 int32_t
-faV3ComptonCollectOff(int32_t id) {
+faV3ComptonDisable(int32_t id) {
   int32_t rval = OK;
   CHECKID;
 
   FAV3LOCK;
   vmeWrite16(&COMPTONp[id]->config1, 0);
   FAV3UNLOCK;
+
+  faV3Disable(id, 0);
 
   return rval;
 }

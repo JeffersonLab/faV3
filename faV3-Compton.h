@@ -149,8 +149,8 @@ int32_t faV3ComptonSelectTrigger(int32_t id, uint16_t trigger);
 int32_t faV3ComptonGetSelectTrigger(int32_t id, uint16_t *trigger);
 
 int32_t faV3ComptonSetMaxTriggerCount(int32_t id, uint16_t max_count);
-int32_t faV3ComptonCollectOn(int32_t id);
-int32_t faV3ComptonCollectOff(int32_t id);
+int32_t faV3ComptonEnable(int32_t id);
+int32_t faV3ComptonDisable(int32_t id);
 
 typedef struct faV3_compton_data_struct
 {

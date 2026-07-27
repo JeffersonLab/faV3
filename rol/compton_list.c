@@ -206,7 +206,7 @@ rocGo()
   MAXFADCWORDS = nfaV3 * (4 + blockLevel * 240);
 
   /*  Enable FADC */
-  faV3GEnable(0);
+  faV3ComptonEnable(faV3Slot(0));
 
   /* Interrupts/Polling enabled after conclusion of rocGo() */
 }
@@ -216,7 +216,7 @@ rocEnd()
 {
 
   /* FADC Disable */
-  faV3GDisable(0);
+  faV3ComptonDisable(faV3Slot(0));
 
   /* FADC Event status - Is all data read out */
   faV3ComptonGStatus(0);
