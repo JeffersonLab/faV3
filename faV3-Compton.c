@@ -390,8 +390,8 @@ faV3ComptonGStatus(int sflag)
       printf("%-4d    ",
 	     compton_st[id].config6 & FAV3_START_SET_MASK);
 
-      uint32_t stop_set = compton_st[id].config19 & FAV3_STOP_SET_LSB_MASK;
-      stop_set |= (compton_st[id].config20 & FAV3_STOP_SET_MSB_MASK) << 16;
+      uint32_t stop_set = (compton_st[id].config19 & FAV3_STOP_SET_MSB_MASK) << 7;
+      stop_set |= (compton_st[id].config20 & FAV3_STOP_SET_LSB_MASK);
 
       printf("%-7d   ",
 	     stop_set);
