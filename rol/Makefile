@@ -20,7 +20,7 @@ endif
 # Plug in your primary readout lists here..
 VMEROL			= compton_list.so compton_selftrigger_list.so
 # Add shared library dependencies here.  (jvme, ti, are already included)
-ROLLIBS			= -lfaV3
+ROLLIBS			= -lfaV3 -lsd -lts
 
 ifdef CODA_VME
 INC_CODA_VME	= -isystem${CODA_VME}/include
