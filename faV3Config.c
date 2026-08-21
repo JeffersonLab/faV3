@@ -302,7 +302,7 @@ faV3DownloadAll()
       faV3SetChanDisableMask(slot, faV3[slot].chDisMask);
 
       // COMPTON
-      if(faV3FwRev[slot][FAV3_FW_PROC] == FAV3_COMPTON_SUPPORTED_PROC_FIRMWARE)
+      if((faV3FwRev[slot][FAV3_FW_PROC] & 0xFF00) == (FAV3_COMPTON_SUPPORTED_PROC_FIRMWARE & 0xFF00))
 	{
 	  faV3ComptonSetMPSStartStop(slot, faV3[slot].compton.mps_start,faV3[slot].compton.mps_stop);
 	  faV3ComptonSetProc(slot,
