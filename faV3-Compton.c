@@ -390,8 +390,8 @@ faV3ComptonGStatus(int sflag)
       printf("%-4d    ",
 	     compton_st[id].config6 & FAV3_START_SET_MASK);
 
-      uint32_t stop_set = compton_st[id].config19 & FAV3_STOP_SET_LSB_MASK;
-      stop_set |= (compton_st[id].config20 & FAV3_STOP_SET_MSB_MASK) << 16;
+      uint32_t stop_set = (compton_st[id].config19 & FAV3_STOP_SET_MSB_MASK) << 7;
+      stop_set |= (compton_st[id].config20 & FAV3_STOP_SET_LSB_MASK);
 
       printf("%-7d   ",
 	     stop_set);
@@ -546,13 +546,13 @@ faV3ComptonSetProc(int32_t id,
     return ERROR;
   }
 
-  if(st_nsb_lox > FAV3_SELF_TRIGGER_NSB_MASK) {
-    printf("%s: ERROR: Invalid self trigger nsb 1st lo cross (%d)\n", __func__, st_nsb_lox);
+  if(st_nsb_lox > FAV3_NSB1_LO_MASK) {
+    printf("%s: ERROR: Invalid accumulator nsb 1st lo cross (%d)\n", __func__, st_nsb_lox);
     return ERROR;
   }
 
-  if(st_nsa_lox > FAV3_SELF_TRIGGER_NSA_MASK) {
-    printf("%s: ERROR: Invalid self trigger nsa 2nd lo cross (%d)\n", __func__, st_nsa_lox);
+  if(st_nsa_lox > FAV3_NSA2_LO_MASK) {
+    printf("%s: ERROR: Invalid accumulator nsa 2nd lo cross (%d)\n", __func__, st_nsa_lox);
     return ERROR;
   }
 
