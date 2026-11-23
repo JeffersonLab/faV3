@@ -49,7 +49,7 @@ typedef struct
 } faV3_compton_adc_t;
 
 #define FAV3_COMPTON_SUPPORTED_CTRL_FIRMWARE 0x211
-#define FAV3_COMPTON_SUPPORTED_PROC_FIRMWARE 0x1103
+#define FAV3_COMPTON_SUPPORTED_PROC_FIRMWARE 0x1104
 
 /* status0 */
 #define FAV3_CODE_VERSION_MASK 0x7FFF
@@ -67,11 +67,13 @@ typedef struct
 
 /* config8 */
 #define FAV3_SELF_TRIGGER_NSB_MASK 0xF
-#define FAV3_NSB_DEFAULT 5
+#define FAV3_NSB_DEFAULT 15
+#define FAV3_NSB_MIN 15
 
 /* config9 */
 #define FAV3_SELF_TRIGGER_NSA_MASK 0xFFF
-#define FAV3_NSA_DEFAULT 7
+#define FAV3_NSA_DEFAULT 15
+#define FAV3_NSA_MIN 15
 
 /* config10 */
 #define FAV3_HI_THRESHOLD_MASK 0xFFF

@@ -521,12 +521,12 @@ faV3ComptonSetProc(int32_t id,
 
   CHECKID;
 
-  if(st_nsb > FAV3_SELF_TRIGGER_NSB_MASK) {
+  if((st_nsb < FAV3_NSB_MIN) || (st_nsb > FAV3_SELF_TRIGGER_NSB_MASK)) {
     printf("%s: ERROR: Invalid self trigger nsb (%d)\n", __func__, st_nsb);
     return ERROR;
   }
 
-  if(st_nsa > FAV3_SELF_TRIGGER_NSA_MASK) {
+  if((st_nsa < FAV3_NSA_MIN) || (st_nsa > FAV3_SELF_TRIGGER_NSA_MASK)) {
     printf("%s: ERROR: Invalid self trigger nsa (%d)\n", __func__, st_nsa);
     return ERROR;
   }
